@@ -1,3 +1,5 @@
+if (!CG.vital) CG.vital("log.js file should be loaded first!");
+
 function createGlContext(canvasElementId) {
     const canvas = document.getElementById(canvasElementId);
     const gl = canvas.getContext('webgl2');
@@ -73,7 +75,73 @@ function createProgramWrapper(gl, vsSource, fsSource) {
     });
 }
 
+class Program {
+    #_glProgram;
+    #_gl;
+    constructor(gl, vsSource, fsSource) {
+        this.#_gl = gl;
+        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertexShader, vsSource);
+        gl.compileShader(vertexShader);
+
+        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+            CG.vital("Vertex shader compilation failed:", gl.getShaderInfoLog(vertexShader));
+            gl.deleteShader(vertexShader);
+            return;
+        }
+
+        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fragmentShader, fsSource);
+        gl.compileShader(fragmentShader);
+
+        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+            CG.vital("Fragment shader compilation failed:", gl.getShaderInfoLog(fragmentShader));
+            gl.deleteShader(fragmentShader);
+            return;
+        }
+
+        const shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            CG.vital("Shader program linking failed:", gl.getProgramInfoLog(shaderProgram));
+            gl.deleteProgram(shaderProgram);
+            gl.deleteShader(vertexShader);
+            gl.deleteShader(fragmentShader);
+            return;
+        }
+
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+
+        this.#_glProgram = shaderProgram;
+    }
+    getAttribLocation(name) {
+        return this.#_gl.getAttribLocation(this.#_glProgram, name);
+    }
+    getUniformLocation(name) {
+        //CG.info('[gl.js] uniform location is:', gl.getUniformLocation(shaderProgram, name));
+        return this.#_gl.getUniformLocation(this.#_glProgram, name);
+    }
+    use() {
+        this.#_gl.useProgram(this.#_glProgram);
+    };
+
+    destroy() {
+        this.#_gl.deleteProgram(this.#_glProgram);
+        this.#_glProgram = undefined;
+        this.#_gl = undefined;
+    }
+}
+
+const glWrapper = Object.freeze({
+    Program,
+});
+
 window.CG ??= {};
+window.CG.glWrapper = glWrapper;
 window.CG.createProgramWrapper = createProgramWrapper;
 window.CG.createGlContext = createGlContext;
 

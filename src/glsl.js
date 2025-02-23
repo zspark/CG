@@ -63,15 +63,11 @@ void main() {
 }`,
 };
 
-const shaderSource = Object.freeze({
-    colorCube,
-    gridGround,
-    pureRed,
-});
-
-
 window.CG ??= {};
-window.CG.shaderSource = shaderSource;
+window.CG.shaderSource ??= {};
+window.CG.shaderSource.colorCube = colorCube;
+window.CG.shaderSource.gridGround = gridGround;
+window.CG.shaderSource.pureRed = pureRed;
 
 console.log('[glsl.js] loaded.');
 
