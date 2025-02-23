@@ -27,23 +27,40 @@
     <script src="./src/mouse-events.js"></script>
     <script src="./src/space-controller.js"></script>
     <script src="./src/camera.js"></script>
+    <script src="./src/mesh.js"></script>
     <script>
         const {gl, canvas} = CG.createGlContext('glcanvas');
         const _mouseEvents = CG.registMouseEvents(canvas);
-        const _vpMatrix = new CG.Mat44();
-        const _camera = new CG.Camera(0, 2, 0, _mouseEvents).lookAt(CG.Vec4.VEC4_0001);
+        const _mvpMatrix = new CG.Mat44();
+        const _camera = new CG.Camera(0, 2, 8, _mouseEvents).lookAt(CG.Vec4.VEC4_0001);
         const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 1000);
-        const _geomInfo = CG.geometry.createGridPlane_lines(100, 1);
+        const _meshCtrl = new CG.SpaceController();
 
-        const _programWrapper = CG.createProgramWrapper(gl, CG.shaderSource.gridGround.vs, CG.shaderSource.gridGround.fs);
-        const _positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, _geomInfo.vertices);
-        _programWrapper.bindAttribute("a_position", 3, gl.FLOAT, false, 0, 0);
+        const _programGridground = CG.createProgramWrapper(gl, CG.shaderSource.gridGround.vs, CG.shaderSource.gridGround.fs);
+        const _uLoc_mvpMat = _programGridground.getUniformLocation("u_mvpMatrix");
+        const _uLoc_mvMat = _programGridground.getUniformLocation("u_mvMatrix");
+        const _aLoc_position_plane = _programGridground.getAttribLocation("a_position");
 
-        const _uLoc_mvpMat = _programWrapper.getUniformLocation("u_mvpMatrix");
-        const _uLoc_mvMat = _programWrapper.getUniformLocation("u_mvMatrix");
+        const _geoPlane = CG.Geometry.createGridPlane(100, 1).createGLBuffers(gl);
+        const _meshGround = new CG.Mesh(_geoPlane);
+
+        const _programColorCube = CG.createProgramWrapper(gl, CG.shaderSource.colorCube.vs, CG.shaderSource.colorCube.fs);
+        const _uLoc_mvpMat2 = _programColorCube.getUniformLocation("u_vpMatrix");
+        const _aLoc_position = _programColorCube.getAttribLocation("a_position");
+        const _aLoc_color = _programColorCube.getAttribLocation("a_color");
+
+        const _geo = CG.Geometry.createCube(3).createGLBuffers(gl);
+        const _meshCube = new CG.Mesh(_geo).setPosition(4, 0, 0);
+        _meshCtrl.setSpace(_meshCube).rotateAroundSelfX(CG.Utils.deg2Rad(30)).rotateAroundSelfY(CG.Utils.deg2Rad(77));
+        const _meshCube2 = new CG.Mesh(_geo).setPosition(0, 4, 0);
+        _meshCtrl.setSpace(_meshCube2).rotateAroundSelfY(CG.Utils.deg2Rad(30)).rotateAroundSelfZ(CG.Utils.deg2Rad(77));
+
         gl.enable(gl.CULL_FACE);
         gl.frontFace(gl.CCW);
         gl.cullFace(gl.BACK);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LESS);
+        gl.depthRange(0.0, 1.0);
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.blendEquation(gl.FUNC_ADD);
@@ -51,13 +68,27 @@
         function render() {
             gl.clearColor(0.2, 0.2, 0.2, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
+            _projMat.multiply(_camera.viewMatrix, _mvpMatrix)
 
-            _projMat.multiply(_camera.viewMatrix, _vpMatrix)
-            _programWrapper.useProgram();
-            gl.uniformMatrix4fv(_uLoc_mvpMat, false, _vpMatrix._dataArr32);
+            _programGridground.useProgram();
+            gl.uniformMatrix4fv(_uLoc_mvpMat, false, _mvpMatrix._dataArr32);
             gl.uniformMatrix4fv(_uLoc_mvMat, false, _camera.viewMatrix._dataArr32);
+            _geoPlane.bindAttributes(gl, _aLoc_position_plane);
+            gl.drawArrays(gl.LINES, 0, _meshGround.vertexDataLengthInFloat);
 
-            gl.drawArrays(gl.LINES, 0, _geomInfo.vertices.length);
+
+            _meshCtrl.setSpace(_meshCube).rotateAroundSelfZ(0.01).rotateAround(CG.Vec4.VEC4_0001, CG.Vec4.VEC4_0100, 0.01);
+            _meshCube.cascade(_mvpMatrix, _mvpMatrix);
+            _programColorCube.useProgram();
+            gl.uniformMatrix4fv(_uLoc_mvpMat2, false, _mvpMatrix._dataArr32);
+            _geo.bindAttributes(gl, _aLoc_position, -1, _aLoc_color);
+            gl.drawElements(gl.TRIANGLES, _meshCube.numberIndices, gl.UNSIGNED_SHORT, 0);
+
+
+            _meshCtrl.setSpace(_meshCube2).rotateAroundSelfY(0.01).rotateAround(CG.Vec4.VEC4_0001, CG.Vec4.VEC4_0010, 0.01);
+            _meshCube2.cascade(_projMat.multiply(_camera.viewMatrix, _mvpMatrix), _mvpMatrix);
+            gl.uniformMatrix4fv(_uLoc_mvpMat2, false, _mvpMatrix._dataArr32);
+            gl.drawElements(gl.TRIANGLES, _meshCube2.numberIndices, gl.UNSIGNED_SHORT, 0);
 
             requestAnimationFrame(render);
         }

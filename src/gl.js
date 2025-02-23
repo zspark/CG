@@ -45,10 +45,15 @@ function createProgramWrapper(gl, vsSource, fsSource) {
 
     const bindAttribute = (name, size, type, normalized = false, stride = 0, offset = 0) => {
         const _loc = gl.getAttribLocation(shaderProgram, name);
+        //CG.info('[gl.js] attribute location is:', _loc);
         gl.enableVertexAttribArray(_loc);
         gl.vertexAttribPointer(_loc, size, type, normalized, stride, offset);
     };
+    const getAttribLocation = (name) => {
+        return gl.getAttribLocation(shaderProgram, name);
+    };
     const getUniformLocation = (name) => {
+        //CG.info('[gl.js] uniform location is:', gl.getUniformLocation(shaderProgram, name));
         return gl.getUniformLocation(shaderProgram, name);
     };
     const deleteProgram = () => {
@@ -62,6 +67,7 @@ function createProgramWrapper(gl, vsSource, fsSource) {
         shaderProgram,
         bindAttribute,
         getUniformLocation,
+        getAttribLocation,
         useProgram,
         deleteProgram,
     });

@@ -1,3 +1,5 @@
+if (!CG.log) CG.vital("log.js file should be loaded first!");
+
 function createCube(edgeLength) {
     const _half = edgeLength * .5;
     const vertices = new Float32Array([
@@ -106,7 +108,156 @@ function createGridPlane_lines(quaterSize, step = 1) {
     };
 }
 
+/**
+* Geometry is a mathmatical shape, shared with man meshes.
+*
+* position attribute must use FLOAT;
+* normal attribute must use FLOAT;
+* color attribute must use FLOAT, should be clamped to [0, 1];
+* index must use UNSIGNED_SHORT;
+*
+* gl.FLOAT 5126
+* gl.UNSIGNED_SHORT 5123
+*/
+class Geometry {
+    static createCube(edgeLength) {
+        const _half = edgeLength * .5;
+        const vertices = new Float32Array([
+            -_half, -_half, _half, // 前下左 0
+            1, 0, 0,//0
+            _half, -_half, _half, // 前下右 1
+            0, 1, 0,//1
+            _half, _half, _half, // 前上右 2
+            0, 0, 1,//2
+            -_half, _half, _half, // 前上左 3
+            1, 1, 1,//3
+            -_half, -_half, -_half, // 后下左 4
+            0, 0, 1,//4
+            _half, -_half, -_half, // 后下右 5
+            1, 1, 1,//5
+            _half, _half, -_half, // 后上右 6
+            1, 0, 0,//6
+            -_half, _half, -_half, // 后上左 7
+            0, 1, 0,//7
+        ]);
+
+        const indices = new Uint16Array([
+            0, 1, 2, 0, 2, 3, // 前面
+            1, 5, 6, 1, 6, 2, // 右面
+            5, 4, 7, 5, 7, 6, // 后面
+            4, 0, 3, 4, 3, 7, // 左面
+            3, 2, 6, 3, 6, 7, // 上面
+            0, 4, 5, 0, 5, 1, // 下面
+        ]);
+
+        return new Geometry(vertices, indices)
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 24, 0)
+            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, 5126, false, 24, 12);
+
+    }
+
+    static createGridPlane(quaterSize, step = 1) {
+        const { vertices } = CG.geometry.createGridPlane_lines(quaterSize, step);
+        return new Geometry(vertices)
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 0, 0);
+    }
+
+    static assembleFromGLTF(glftContent) {
+        CG.info("[geometry.js] need implementation.");
+        //TODO:
+    }
+
+    static ATTRIB_POSITION = "position";
+    static ATTRIB_NORMAL = "normal";
+    static ATTRIB_COLOR = "color";
+
+    #_vertices;
+    #_indices;
+    #_glVertexBuffer;
+    #_glIndexBuffer;
+    #_attributeLayouts = {};
+    #_vertexBufferLength = -1;
+    #_indexBufferLength = -1;
+    constructor(vertices, indices) {
+        this.#_vertices = vertices;
+        this.#_indices = indices;
+    }
+
+    get vertexBufferLength() {
+        return this.#_vertexBufferLength;
+    }
+
+    get indexBufferLength() {
+        return this.#_indexBufferLength;
+    }
+
+    createGLBuffers(gl, usage = undefined) {
+        if (this.#_vertices) this.createVertexGLBuffer(gl, this.#_vertices, usage);
+        if (this.#_indices) this.createIndexGLBuffer(gl, this.#_indices, usage);
+        this.#_indices = this.#_vertices = undefined;
+        return this;
+    }
+    createVertexGLBuffer(gl, data, usage = undefined) {
+        if (this.#_glVertexBuffer) return this;
+        this.#_glVertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, usage ?? gl.STATIC_DRAW);
+        this.#_vertexBufferLength = data.length;
+        return this;
+    }
+    setAttributeLayout(attributeName, size, type, normalized, stride, offset) {
+        this.#_attributeLayouts[attributeName] = {
+            size, type, normalized, stride, offset,
+        };
+        return this;
+    }
+
+    createIndexGLBuffer(gl, data, usage = undefined) {
+        if (this.#_glIndexBuffer) return this;
+        this.#_glIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#_glIndexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, usage ?? gl.STATIC_DRAW);
+        this.#_indexBufferLength = data.length;
+        return this;
+    }
+
+    bindAttributes(gl, positionLocation, normalLocation = -1, colorLocation = -1) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
+
+        if (positionLocation >= 0) {
+            //CG.info('[gl.js] position attribute location is:', positionLocation);
+            let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_POSITION];
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, size, type, normalized, stride, offset);
+        }
+
+        if (normalLocation >= 0) {
+            gl.enableVertexAttribArray(normalLocation);
+            let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_NORMAL];
+            gl.vertexAttribPointer(normalLocation, size, type, normalized, stride, offset);
+        }
+
+        if (colorLocation >= 0) {
+            gl.enableVertexAttribArray(colorLocation);
+            let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_COLOR];
+            gl.vertexAttribPointer(colorLocation, size, type, normalized, stride, offset);
+        }
+        return this;
+    }
+
+    destroyGLBuffer(gl) {
+        if (!!this.#_glVertexBuffer) gl.deleteBuffer(this.#_glVertexBuffer);
+        if (!!this.#_glIndexBuffer) gl.deleteBuffer(this.#_glIndexBuffer);
+        this.#_attributeLayouts = {};
+        this.#_glIndexBuffer = this.#_glIndexBuffer = undefined;
+        return this;
+    }
+}
+
 window.CG ??= {};
+window.CG.Geometry = Geometry;
+
+CG.warn("[geometry.js] all methods under 'geometry' object are deprecated!");
 window.CG.geometry = Object.freeze({
     createCube,
     createPlane,

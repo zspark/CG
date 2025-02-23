@@ -28,6 +28,7 @@ class SpaceController {
     }
     setSpace(space) {
         this.#_space = space;
+        return this;
     }
 
     /**
@@ -36,6 +37,7 @@ class SpaceController {
     moveRight(delta) {
         CG.Mat44.createTranslateX(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
 
     /**
@@ -44,6 +46,7 @@ class SpaceController {
     moveUp(delta) {
         CG.Mat44.createTranslateY(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
 
     /**
@@ -52,36 +55,44 @@ class SpaceController {
     moveForward(delta) {
         CG.Mat44.createTranslateZ(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
 
     createScaleOfX(delta) {
         CG.Mat44.createScaleOfX(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
     createScaleOfY(delta) {
         CG.Mat44.createScaleOfY(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
     createScaleOfZ(delta) {
         CG.Mat44.createScaleOfZ(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
 
     setPosition(posInParentSpace) {
         this.#_space.setPosition(posInParentSpace);
+        return this;
     }
 
     rotateAroundSelfX(delta) {
         CG.Mat44.createRotateAroundX(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
     rotateAroundSelfY(delta) {
         CG.Mat44.createRotateAroundY(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
     rotateAroundSelfZ(delta) {
         CG.Mat44.createRotateAroundZ(delta, this.#_helperMat44);
         this.#_space.transform(this.#_helperMat44);
+        return this;
     }
 
     /*
@@ -91,7 +102,7 @@ class SpaceController {
     axisZPointsTo(pos, positive = true) {
         let _space = this.#_space;
         const _d = _space.getTransform(this.#_helperMat44)._dataArr32;
-        if (pos.isSame(_d[12], _d[13], _d[14], _d[15])) return;
+        if (pos.isSame(_d[12], _d[13], _d[14], _d[15])) return this;
 
         let _x = this.#_helperVec4_x;
         let _y = this.#_helperVec4_y;
@@ -105,6 +116,7 @@ class SpaceController {
             _z.cross(_x, _y).normalize();
             _space.setAxisXYZVec(_x, _y, _z);
         }
+        return this;
     }
 
     /**
@@ -116,6 +128,7 @@ class SpaceController {
         let _w = this.#_helperVec4_w;
         _space.getPosition(_w).add(deltaX, 0, deltaZ, 0);
         _space.setPositionVec(_w);
+        return this;
     }
 
     rotateVertically(delta) {
@@ -136,6 +149,7 @@ class SpaceController {
             this.#_helperMat44.setWithColumns(this.#_helperVec4_x, this.#_helperVec4_y, this.#_helperVec4_z, Vec4.VEC4_0001);
             this.#_space.transform(this.#_helperMat44);
         }
+        return this;
     }
 
     /**
@@ -162,6 +176,7 @@ class SpaceController {
         _w.negate();
         this.#_space.setAxisXYZVec(_x.addVec(_w).normalize(), _y.addVec(_w).normalize(), _z.addVec(_w).normalize());
         this.#_space.setPositionVec(_w.negate().addVec(posInParentSpace));
+        return this;
     }
 }
 

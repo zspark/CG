@@ -952,5 +952,5 @@ window.CG.Mat44 = Mat44;
 window.CG.Mat33 = Mat33;
 window.CG.Quat = Quat;
 
-console.log('[util.js] loaded.');
+console.log('[math.js] loaded.');
 

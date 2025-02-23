@@ -25,7 +25,7 @@ const gridGround = {
     vs: `#version 300 es
 uniform mat4 u_mvpMatrix;
 uniform mat4 u_mvMatrix;
-in vec3 a_position;
+layout(location=0) in vec3 a_position;
 out float v_distanceToCamera;
 void main() {
     vec4 pos=vec4(a_position,1.0);
@@ -48,9 +48,25 @@ void main() {
 }`,
 };
 
+const pureRed = {
+    vs: `#version 300 es
+uniform mat4 u_mvpMatrix;
+layout(location=0) in vec3 a_position;
+void main() {
+    gl_Position = u_mvpMatrix * vec4(a_position, 1.0);
+}`,
+    fs: `#version 300 es
+precision mediump float;
+out vec4 fragColor;
+void main() {
+    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+}`,
+};
+
 const shaderSource = Object.freeze({
     colorCube,
     gridGround,
+    pureRed,
 });
 
 
