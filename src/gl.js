@@ -11,6 +11,7 @@ window.CG ??= {};
         }
         return { gl, canvas };
     }
+
     function createProgramWrapper(gl, vsSource, fsSource) {
         const vertexShader = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vertexShader, vsSource);
@@ -78,9 +79,12 @@ window.CG ??= {};
         });
     }
 
+
     class Program {
         #_glProgram;
         #_gl;
+        #_uniformUpdater;
+        #_mapUniform = new Map();
         constructor(gl, vsSource, fsSource) {
             this.#_gl = gl;
             const vertexShader = gl.createShader(gl.VERTEX_SHADER);
@@ -119,17 +123,36 @@ window.CG ??= {};
             gl.deleteShader(vertexShader);
             gl.deleteShader(fragmentShader);
 
+            const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
+            for (let i = 0; i < uniformCount; i++) {
+                const uniformInfo = gl.getActiveUniform(shaderProgram, i);
+                if (uniformInfo) {
+                    const _u = gl.getUniformLocation(shaderProgram, uniformInfo.name);
+                    this.#_mapUniform.set(uniformInfo.name, _u);
+                } else {
+                    CG.vital("[gl.js] can't get uniform info.");
+                }
+            }
+
             this.#_glProgram = shaderProgram;
         }
         getAttribLocation(name) {
             return this.#_gl.getAttribLocation(this.#_glProgram, name);
         }
-        getUniformLocation(name) {
-            //CG.info('[gl.js] uniform location is:', gl.getUniformLocation(shaderProgram, name));
-            return this.#_gl.getUniformLocation(this.#_glProgram, name);
+        setUniformUpdater(updater) {
+            this.#_uniformUpdater = updater;
+            return this;
+        }
+        updateUniforms() {
+            const _upt = this.#_uniformUpdater;
+            this.#_mapUniform.forEach((v, k) => {
+                _upt[`update${k}`](v);
+            });
+            return this;
         }
         use() {
             this.#_gl.useProgram(this.#_glProgram);
+            return this;
         };
 
         destroy() {
