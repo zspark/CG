@@ -62,6 +62,13 @@ class Vec4 {
     removeY() { this.y = 0; return this; }
     removeZ() { this.z = 0; return this; }
     removeW() { this.w = 0; return this; }
+    copyFrom(v) {
+        this.x = v.x;
+        this.y = v.y;
+        this.z = v.z;
+        this.w = v.w;
+        return this;
+    }
 
     negate() {
         this.x *= -1;
@@ -91,34 +98,31 @@ class Vec4 {
         return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
     }
 
-    add(x, y, z, w, newVec = false) {
-        let _v = newVec ? this.clone() : this;
-        _v.x += x;
-        _v.y += y;
-        _v.z += z;
-        _v.w += w;
-        return _v;
+    add(x, y, z, w) {
+        this.x += x;
+        this.y += y;
+        this.z += z;
+        this.w += w;
+        return this;
     }
-    addVec(v, newVec = false) {
-        return this.add(v.x, v.y, v.z, v.w, newVec);
-    }
-
-    multiply(scalar, newVec = false) {
-        let _v = newVec ? this.clone() : this;
-        _v.x *= scalar;
-        _v.y *= scalar;
-        _v.z *= scalar;
-        _v.w *= scalar;
-        return _v;
+    addVec(v) {
+        return this.add(v.x, v.y, v.z, v.w);
     }
 
-    normalize(newVec = false) {
-        let _v = newVec ? this.clone() : this;
+    multiply(scalar) {
+        this.x *= scalar;
+        this.y *= scalar;
+        this.z *= scalar;
+        this.w *= scalar;
+        return this;
+    }
+
+    normalize() {
         const mag = this.magnitude();
         if (mag === 0) { // Avoid division by zero
-            return _v;
+            return this;
         }
-        return _v.multiply(1 / mag, false);
+        return this.multiply(1 / mag, false);
     }
 
     cross(v, outVec4) {
@@ -179,32 +183,29 @@ class Vec3 {
         return _v;
     }
 
-    add(x, y, z, newVec = false) {
-        let _v = newVec ? this.clone() : this;
-        _v.x += x;
-        _v.y += y;
-        _v.z += z;
-        return _v;
+    add(x, y, z) {
+        this.x += x;
+        this.y += y;
+        this.z += z;
+        return this;
     }
-    addVec(v, newVec = false) {
-        return this.add(v.x, v.y, v.z, newVec);
-    }
-
-    multiply(scalar, newVec = false) {
-        let _v = newVec ? this.clone() : this;
-        _v.x *= scalar;
-        _v.y *= scalar;
-        _v.z *= scalar;
-        return _v;
+    addVec(v) {
+        return this.add(v.x, v.y, v.z);
     }
 
-    normalize(newVec = false) {
-        let _v = newVec ? this.clone() : this;
+    multiply(scalar) {
+        this.x *= scalar;
+        this.y *= scalar;
+        this.z *= scalar;
+        return this;
+    }
+
+    normalize() {
         const mag = this.magnitude();
         if (mag === 0) { // Avoid division by zero
-            return _v;
+            return this;
         }
-        return _v.multiply(1 / mag, false);
+        return this.multiply(1 / mag, false);
     }
 
     clone() { return new Vec3(this.x, this.y, this.z); }
@@ -247,6 +248,10 @@ const _identityMat44Data = Object.freeze([
     0, 1, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1]);
+const _identityMat33Data = Object.freeze([
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1]);
 
 /**
 * column major in store.
@@ -255,7 +260,7 @@ class Mat44 {
     _dataArr32 = new Float32Array(16);
     constructor() { }
 
-    static rotateAroundX(theta, outMat) {
+    static createRotateAroundX(theta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[5] = Math.cos(theta);
         outMat._dataArr32[9] = -Math.sin(theta);
@@ -263,7 +268,7 @@ class Mat44 {
         outMat._dataArr32[10] = Math.cos(theta);
         return outMat;
     }
-    static rotateAroundY(theta, outMat) {
+    static createRotateAroundY(theta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[0] = Math.cos(theta);
         outMat._dataArr32[8] = Math.sin(theta);
@@ -271,7 +276,7 @@ class Mat44 {
         outMat._dataArr32[10] = Math.cos(theta);
         return outMat;
     }
-    static rotateAroundZ(theta, outMat) {
+    static createRotateAroundZ(theta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[0] = Math.cos(theta);
         outMat._dataArr32[4] = -Math.sin(theta);
@@ -280,37 +285,37 @@ class Mat44 {
         return outMat;
     }
 
-    static translateX(delta, outMat) {
+    static createTranslateX(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[12] = delta;
         return outMat;
     }
-    static translateY(delta, outMat) {
+    static createTranslateY(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[13] = delta;
         return outMat;
     }
-    static translateZ(delta, outMat) {
+    static createTranslateZ(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[14] = delta;
         return outMat;
     }
-    static scaleX(delta, outMat) {
+    static createScaleOfX(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[0] = delta;
         return outMat;
     }
-    static scaleY(delta, outMat) {
+    static createScaleOfY(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[5] = delta;
         return outMat;
     }
-    static scaleZ(delta, outMat) {
+    static createScaleOfZ(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[10] = delta;
         return outMat;
     }
-    static scale(delta, outMat) {
+    static createScaleOfSpace(delta, outMat) {
         (outMat ??= new Mat44()).setToIdentity();
         outMat._dataArr32[0] = delta;
         outMat._dataArr32[5] = delta;
@@ -346,6 +351,41 @@ class Mat44 {
         _a = _data[7]; _data[7] = _data[13]; _data[13] = _a;
         _a = _data[11]; _data[11] = _data[14]; _data[14] = _a;
         return this;
+    }
+
+    multiplyLeftTop33(mat44Right, outMat44) {
+        const a = this._dataArr32;
+        let a00 = a[0],
+            a01 = a[1],
+            a02 = a[2];
+        let a10 = a[4],
+            a11 = a[5],
+            a12 = a[6];
+        let a20 = a[8],
+            a21 = a[9],
+            a22 = a[10];
+        const b = mat44Right._dataArr32;
+        let b00 = b[0],
+            b01 = b[1],
+            b02 = b[2];
+        let b10 = b[4],
+            b11 = b[5],
+            b12 = b[6];
+        let b20 = b[8],
+            b21 = b[9],
+            b22 = b[10];
+        outMat44 ??= new Mat44();
+        const out = outMat44._dataArr32;
+        out[0] = b00 * a00 + b01 * a10 + b02 * a20;
+        out[1] = b00 * a01 + b01 * a11 + b02 * a21;
+        out[2] = b00 * a02 + b01 * a12 + b02 * a22;
+        out[4] = b10 * a00 + b11 * a10 + b12 * a20;
+        out[5] = b10 * a01 + b11 * a11 + b12 * a21;
+        out[6] = b10 * a02 + b11 * a12 + b12 * a22;
+        out[8] = b20 * a00 + b21 * a10 + b22 * a20;
+        out[9] = b20 * a01 + b21 * a11 + b22 * a21;
+        out[10] = b20 * a02 + b21 * a12 + b22 * a22;
+        return outMat44;
     }
 
     multiply(mat44Right, outMat44) {
@@ -558,10 +598,357 @@ ${_data[3]}, ${_data[7]}, ${_data[11]}, ${_data[15]}
     }
 }
 
+class Mat33 {
+    _dataArr32 = new Float32Array(9);
+    constructor() { }
+
+    static createRotateAroundX(theta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[4] = Math.cos(theta);
+        outMat._dataArr32[7] = -Math.sin(theta);
+        outMat._dataArr32[5] = Math.sin(theta);
+        outMat._dataArr32[8] = Math.cos(theta);
+        return outMat;
+    }
+    static createRotateAroundY(theta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[0] = Math.cos(theta);
+        outMat._dataArr32[6] = Math.sin(theta);
+        outMat._dataArr32[2] = -Math.sin(theta);
+        outMat._dataArr32[8] = Math.cos(theta);
+        return outMat;
+    }
+    static createRotateAroundZ(theta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[0] = Math.cos(theta);
+        outMat._dataArr32[3] = -Math.sin(theta);
+        outMat._dataArr32[1] = Math.sin(theta);
+        outMat._dataArr32[4] = Math.cos(theta);
+        return outMat;
+    }
+
+    static createScaleOfX(delta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[0] = delta;
+        return outMat;
+    }
+    static createScaleOfY(delta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[4] = delta;
+        return outMat;
+    }
+    static createScaleOfZ(delta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[8] = delta;
+        return outMat;
+    }
+    static createScaleOfSpace(delta, outMat) {
+        (outMat ??= new Mat33()).setToIdentity();
+        outMat._dataArr32[0] = delta;
+        outMat._dataArr32[4] = delta;
+        outMat._dataArr32[8] = delta;
+        return outMat;
+    }
+
+    setToIdentity() {
+        const _d = this._dataArr32;
+        _d[0] = 1;
+        _d[1] = 0;
+        _d[2] = 0;
+        _d[3] = 0;
+        _d[4] = 1;
+        _d[5] = 0;
+        _d[6] = 0;
+        _d[7] = 0;
+        _d[8] = 1;
+        return this;
+    }
+
+    reset(arrLikeData = undefined, startIndex = 0, isRowMajor = true) {
+        arrLikeData ??= _identityMat33Data;
+        if (arrLikeData.length - startIndex < 9) CG.vital("[Mat44] parameter lacks of elements, should be at least 9!");
+        for (let i = 0; i < 9; ++i, ++startIndex) {
+            this._dataArr32[i] = arrLikeData[startIndex];
+        }
+        if (isRowMajor) {
+            this.transpose();
+        }
+        return this;
+    }
+
+    transpose() {
+        const _data = this._dataArr32;
+        let _a = _data[1]; _data[1] = _data[3]; _data[3] = _a;
+        _a = _data[2]; _data[2] = _data[6]; _data[6] = _a;
+        _a = _data[5]; _data[5] = _data[7]; _data[7] = _a;
+        return this;
+    }
+
+    multiply(mat33Right, outMat33) {
+        const a = this._dataArr32;
+        let a00 = a[0],
+            a01 = a[1],
+            a02 = a[2];
+        let a10 = a[3],
+            a11 = a[4],
+            a12 = a[5];
+        let a20 = a[6],
+            a21 = a[7],
+            a22 = a[8];
+        const b = mat33Right._dataArr32;
+        let b00 = b[0],
+            b01 = b[1],
+            b02 = b[2];
+        let b10 = b[3],
+            b11 = b[4],
+            b12 = b[5];
+        let b20 = b[6],
+            b21 = b[7],
+            b22 = b[8];
+        outMat33 ??= new Mat33();
+        const out = outMat33._dataArr32;
+        out[0] = b00 * a00 + b01 * a10 + b02 * a20;
+        out[1] = b00 * a01 + b01 * a11 + b02 * a21;
+        out[2] = b00 * a02 + b01 * a12 + b02 * a22;
+        out[3] = b10 * a00 + b11 * a10 + b12 * a20;
+        out[4] = b10 * a01 + b11 * a11 + b12 * a21;
+        out[5] = b10 * a02 + b11 * a12 + b12 * a22;
+        out[6] = b20 * a00 + b21 * a10 + b22 * a20;
+        out[7] = b20 * a01 + b21 * a11 + b22 * a21;
+        out[8] = b20 * a02 + b21 * a12 + b22 * a22;
+        return outMat33;
+    }
+
+    multiplyVec3(vec3, outVec3) {
+        const d = this._dataArr32;
+        const { x, y, z, w } = vec3;
+        outVec3 ??= new Vec4();
+        outVec3.x = d[0] * x + d[3] * y + d[6] * z;
+        outVec3.y = d[1] * x + d[4] * y + d[7] * z;
+        outVec3.z = d[2] * x + d[5] * y + d[8] * z;
+        return outVec3;
+    }
+
+    clone() {
+        return new Mat33().reset(this._dataArr32, 0, false);
+    }
+
+    copyFrom(mat33) {
+        return this.reset(mat33._dataArr32, 0, false);
+    }
+
+    determinant() {
+        const a = this._dataArr32;
+        let a00 = a[0],
+            a01 = a[1],
+            a02 = a[2];
+        let a10 = a[3],
+            a11 = a[4],
+            a12 = a[5];
+        let a20 = a[6],
+            a21 = a[7],
+            a22 = a[8];
+        return (
+            a00 * (a22 * a11 - a12 * a21) +
+            a01 * (-a22 * a10 + a12 * a20) +
+            a02 * (a21 * a10 - a11 * a20)
+        );
+    }
+
+    invert() {
+        const a = this._dataArr32;
+        let a00 = a[0],
+            a01 = a[1],
+            a02 = a[2];
+        let a10 = a[3],
+            a11 = a[4],
+            a12 = a[5];
+        let a20 = a[6],
+            a21 = a[7],
+            a22 = a[8];
+        let b01 = a22 * a11 - a12 * a21;
+        let b11 = -a22 * a10 + a12 * a20;
+        let b21 = a21 * a10 - a11 * a20;
+        // Calculate the determinant
+        let det = a00 * b01 + a01 * b11 + a02 * b21;
+        if (!det) {
+            return null;
+        }
+        det = 1.0 / det;
+        const out = this._dataArr32;
+        out[0] = b01 * det;
+        out[1] = (-a22 * a01 + a02 * a21) * det;
+        out[2] = (a12 * a01 - a02 * a11) * det;
+        out[3] = b11 * det;
+        out[4] = (a22 * a00 - a02 * a20) * det;
+        out[5] = (-a12 * a00 + a02 * a10) * det;
+        out[6] = b21 * det;
+        out[7] = (-a21 * a00 + a01 * a20) * det;
+        out[8] = (a11 * a00 - a01 * a10) * det;
+        return this;
+    }
+
+    setWithColumns(a, b, c) {
+        const _data = this._dataArr32;
+        if (a) {
+            _data[0] = a.x;
+            _data[1] = a.y;
+            _data[2] = a.z;
+        }
+
+        if (b) {
+            _data[4] = b.x;
+            _data[5] = b.y;
+            _data[6] = b.z;
+        }
+
+        if (c) {
+            _data[8] = c.x;
+            _data[9] = c.y;
+            _data[10] = c.z;
+        }
+        return this;
+    }
+
+    print() {
+        CG.info(this.toString());
+    }
+    toString() {
+        const _data = this._dataArr32;
+        return `${_data[0]}, ${_data[3]}, ${_data[6]}
+${_data[1]}, ${_data[4]}, ${_data[7]}
+${_data[2]}, ${_data[5]}, ${_data[8]}
+`;
+    }
+}
+
+class Quat {
+    static createRotateQuat(theta, axis, outQuat) {
+        let h = theta * .5;
+        let sh = Math.sin(h), ch = Math.cos(h);
+        outQuat ??= new Quat();
+        outQuat.w = ch;
+        outQuat.x = sh * axis.x;
+        outQuat.y = sh * axis.y;
+        outQuat.z = sh * axis.z;
+        return outQuat;
+    }
+
+    x;
+    y;
+    z;
+    w;
+    constructor(x = 0, y = 0, z = 0, w = 1) {
+        this.reset(x, y, z, w);
+    }
+
+    identity() {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        this.w = 1;
+        return this;
+    }
+
+    reset(x, y, z, w) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.w = w;
+        return this;
+    }
+
+    removeX() { this.x = 0; return this; }
+    removeY() { this.y = 0; return this; }
+    removeZ() { this.z = 0; return this; }
+    removeW() { this.w = 0; return this; }
+
+    magnitude() {
+        return Math.sqrt(this.dot(this));
+    }
+    magnitudeSquared() {
+        return this.dot(this);
+    }
+
+    isSame(x, y, z, w) {
+        return (CG.Utils.numberSame(this.x, x) &&
+            CG.Utils.numberSame(this.y, y) &&
+            CG.Utils.numberSame(this.z, z) &&
+            CG.Utils.numberSame(this.w, w));
+    }
+
+    dot(q) {
+        return this.x * q.x + this.y * q.y + this.z * q.z + this.w * q.w;
+    }
+
+    add(q) {
+        this.x += q.x;
+        this.y += q.y;
+        this.z += q.z;
+        this.w += q.w;
+        return this;
+    }
+
+    conjugate() {
+        this.x *= -1;
+        this.y *= -1;
+        this.z *= -1;
+        return this;
+    }
+
+    multiply(q, outQuat) {
+        let ax = this.x,
+            ay = this.y,
+            az = this.z,
+            aw = this.w;
+        let bx = q.x,
+            by = q.y,
+            bz = q.z,
+            bw = q.w;
+        outQuat ??= new Quat();
+        outQuat.x = ax * bw + aw * bx + ay * bz - az * by;
+        outQuat.y = ay * bw + aw * by + az * bx - ax * bz;
+        outQuat.z = az * bw + aw * bz + ax * by - ay * bx;
+        outQuat.w = aw * bw - ax * bx - ay * by - az * bz;
+        return outQuat;
+    }
+
+    normalize() {
+        let mag = this.magnitude();
+        if (mag === 0) { // Avoid division by zero
+            return this;
+        }
+        mag = 1.0 / mag;
+        this.x *= mag;
+        this.y *= mag;
+        this.z *= mag;
+        this.w *= mag;
+        return this;
+    }
+
+    clone() { return new Quat(this.x, this.y, this.z, this.w); }
+    copyFrom(q) {
+        this.x = q.x;
+        this.y = q.y;
+        this.z = q.z;
+        this.w = q.w;
+        return this;
+    }
+
+    print() {
+        CG.info(this.toString());
+    }
+    toString() {
+        return `quat={${this.w}, <${this.x}, ${this.y}, ${this.z}>}`;
+    }
+}
+
 window.CG ??= {};
 window.CG.Vec4 = Vec4;
 window.CG.Vec3 = Vec3;
 window.CG.Mat44 = Mat44;
+window.CG.Mat33 = Mat33;
+window.CG.Quat = Quat;
 
 console.log('[util.js] loaded.');
 

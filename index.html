@@ -20,13 +20,17 @@
     <script src="./src/math.js"></script>
     <script src="./src/gl.js"></script>
     <script src="./src/geometry.js"></script>
-    <script src="./src/utils.js"></script>
     <script src="./src/orthogonal-space.js"></script>
+    <script src="./src/utils.js"></script>
+    <script src="./src/mouse-events.js"></script>
+    <script src="./src/space-controller.js"></script>
+    <script src="./src/camera.js"></script>
     <script>
-        const {gl} = CG.createGlContext('glcanvas');
+        const {gl, canvas} = CG.createGlContext('glcanvas');
+        const _mouseEvents = CG.registMouseEvents(canvas);
 
         const _vpMatrix = new CG.Mat44();
-        const _viewspace = new CG.OrthogonalSpace().setPosition(0, 0, 6);
+        const _camera = new CG.Camera(0, 0.4, 6, _mouseEvents);
         const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 100);
 
         const vsSource = `#version 300 es
@@ -58,7 +62,7 @@
             gl.clearColor(0.0, 0.0, 0.0, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
-            _projMat.multiply(_viewspace.transformationInv, _vpMatrix)
+            _projMat.multiply(_camera.viewMatrix, _vpMatrix)
             _programWrapper.useProgram();
             gl.uniformMatrix4fv(_loc, false, _vpMatrix._dataArr32);
 

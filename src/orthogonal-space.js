@@ -4,123 +4,108 @@ if (!CG.Vec4) CG.vital("math.js file should be loaded first!");
 * we use right handed system.
 */
 class OrthogonalSpace {
-    static PLANE_ZOX = Object.freeze(1);
-    static PLANE_XOY = Object.freeze(2);
-    static PLANE_YOZ = Object.freeze(3);
-
     #_invMatDirty = false;
-    #_transformationInv = new Mat44();
-    #_transformation = new Mat44();
+    #_transformInv = new Mat44();
+    #_transform = new Mat44();
 
     constructor() {
-        this.#_transformation.setToIdentity();
-        this.#_transformationInv.setToIdentity();
+        this.#_transform.setToIdentity();
+        this.#_transformInv.setToIdentity();
     }
 
-    get transformation() {
-        return this.#_transformation;
-    }
-    get transformationInv() {
+    get transformInv() {
         if (this.#_invMatDirty) {
-            this.#_transformationInv.copyFrom(this.#_transformation).invert();
+            this.#_transformInv.copyFrom(this.#_transform).invert();
             this.#_invMatDirty = false;
         }
-        return this.#_transformationInv;
+        return this.#_transformInv;
     }
-    getAxisXProjectedToParent(plane, outVec4, doNormalize = true) {
-        const _d = this.transformation._dataArr32;
-        outVec4 ??= new Vec4();
-        switch (plane) {
-            case OrthogonalSpace.PLANE_XOY:
-                outVec4.reset(_d[0], _d[1], 0, 0);
-                break;
-            case OrthogonalSpace.PLANE_YOZ:
-                outVec4.reset(0, _d[1], _d[2], 0);
-                break;
-            case OrthogonalSpace.PLANE_ZOX:
-            default:
-                outVec4.reset(_d[0], 0, _d[2], 0);
-                break;
-        }
-        return doNormalize ? outVec4.normalize() : outVec4;
+    cascade(mat44Left, outMat44) {
+        mat44Left.multiply(this.#_transform, outMat44);
+        return outMat44;
     }
-    getAxisYProjectedToParent(plane, outVec4, doNormalize = true) {
-        const _d = this.transformation._dataArr32;
-        outVec4 ??= new Vec4();
-        switch (plane) {
-            case OrthogonalSpace.PLANE_XOY:
-                outVec4.reset(_d[4], _d[5], 0, 0);
-                break;
-            case OrthogonalSpace.PLANE_YOZ:
-                outVec4.reset(0, _d[5], _d[6], 0);
-                break;
-            case OrthogonalSpace.PLANE_ZOX:
-            default:
-                outVec4.reset(_d[4], 0, _d[6], 0);
-                break;
-        }
-        return doNormalize ? outVec4.normalize() : outVec4;
+    getTransform(outMat44) {
+        return outMat44.copyFrom(this.#_transform);
     }
-    getAxisZProjectedToParent(plane, outVec4, doNormalize = true) {
-        const _d = this.transformation._dataArr32;
-        outVec4 ??= new Vec4();
-        switch (plane) {
-            case OrthogonalSpace.PLANE_XOY:
-                outVec4.reset(_d[8], _d[9], 0, 0);
-                break;
-            case OrthogonalSpace.PLANE_YOZ:
-                outVec4.reset(0, _d[9], _d[10], 0);
-                break;
-            case OrthogonalSpace.PLANE_ZOX:
-            default:
-                outVec4.reset(_d[8], 0, _d[10], 0);
-                break;
-        }
-        return doNormalize ? outVec4.normalize() : outVec4;
+    getAxisX(outVec4) {
+        const _d = this.#_transform._dataArr32;
+        return outVec4.reset(_d[0], _d[1], _d[2], _d[3]);
     }
-    transform(mat44) {
-        this.#_transformation.multiply(mat44, this.#_transformation);
-        this.#_invMatDirty = true;
-        return this;
+    getAxisY(outVec4) {
+        const _d = this.#_transform._dataArr32;
+        return outVec4.reset(_d[4], _d[5], _d[6], _d[7]);
+    }
+    getAxisZ(outVec4) {
+        const _d = this.#_transform._dataArr32;
+        return outVec4.reset(_d[8], _d[9], _d[10], _d[11]);
     }
     getPosition(outVec4) {
-        return outVec4.reset(this.#_transformation._dataArr32[12],
-            this.#_transformation._dataArr32[13],
-            this.#_transformation._dataArr32[14],
-            this.#_transformation._dataArr32[15]);
+        const _d = this.#_transform._dataArr32;
+        return outVec4.reset(_d[12], _d[13], _d[14], _d[15]);
     }
-    setPositionVec(vec4) {
-        return this.setPosition(vec4.x, vec4.y, vec4.z, vec4.w);
-    }
-    setPosition(x, y, z) {
-        this.#_transformation._dataArr32[12] = x;
-        this.#_transformation._dataArr32[13] = y;
-        this.#_transformation._dataArr32[14] = z;
-        this.#_transformation._dataArr32[15] = 1;
+    transform(mat44) {
+        this.#_transform.multiply(mat44, this.#_transform);
         this.#_invMatDirty = true;
         return this;
     }
+    transformVec4(vec4, outVec4) {
+        return this.#_transform.multiplyVec4(vec4, outVec4);
+    }
+    setPositionVec(vec4) { return this.setPosition(vec4.x, vec4.y, vec4.z, vec4.w); }
+    setPosition(x, y, z) {
+        const _d = this.#_transform._dataArr32;
+        _d[12] = x;
+        _d[13] = y;
+        _d[14] = z;
+        _d[15] = 1;
+        this.#_invMatDirty = true;
+        return this;
+    }
+    setAxisXVec(vec) { return this.setAxisX(vec.x, vec.y, vec.z); }
+    setAxisYVec(vec) { return this.setAxisY(vec.x, vec.y, vec.z); }
+    setAxisZVec(vec) { return this.setAxisZ(vec.x, vec.y, vec.z); }
     setAxisX(x, y, z) {
-        this.#_transformation._dataArr32[1] = x;
-        this.#_transformation._dataArr32[2] = y;
-        this.#_transformation._dataArr32[3] = z;
-        this.#_transformation._dataArr32[4] = 0;
+        const _d = this.#_transform._dataArr32;
+        _d[0] = x;
+        _d[1] = y;
+        _d[2] = z;
+        _d[3] = 0;
         this.#_invMatDirty = true;
         return this;
     }
     setAxisY(x, y, z) {
-        this.#_transformation._dataArr32[4] = x;
-        this.#_transformation._dataArr32[5] = y;
-        this.#_transformation._dataArr32[6] = z;
-        this.#_transformation._dataArr32[7] = 0;
+        const _d = this.#_transform._dataArr32;
+        _d[4] = x;
+        _d[5] = y;
+        _d[6] = z;
+        _d[7] = 0;
         this.#_invMatDirty = true;
         return this;
     }
     setAxisZ(x, y, z) {
-        this.#_transformation._dataArr32[8] = x;
-        this.#_transformation._dataArr32[9] = y;
-        this.#_transformation._dataArr32[10] = z;
-        this.#_transformation._dataArr32[11] = 0;
+        const _d = this.#_transform._dataArr32;
+        _d[8] = x;
+        _d[9] = y;
+        _d[10] = z;
+        _d[11] = 0;
+        this.#_invMatDirty = true;
+        return this;
+    }
+    setAxisXYZVec(a, b, c) { return this.setAxisXYZ(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z); }
+    setAxisXYZ(xa, xb, xc, ya, yb, yc, za, zb, zc) {
+        const _d = this.#_transform._dataArr32;
+        _d[0] = xa;
+        _d[1] = xb;
+        _d[2] = xc;
+        _d[3] = 0;
+        _d[4] = ya;
+        _d[5] = yb;
+        _d[6] = yc;
+        _d[7] = 0;
+        _d[8] = za;
+        _d[9] = zb;
+        _d[10] = zc;
+        _d[11] = 0;
         this.#_invMatDirty = true;
         return this;
     }
