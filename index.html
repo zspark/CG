@@ -20,13 +20,20 @@
     <script src="./src/math.js"></script>
     <script src="./src/gl.js"></script>
     <script src="./src/geometry.js"></script>
+    <script src="./src/utils.js"></script>
+    <script src="./src/orthogonal-space.js"></script>
     <script>
         const {gl} = CG.createGlContext('glcanvas');
 
+        const _vpMatrix = new CG.Mat44();
+        const _viewspace = new CG.OrthogonalSpace().setPosition(0, 0, 6);
+        const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 100);
+
         const vsSource = `#version 300 es
   in vec4 a_position;
+    uniform mat4 u_vpMatrix;
   void main() {
-    gl_Position = a_position;
+    gl_Position = u_vpMatrix*a_position;
   }`;
         const fsSource = `#version 300 es
   precision mediump float;
@@ -34,7 +41,7 @@
   void main() {
     fragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red color
   }`;
-        const _cubeInfo = CG.geometry.createCube(1);
+        const _cubeInfo = CG.geometry.createCube(2);
 
         const positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -45,12 +52,16 @@
 
         const _programWrapper = CG.createProgramWrapper(gl, vsSource, fsSource);
         _programWrapper.bindAttribute("a_position", 3, gl.FLOAT, false, 0, 0);
+        const _loc = _programWrapper.getUniformLocation("u_vpMatrix");
 
         function render() {
             gl.clearColor(0.0, 0.0, 0.0, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
+            _projMat.multiply(_viewspace.transformationInv, _vpMatrix)
             _programWrapper.useProgram();
+            gl.uniformMatrix4fv(_loc, false, _vpMatrix._dataArr32);
+
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
             gl.drawElements(gl.TRIANGLES, _cubeInfo.indices.length, gl.UNSIGNED_SHORT, 0);
 
