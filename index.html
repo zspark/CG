@@ -19,6 +19,7 @@
     <script src="./src/log.js"></script>
     <script src="./src/math.js"></script>
     <script src="./src/gl.js"></script>
+    <script src="./src/glsl.js"></script>
     <script src="./src/geometry.js"></script>
     <script src="./src/orthogonal-space.js"></script>
     <script src="./src/utils.js"></script>
@@ -28,35 +29,25 @@
     <script>
         const {gl, canvas} = CG.createGlContext('glcanvas');
         const _mouseEvents = CG.registMouseEvents(canvas);
-
         const _vpMatrix = new CG.Mat44();
-        const _camera = new CG.Camera(0, 0.4, 6, _mouseEvents);
+        const _camera = new CG.Camera(0, 0, 6, _mouseEvents);
         const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 100);
+        const _geomInfo = CG.geometry.createCube(2);
+        //const _geomInfo = CG.geometry.createTriangle();
+        //const _geomInfo = CG.geometry.createPlane(3,2);
 
-        const vsSource = `#version 300 es
-  in vec4 a_position;
-    uniform mat4 u_vpMatrix;
-  void main() {
-    gl_Position = u_vpMatrix*a_position;
-  }`;
-        const fsSource = `#version 300 es
-  precision mediump float;
-  out vec4 fragColor;
-  void main() {
-    fragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red color
-  }`;
-        const _cubeInfo = CG.geometry.createCube(2);
+        const _indexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, _geomInfo.indices);
 
-        const positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, _cubeInfo.vertices, gl.STATIC_DRAW);
-        const _indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, _indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, _cubeInfo.indices, gl.STATIC_DRAW);
-
-        const _programWrapper = CG.createProgramWrapper(gl, vsSource, fsSource);
+        const _programWrapper = CG.createProgramWrapper(gl, CG.shaderSource.colorCube.vs, CG.shaderSource.colorCube.fs);
+        const _positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, _geomInfo.vertices);
         _programWrapper.bindAttribute("a_position", 3, gl.FLOAT, false, 0, 0);
+        const _colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, _geomInfo.colors);
+        _programWrapper.bindAttribute("a_color", 3, gl.UNSIGNED_BYTE, true, 0, 0);
+
         const _loc = _programWrapper.getUniformLocation("u_vpMatrix");
+        gl.enable(gl.CULL_FACE);
+        gl.frontFace(gl.CCW);
+        gl.cullFace(gl.BACK);
 
         function render() {
             gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -66,13 +57,20 @@
             _programWrapper.useProgram();
             gl.uniformMatrix4fv(_loc, false, _vpMatrix._dataArr32);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-            gl.drawElements(gl.TRIANGLES, _cubeInfo.indices.length, gl.UNSIGNED_SHORT, 0);
+            gl.drawElements(gl.TRIANGLES, _geomInfo.indices.length, gl.UNSIGNED_SHORT, 0);
+            //gl.drawElements(gl.LINE_STRIP, _geomInfo.indices.length, gl.UNSIGNED_SHORT, 0);
 
             requestAnimationFrame(render);
         }
 
         render();
+
+        function createBuffer(gl, target, data, usage = undefined) {
+            const _buf = gl.createBuffer();
+            gl.bindBuffer(target, _buf);
+            gl.bufferData(target, data, usage ?? gl.STATIC_DRAW);
+            return _buf;
+        }
     </script>
 </body>
 
