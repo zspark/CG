@@ -165,12 +165,33 @@ window.CG ??= {};
                 .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 0, 0);
         }
 
+        static createPlane(width, height) {
+            const vertices = new Float32Array([
+                width, height, 0,
+                0.0, 0.0,
+                -width, height, 0,
+                1.0, 0.0,
+                -width, -height, 0,
+                1.0, 1.0,
+                width, -height, 0,
+                0.0, 1.0,
+            ]);
+            const indices = new Uint16Array([
+                0, 1, 2,
+                2, 3, 0
+            ]);
+            return new Geometry(vertices, indices)
+                .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 20, 0)
+                .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, 5126, false, 20, 12);
+        }
+
         static assembleFromGLTF(glftContent) {
             CG.info("[geometry.js] need implementation.");
             //TODO:
         }
 
         static ATTRIB_POSITION = "position";
+        static ATTRIB_TEXTURE_UV = "texcoord";
         static ATTRIB_NORMAL = "normal";
         static ATTRIB_COLOR = "color";
 
@@ -224,7 +245,7 @@ window.CG ??= {};
             return this;
         }
 
-        bindAttributes(gl, positionLocation, normalLocation = -1, colorLocation = -1) {
+        bindAttributes(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
 
             if (positionLocation >= 0) {
@@ -232,6 +253,12 @@ window.CG ??= {};
                 let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_POSITION];
                 gl.enableVertexAttribArray(positionLocation);
                 gl.vertexAttribPointer(positionLocation, size, type, normalized, stride, offset);
+            }
+
+            if (uvLocation >= 0) {
+                let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_TEXTURE_UV];
+                gl.enableVertexAttribArray(uvLocation);
+                gl.vertexAttribPointer(uvLocation, size, type, normalized, stride, offset);
             }
 
             if (normalLocation >= 0) {

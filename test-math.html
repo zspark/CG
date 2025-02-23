@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>test - math</title>
 </head>
+
 <body>
 
     <script src="./src/assert.js"></script>
@@ -10,115 +12,128 @@
     <script src="./src/math.js"></script>
 
     <script>
-        CG.info('a','b','c');
-        let v3=new CG.Vec3(3,4,5);
-        CG.assertEqual(v3.magnitudeSquared(),9+16+25);
-        CG.assertEqual(v3.magnitude(),Math.sqrt(9+16+25));
-        CG.assertEqual(v3.dot({x:1,y:2,z:3}),3+8+15);
-        CG.assertEqual(v3.normalize().magnitude(),1);
-        CG.assertEqual(v3.reset(3,4,5),v3);
-        CG.assertEqual(v3.add(1,1,1),v3);
-        CG.assertEqual(v3.addVec({x:1,y:1,z:1}),v3);
-        CG.assertEqual(v3.magnitudeSquared(),25+36+49);
-        CG.assertEqual(v3.multiply(3).magnitudeSquared(),15*15+18*18+21*21);
-        CG.assertEqual(v3.normalize(),v3);
+        CG.info('a', 'b', 'c');
+        let v3 = new CG.Vec3(3, 4, 5);
+        CG.assertEqual(v3.magnitudeSquared(), 9 + 16 + 25);
+        CG.assertEqual(v3.magnitude(), Math.sqrt(9 + 16 + 25));
+        CG.assertEqual(v3.dot({x: 1, y: 2, z: 3}), 3 + 8 + 15);
+        CG.assertEqual(v3.normalize().magnitude(), 1);
+        CG.assertEqual(v3.reset(3, 4, 5), v3);
+        CG.assertEqual(v3.add(1, 1, 1), v3);
+        CG.assertEqual(v3.addVec({x: 1, y: 1, z: 1}), v3);
+        CG.assertEqual(v3.magnitudeSquared(), 25 + 36 + 49);
+        CG.assertEqual(v3.multiply(3).magnitudeSquared(), 15 * 15 + 18 * 18 + 21 * 21);
+        CG.assertEqual(v3.normalize(), v3);
+        CG.assertEqual(v3.multiply(3), v3);
+        CG.assertNotEqual(v3.clone(), v3);
 
-        CG.assertNotEqual(v3.clone(),v3);
-        CG.assertNotEqual(v3.normalize(true),v3);
-        CG.assertNotEqual(v3.add(1,1,1,true),v3);
-        CG.assertNotEqual(v3.addVec({x:1,y:1,z:1},true),v3);
-        CG.assertNotEqual(v3.multiply(3,true),v3);
+        let v4 = new CG.Vec4(3, 4, 5, 1);
+        CG.assertEqual(v4.magnitudeSquared(), 9 + 16 + 25 + 1);
+        CG.assertEqual(v4.magnitude(), Math.sqrt(9 + 16 + 25 + 1));
+        CG.assertEqual(v4.dot({x: 1, y: 2, z: 3, w: 1}), 3 + 8 + 15 + 1);
+        CG.assertEqual(v4.normalize().magnitude(), 1);
+        CG.assertEqual(v4.reset(3, 4, 5, 6), v4);
+        CG.assertEqual(v4.add(1, 1, 1, 1), v4);
+        CG.assertEqual(v4.addVec({x: 1, y: 1, z: 1, w: 2}), v4);
+        CG.assertEqual(v4.magnitudeSquared(), 25 + 36 + 49 + 81);
+        CG.assertEqual(v4.multiply(3).magnitudeSquared(), 15 * 15 + 18 * 18 + 21 * 21 + 27 * 27);
+        CG.assertEqual(v4.normalize(), v4);
+        CG.assertEqual(v4.multiply(3), v4);
+        CG.assertNotEqual(v4.clone(), v4);
 
-        let v4=new CG.Vec4(3,4,5,1);
-        CG.assertEqual(v4.magnitudeSquared(),9+16+25+1);
-        CG.assertEqual(v4.magnitude(),Math.sqrt(9+16+25+1));
-        CG.assertEqual(v4.dot({x:1,y:2,z:3,w:1}),3+8+15+1);
-        CG.assertEqual(v4.normalize().magnitude(),1);
-        CG.assertEqual(v4.reset(3,4,5,6),v4);
-        CG.assertEqual(v4.add(1,1,1,1),v4);
-        CG.assertEqual(v4.addVec({x:1,y:1,z:1,w:2}),v4);
-        CG.assertEqual(v4.magnitudeSquared(),25+36+49+81);
-        CG.assertEqual(v4.multiply(3).magnitudeSquared(),15*15+18*18+21*21+27*27);
-        CG.assertEqual(v4.normalize(),v4);
+        let m33a = new CG.Mat33().reset([1, 2, 3, 3, 0, 1, 2, 9, 7]);
+        let m33b = new CG.Mat33().reset([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        CG.assertEqual(m33a.invert(), m33a);
+        CG.assertEqual(m33a.transpose(), m33a);
+        CG.assertEqual(m33a.multiply(m33b, m33a), m33a);
+        CG.assertEqual(m33a.copyFrom(m33b), m33a);
+        CG.assertNotEqual(m33a.multiply(m33b), m33a);
+        CG.assertNotEqual(m33a.clone(), m33a);
+        CG.assertEqual(m33a.reset(), m33a);
 
-        CG.assertNotEqual(v4.clone(),v4);
-        CG.assertNotEqual(v4.normalize(true),v4);
-        CG.assertNotEqual(v4.add(1,1,1,1,true),v4);
-        CG.assertNotEqual(v4.addVec({x:1,w:.4,y:1,z:1},true),v4);
-        CG.assertNotEqual(v4.multiply(3,true),v4);
 
-        let m44=new CG.Mat44();
-        let m442=new CG.Mat44().reset(
-            [1,1,1,1,
-             1,2,1,1,
-             1,1,2,1,
-             1,2,3,1]);
-        CG.assertEqual(m44.reset(),m44);
-        //console.log(m44.toString());
-        CG.assertEqual(m44.transpose(),m44);
-        CG.assertEqual(m44.multiply(m442),m44);
-        CG.assertEqual(m44.multiply(m442),m44);
+        let m44a = new CG.Mat44().reset(
+            [1, 1, 1, 1,
+                1, 6, 1, 1,
+                1, 1, 2, 0,
+                1, 2, 3, 0]);
+        let m44b = new CG.Mat44().reset(
+            [1, 1, 1, 1,
+                1, 2, 1, 1,
+                1, 1, 2, 1,
+                1, 2, 3, 1]);
+        //console.log(m44a.toString());
+        CG.assertEqual(m44a.invert(), m44a);
+        CG.assertEqual(m44a.transpose(), m44a);
+        CG.assertEqual(m44a.multiply(m44b, m44a), m44a);
+        CG.assertEqual(m44a.copyFrom(m44b), m44a);
+        CG.assertNotEqual(m44a.multiply(m44b), m44a);
+        CG.assertNotEqual(m44a.clone(), m44a);
+        CG.assertEqual(m44a.reset(), m44a);
 
-        CG.assertNotEqual(m44.transpose(true),m44);
-        CG.assertNotEqual(m44.multiply(m442,true),m44);
-        CG.assertNotEqual(m44.clone(),m44);
-        CG.assertNotEqual(m44.invert(true),m44);
+        m44a.reset(
+            [1, 1, 1, 1,
+                1, 6, 1, 1,
+                1, 1, 2, 0,
+                1, 2, 3, 0]);
+        v4.reset(1, 2, 3, 4);
+        let v4a = m44a.multiplyVec4(v4);
+        //console.log(m44a.toString());
+        CG.assertNotEqual(v4a, v4);
+        CG.assertEqual(v4a.magnitudeSquared(), 10 * 10 + 20 * 20 + 9 * 9 + 14 * 14);
 
-        v4.reset(1,2,3,4);
-        let v4a=m442.multiplyVec4(v4);
-        CG.assertNotEqual(v4a,v4);
-        CG.assertEqual(v4a.magnitudeSquared(),10*10+12*12+13*13+18*18);
-
-        m44.reset([.2,3,7,1,
-             1,2,9,7,
-             4,1,2,1.5,
-             10,2,3,1,2,4,5],3,true);
-        const m443=m44.multiply(m442,true);
-        //console.log(m44.toString());
-        //console.log(m442.toString());
+        m44a.reset([.2, 3, 7,
+            1, 1, 2, 9,
+            7, 4, 1, 2,
+            1.5, 10, 2, 3,
+            1, 2, 4, 5], 3, true);
+        const m443 = m44a.multiply(m44b);
+        //console.log(m44a.toString());
+        //console.log(m44b.toString());
         //console.log(m443.toString());
-        CG.assertEqual(m443._dataArr32[0],10.5);
-        CG.assertEqual(m443._dataArr32[1],18.5);
-        CG.assertEqual(m443._dataArr32[2],14.0);
-        CG.assertEqual(m443._dataArr32[3],10.5);
-        CG.assertEqual(m443._dataArr32[4],17);
-        CG.assertEqual(m443._dataArr32[5],23);
-        CG.assertEqual(m443._dataArr32[6],31);
-        CG.assertEqual(m443._dataArr32[7],17);
-        CG.assertEqual(m443._dataArr32[8],9);
-        CG.assertEqual(m443._dataArr32[9],14);
-        CG.assertEqual(m443._dataArr32[10],19);
-        CG.assertEqual(m443._dataArr32[11],9);
-        CG.assertEqual(m443._dataArr32[12],19);
-        CG.assertEqual(m443._dataArr32[13],26);
-        CG.assertEqual(m443._dataArr32[14],32);
-        CG.assertEqual(m443._dataArr32[15],19);
+        CG.assertEqual(m443._dataArr32[0], 13);
+        CG.assertEqual(m443._dataArr32[1], 14);
+        CG.assertEqual(m443._dataArr32[2], 16.5);
+        CG.assertEqual(m443._dataArr32[3], 12);
+        CG.assertEqual(m443._dataArr32[4], 23);
+        CG.assertEqual(m443._dataArr32[5], 20);
+        CG.assertEqual(m443._dataArr32[6], 29.5);
+        CG.assertEqual(m443._dataArr32[7], 19);
+        CG.assertEqual(m443._dataArr32[8], 33);
+        CG.assertEqual(m443._dataArr32[9], 19);
+        CG.assertEqual(m443._dataArr32[10], 24.5);
+        CG.assertEqual(m443._dataArr32[11], 26);
+        CG.assertEqual(m443._dataArr32[12], 13);
+        CG.assertEqual(m443._dataArr32[13], 14);
+        CG.assertEqual(m443._dataArr32[14], 16.5);
+        CG.assertEqual(m443._dataArr32[15], 12);
 
-        m44.reset([1,1,1,1,
-             1,6,1,1,
-             1,1,2,0,
-             1,2,3,0]);
-        CG.assertEqual(m44.determinant(),5);
-        CG.assertEqual(m44.invert(),m44);
-        CG.assertEqual(m44._dataArr32[0],-.2);
-        CG.assertEqual(m44._dataArr32[1],.2);
-        CG.assertEqual(m44._dataArr32[2],3);
-        CG.assertEqual(m44._dataArr32[3],-2);
-        CG.assertEqual(m44._dataArr32[4],-.2);
-        CG.assertEqual(m44._dataArr32[5],.2);
-        CG.assertEqual(m44._dataArr32[6],0);
-        CG.assertEqual(m44._dataArr32[7],0);
-        CG.assertEqual(m44._dataArr32[8],.2);
-        CG.assertEqual(m44._dataArr32[9],-.2);
-        CG.assertEqual(m44._dataArr32[10],-1);
-        CG.assertEqual(m44._dataArr32[11],1);
-        CG.assertEqual(m44._dataArr32[12],6/5);
-        CG.assertEqual(m44._dataArr32[13],-.2);
-        CG.assertEqual(m44._dataArr32[14],-2);
-        CG.assertEqual(m44._dataArr32[15],1);
+        m44a.reset([1, 1, 1, 1,
+            1, 6, 1, 1,
+            1, 1, 2, 0,
+            1, 2, 3, 0]);
+        CG.assertEqual(m44a.determinant(), 5);
+        m44a.invert();
+        CG.assertEqual(m44a._dataArr32[0], -.2);
+        CG.assertEqual(m44a._dataArr32[4], .2);
+        CG.assertEqual(m44a._dataArr32[8], 3);
+        CG.assertEqual(m44a._dataArr32[12], -2);
+        CG.assertEqual(m44a._dataArr32[1], -.2);
+        CG.assertEqual(m44a._dataArr32[5], .2);
+        CG.assertEqual(m44a._dataArr32[9], 0);
+        CG.assertEqual(m44a._dataArr32[13], 0);
+        CG.assertEqual(m44a._dataArr32[2], .2);
+        CG.assertEqual(m44a._dataArr32[6], -.2);
+        CG.assertEqual(m44a._dataArr32[10], -1);
+        CG.assertEqual(m44a._dataArr32[14], 1);
+        CG.assertEqual(m44a._dataArr32[3], 6 / 5);
+        CG.assertEqual(m44a._dataArr32[7], -.2);
+        CG.assertEqual(m44a._dataArr32[11], -2);
+        CG.assertEqual(m44a._dataArr32[15], 1);
 
     </script>
 
 
 </body>
+
 </html>

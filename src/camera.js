@@ -63,7 +63,7 @@ window.CG ??= {};
 
                 this.#_space.getAxisX(this.#_helperVec4_x).removeY().normalize();
                 this.#_space.getAxisZ(this.#_helperVec4_z).removeY().normalize();
-                this.#_helperMat44.setWithColumns(this.#_helperVec4_x, Vec4.VEC4_0100, this.#_helperVec4_z, Vec4.VEC4_0001).multiplyVec4(this.#_helperVec4_y, this.#_helperVec4_y);
+                this.#_helperMat44.setWithColumns(this.#_helperVec4_x, CG.Vec4.VEC4_0100, this.#_helperVec4_z, CG.Vec4.VEC4_0001).multiplyVec4(this.#_helperVec4_y, this.#_helperVec4_y);
                 this.moveHorizontally(this.#_helperVec4_y.x, this.#_helperVec4_y.z);
             }
             events.onDBClick((evt) => {

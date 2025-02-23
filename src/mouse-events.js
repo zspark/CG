@@ -45,7 +45,7 @@ window.CG ??= {};
             _mapWheelCallbackFun.forEach((value, key) => {
                 key(event);
             });
-        });
+        }, { passive: true });
 
         const _mapDownCallbackFun = new Map();// cb->true;
         const _mapWheelCallbackFun = new Map();// cb->true;
