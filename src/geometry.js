@@ -195,16 +195,21 @@ window.CG ??= {};
         static ATTRIB_NORMAL = "normal";
         static ATTRIB_COLOR = "color";
 
+        #_bindingFunc;
         #_vertices;
         #_indices;
+        #_useVAO = true;
+        #_glVAO;
         #_glVertexBuffer;
         #_glIndexBuffer;
         #_attributeLayouts = {};
         #_vertexBufferLength = -1;
         #_indexBufferLength = -1;
-        constructor(vertices, indices) {
+        constructor(vertices, indices, useVAO = true) {
             this.#_vertices = vertices;
             this.#_indices = indices;
+            this.#_useVAO = useVAO;
+            this.#_bindingFunc = this.#_bindAttributes;
         }
 
         get vertexBufferLength() {
@@ -246,6 +251,19 @@ window.CG ??= {};
         }
 
         bindAttributes(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
+            this.#_bindingFunc(gl, positionLocation, uvLocation, normalLocation, colorLocation);
+        }
+        #_bindAttributes_VAO(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
+            gl.bindVertexArray(this.#_glVAO);
+        }
+        #_bindAttributes(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
+            if (this.#_useVAO) {
+                if (!this.#_glVAO) {
+                    this.#_glVAO = gl.createVertexArray();
+                }
+                gl.bindVertexArray(this.#_glVAO);
+            }
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#_glIndexBuffer);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
 
             if (positionLocation >= 0) {
@@ -272,14 +290,22 @@ window.CG ??= {};
                 let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_COLOR];
                 gl.vertexAttribPointer(colorLocation, size, type, normalized, stride, offset);
             }
+
+            if (this.#_useVAO) {
+                this.#_bindingFunc = this.#_bindAttributes_VAO;
+                gl.bindVertexArray(null);
+            }
             return this;
         }
 
-        destroyGLBuffer(gl) {
+        destroyGLObjects(gl) {
             if (!!this.#_glVertexBuffer) gl.deleteBuffer(this.#_glVertexBuffer);
             if (!!this.#_glIndexBuffer) gl.deleteBuffer(this.#_glIndexBuffer);
             this.#_attributeLayouts = {};
             this.#_glIndexBuffer = this.#_glIndexBuffer = undefined;
+
+            gl.deleteVertexArray(this.#_glVAO);
+            this.#_glVAO = undefined;
             return this;
         }
     }
