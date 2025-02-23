@@ -1,6 +1,6 @@
+if (!CG.vital) CG.vital("log.js file should be loaded first!");
 window.CG ??= {};
 window.CG.shaderSource ??= {};
-console.log('[shader:vertex-color.js] loaded.');
 
 
 (function () {
@@ -32,5 +32,6 @@ void main() {
 
 
     window.CG.shaderSource.vertexColor = { fs, vs };
+    CG.info('[shader:vertex-color.js] loaded.');
 })();
 

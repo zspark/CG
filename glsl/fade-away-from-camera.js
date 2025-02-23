@@ -1,6 +1,6 @@
+if (!CG.vital) CG.vital("log.js file should be loaded first!");
 window.CG ??= {};
 window.CG.shaderSource ??= {};
-console.log('[shader:fade-away-from-camera.js] loaded.');
 
 
 (function () {
@@ -37,5 +37,6 @@ void main() {
 
 
     window.CG.shaderSource.fadeAwayFromCamera = { fs, vs };
+    CG.info('[shader:fade-away-from-camera.js] loaded.');
 })();
 
