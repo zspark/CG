@@ -41,6 +41,8 @@
         const _camera = new CG.Camera(0, 2, 8, _mouseEvents).lookAt(CG.Vec4.VEC4_0001);
         const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 1000);
 
+        const _colorTextureForFBO = new CG.glWrapper.Texture(gl).createGLTextureWithSize();
+        const _secondFBO = new CG.glWrapper.Framebuffer(gl).attachColorTexture(_colorTextureForFBO);
         const _programFadeAway = new CG.glWrapper.Program(gl, CG.shaderSource.fadeAwayFromCamera.vs, CG.shaderSource.fadeAwayFromCamera.fs);
         const _uLoc_mvpMat = _programFadeAway.getUniformLocation("u_mvpMatrix");
         const _uLoc_mvMat = _programFadeAway.getUniformLocation("u_mvMatrix");
@@ -57,7 +59,7 @@
 
         const _geo = CG.Geometry.createPlane(4, 3).createGLBuffers(gl);
         const _meshPlane = new CG.Mesh(_geo).setPosition(0, 0, 0);
-        const _texture = new CG.glWrapper.Texture().createGLTexture(gl, _imgElement);
+        const _texture = new CG.glWrapper.Texture(gl).createGLTexture(_imgElement);
 
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LESS);
@@ -67,6 +69,16 @@
         gl.blendEquation(gl.FUNC_ADD);
 
         function render() {
+            _secondFBO.bind();
+            renderScene(gl, _texture);
+            _secondFBO.unbind();
+            renderScene(gl, _colorTextureForFBO);
+            requestAnimationFrame(render);
+        }
+
+        render();
+
+        function renderScene(gl, texture) {
             gl.clearColor(0.2, 0.2, 0.2, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
             _projMat.multiply(_camera.viewMatrix, _mvpMatrix)
@@ -82,15 +94,10 @@
             _programTextureOnly.use();
             gl.uniformMatrix4fv(_uLoc_mvpMat2, false, _mvpMatrix._dataArr32);
             gl.uniform1i(_uLoc_colorSampler2D, 3);
-            _texture.bindTexture(gl, 3);
+            texture.bindTexture(3);
             _geo.bindAttributes(gl, _aLoc_position, _aLoc_uv);
             gl.drawElements(gl.TRIANGLES, _meshPlane.numberIndices, gl.UNSIGNED_SHORT, 0);
-
-
-            requestAnimationFrame(render);
         }
-
-        render();
 
     </script>
 </body>

@@ -142,31 +142,92 @@ window.CG ??= {};
     const _wm_texture = new WeakMap();
     class Texture {
         #_glTexture;
-        constructor() { }
+        #_gl;
+        constructor(gl) { this.#_gl = gl; }
 
-        createGLTexture(gl, data) {
+        createGLTexture(data) {
             if (!!this.#_glTexture) return;
+            const gl = this.#_gl;
             const _texture = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, _texture);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            this.#_setDefaultParameters(gl);
             this.#_glTexture = _texture;
             _wm_texture.set(this, _texture);
             return this;
         }
 
-        bindTexture(gl, textureUnit = 0) {
+        /**
+        * defaults to gl.drawingBufferWidth and ...height
+        */
+        createGLTextureWithSize(width, height) {
+            if (!!this.#_glTexture) return;
+            const gl = this.#_gl;
+            const _texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, _texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width ?? gl.drawingBufferWidth, height ?? gl.drawingBufferHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            this.#_setDefaultParameters(gl);
+            this.#_glTexture = _texture;
+            _wm_texture.set(this, _texture);
+            return this;
+        }
+
+        #_setDefaultParameters(gl) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        }
+
+        setParameter(name, value) {
+            if (!this.#_glTexture) return;
+            this.#_gl.texParameteri(gl.TEXTURE_2D, name, value);
+        }
+
+        bindTexture(textureUnit = 0) {
+            const gl = this.#_gl;
             gl.activeTexture(gl.TEXTURE0 + textureUnit);
             gl.bindTexture(gl.TEXTURE_2D, this.#_glTexture);
             return this;
         }
 
-        destroyGLTexture(gl) {
+        destroyGLTexture() {
+            const gl = this.#_gl;
             gl.deleteTexture(this.#_glTexture);
             this.#_glTexture = undefined;
             return this;
+        }
+    }
+
+    const _wm_framebuffer = new WeakMap();
+    class Framebuffer {
+        #_glFramebuffer;
+        #_gl;
+        constructor(gl) {
+            this.#_gl = gl;
+            this.#_glFramebuffer = gl.createFramebuffer();
+            _wm_framebuffer.set(this, this.#_glFramebuffer);
+        }
+
+        attachColorTexture(texture, attachment = 0, textarget = undefined) {
+            const gl = this.#_gl;
+            textarget ??= gl.TEXTURE_2D;
+            const _glTex = _wm_texture.get(texture);
+            gl.bindTexture(textarget, _glTex);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.#_glFramebuffer);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + attachment, textarget, _glTex, 0);
+            return this;
+        }
+
+        bind() {
+            this.#_gl.bindFramebuffer(gl.FRAMEBUFFER, this.#_glFramebuffer);
+            return this;
+        }
+        unbind() {
+            this.#_gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            return this;
+        }
+
+        destroy() {
         }
     }
 
@@ -174,6 +235,7 @@ window.CG ??= {};
     window.CG.glWrapper = Object.freeze({
         Program,
         Texture,
+        Framebuffer,
     });
     window.CG.createGlContext = createGlContext;
     CG.warn("[gl.js] createProgramWrapper under CG has been deprecated!");
