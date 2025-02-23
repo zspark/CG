@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebGL</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="glcanvas" width="640" height="480"></canvas>
+    <script src="./src/log.js"></script>
+    <script src="./src/math.js"></script>
+    <script src="./src/gl.js"></script>
+    <script>
+        const {gl} = CG.createGlContext('glcanvas');
+
+        const vsSource = `#version 300 es
+  in vec4 a_position;
+  void main() {
+    gl_Position = a_position;
+  }`;
+        const fsSource = `#version 300 es
+  precision mediump float;
+  out vec4 fragColor;
+  void main() {
+    fragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red color
+  }`;
+        const positions = new Float32Array([
+            -0.5, -0.5, 0.0,
+            0.5, -0.5, 0.0,
+            0.0, 0.5, 0.0,
+        ]);
+
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+        const _programWrapper = CG.createProgramWrapper(gl, vsSource, fsSource);
+        _programWrapper.bindAttribute("a_position", 3, gl.FLOAT, false, 0, 0);
+
+        function render() {
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            _programWrapper.useProgram();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+            requestAnimationFrame(render);
+        }
+
+        render();
+    </script>
+</body>
+
+</html>
