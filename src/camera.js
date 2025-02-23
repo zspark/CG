@@ -16,6 +16,7 @@ class Camera {
 
         let _onMoveFn;
         const _onDown = (evt) => {
+            //CG.info(evt);
             events.offDown(_onDown);
             events.onUp(_onUp);
             /*
@@ -37,12 +38,20 @@ class Camera {
             let _dX = evt.movementX * -.03;
             let _dY = evt.movementY * .03;
             //CG.info(_dX, _dY);
-            let _dir = this.#_helperVec4_x.reset(-_dY, _dX, 0, 0);// perpedicular to {_dX,_dY};
-            let _theta = _dir.magnitude();
-            this.#_space.transformVec4(_dir, _dir).normalize();
             //this.#_spaceCtrl.rotateVertically(CG.Utils.deg2Rad(_dX));
-            //this.moveAround(CG.Vec4.VEC4_0000, CG.Vec4.VEC4_0100, _dX);
-            this.moveAround(CG.Vec4.VEC4_0000, _dir, _theta);
+            if (evt.ctrlKey && evt.shiftKey) {
+                let _dir = this.#_helperVec4_x.reset(-_dY, _dX, 0, 0);// perpedicular to {_dX,_dY};
+                let _theta = _dir.magnitude();
+                this.#_space.transformVec4(_dir, _dir).normalize();
+                this.moveAround(CG.Vec4.VEC4_0000, _dir, _theta);
+            } else if (evt.ctrlKey) {
+                let _dir = this.#_helperVec4_x.reset(-_dY, 0, 0, 0);
+                let _theta = _dir.magnitude();
+                this.#_space.transformVec4(_dir, _dir).normalize();
+                this.moveAround(CG.Vec4.VEC4_0000, _dir, _theta);
+            } else {
+                this.moveAround(CG.Vec4.VEC4_0000, CG.Vec4.VEC4_0100, _dX);
+            }
         }
         const _onMoveLeft = (evt) => {
             //CG.info(evt);
@@ -75,10 +84,12 @@ class Camera {
 
     moveHorizontally(deltaX, delta) {
         this.#_spaceCtrl.moveHorizontally(deltaX, delta);
+        return this;
     }
 
     moveAround(pos, dir_normalized, theta) {
         this.#_spaceCtrl.rotateAround(pos, dir_normalized, theta);
+        return this;
     }
 
     /**
@@ -86,6 +97,7 @@ class Camera {
     */
     lookAt(pos) {
         this.#_spaceCtrl.axisZPointsTo(pos, false);
+        return this;
     }
 }
 

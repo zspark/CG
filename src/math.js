@@ -87,10 +87,12 @@ class Vec4 {
     }
 
     isSame(x, y, z, w) {
-        return (CG.Utils.numberSame(this.x, x) &&
-            CG.Utils.numberSame(this.y, y) &&
-            CG.Utils.numberSame(this.z, z) &&
-            CG.Utils.numberSame(this.w, w));
+        let _fn = CG.Utils.numberSame;
+        return _fn(this.x, x) && _fn(this.y, y) && _fn(this.z, z) && _fn(this.w, w);
+    }
+    isSameVec(vec) {
+        let _fn = CG.Utils.numberSame;
+        return _fn(this.x, vec.x) && _fn(this.y, vec.y) && _fn(this.z, vec.z) && _fn(this.w, vec.w);
     }
 
     // Dot product

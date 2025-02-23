@@ -6,6 +6,7 @@
     <style>
         body {
             margin: 0;
+            background-color: #272727;
         }
 
         canvas {
@@ -30,35 +31,33 @@
         const {gl, canvas} = CG.createGlContext('glcanvas');
         const _mouseEvents = CG.registMouseEvents(canvas);
         const _vpMatrix = new CG.Mat44();
-        const _camera = new CG.Camera(0, 0, 6, _mouseEvents);
-        const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 100);
-        const _geomInfo = CG.geometry.createCube(2);
-        //const _geomInfo = CG.geometry.createTriangle();
-        //const _geomInfo = CG.geometry.createPlane(3,2);
+        const _camera = new CG.Camera(0, 2, 0, _mouseEvents).lookAt(CG.Vec4.VEC4_0001);
+        const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 1000);
+        const _geomInfo = CG.geometry.createGridPlane_lines(100, 1);
 
-        const _indexBuffer = createBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, _geomInfo.indices);
-
-        const _programWrapper = CG.createProgramWrapper(gl, CG.shaderSource.colorCube.vs, CG.shaderSource.colorCube.fs);
+        const _programWrapper = CG.createProgramWrapper(gl, CG.shaderSource.gridGround.vs, CG.shaderSource.gridGround.fs);
         const _positionBuffer = createBuffer(gl, gl.ARRAY_BUFFER, _geomInfo.vertices);
         _programWrapper.bindAttribute("a_position", 3, gl.FLOAT, false, 0, 0);
-        const _colorBuffer = createBuffer(gl, gl.ARRAY_BUFFER, _geomInfo.colors);
-        _programWrapper.bindAttribute("a_color", 3, gl.UNSIGNED_BYTE, true, 0, 0);
 
-        const _loc = _programWrapper.getUniformLocation("u_vpMatrix");
+        const _uLoc_mvpMat = _programWrapper.getUniformLocation("u_mvpMatrix");
+        const _uLoc_mvMat = _programWrapper.getUniformLocation("u_mvMatrix");
         gl.enable(gl.CULL_FACE);
         gl.frontFace(gl.CCW);
         gl.cullFace(gl.BACK);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendEquation(gl.FUNC_ADD);
 
         function render() {
-            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clearColor(0.2, 0.2, 0.2, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT);
 
             _projMat.multiply(_camera.viewMatrix, _vpMatrix)
             _programWrapper.useProgram();
-            gl.uniformMatrix4fv(_loc, false, _vpMatrix._dataArr32);
+            gl.uniformMatrix4fv(_uLoc_mvpMat, false, _vpMatrix._dataArr32);
+            gl.uniformMatrix4fv(_uLoc_mvMat, false, _camera.viewMatrix._dataArr32);
 
-            gl.drawElements(gl.TRIANGLES, _geomInfo.indices.length, gl.UNSIGNED_SHORT, 0);
-            //gl.drawElements(gl.LINE_STRIP, _geomInfo.indices.length, gl.UNSIGNED_SHORT, 0);
+            gl.drawArrays(gl.LINES, 0, _geomInfo.vertices.length);
 
             requestAnimationFrame(render);
         }

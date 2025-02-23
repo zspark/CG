@@ -63,8 +63,8 @@ function createPlane(width, height) {
             255, 255, 255,
             */
             255, 255, 255,
-            0,0,0,
-            0,0,0,
+            0, 0, 0,
+            0, 0, 0,
             255, 255, 255,
         ])
     }
@@ -88,11 +88,32 @@ function createTriangle() {
     }
 }
 
+function createGridPlane_lines(quaterSize, step = 1) {
+    const vertices = [];
+
+    let _start = -Math.floor(quaterSize / step) * step;
+    for (let t = _start; t <= quaterSize; t += step) {
+        vertices.push(
+            t, 0, -quaterSize,
+            t, 0, quaterSize,
+            -quaterSize, 0, t,
+            quaterSize, 0, t
+        );
+    }
+
+    return {
+        vertices: new Float32Array(vertices),
+    };
+}
+
 window.CG ??= {};
 window.CG.geometry = Object.freeze({
     createCube,
     createPlane,
     createTriangle,
+    createGridPlane_lines,
 });
 
 console.log('[geometry.js] loaded.');
+
+

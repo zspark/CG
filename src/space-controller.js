@@ -98,9 +98,13 @@ class SpaceController {
         let _z = this.#_helperVec4_z;
         _z.reset(_d[12], _d[13], _d[14], _d[15]).negate().addVec(pos).normalize();
         if (!positive) _z.negate();
-        CG.Vec4.VEC4_0100.cross(_z, _x).removeY().removeW().normalize();
-        _z.cross(_x, _y).normalize();
-        _space.setAxisXYZVec(_x, _y, _z);
+        if (CG.Vec4.VEC4_0100.cross(_z, _x).isSameVec(CG.Vec4.VEC4_0000)) {
+            CG.warn("[space-controller] two axises are parallel, cancel 'axisZPointsTo() from executing!");
+        } else {
+            _x.removeY().removeW().normalize();
+            _z.cross(_x, _y).normalize();
+            _space.setAxisXYZVec(_x, _y, _z);
+        }
     }
 
     /**
