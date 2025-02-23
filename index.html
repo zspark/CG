@@ -19,6 +19,7 @@
     <script src="./src/log.js"></script>
     <script src="./src/math.js"></script>
     <script src="./src/gl.js"></script>
+    <script src="./src/geometry.js"></script>
     <script>
         const {gl} = CG.createGlContext('glcanvas');
 
@@ -33,15 +34,14 @@
   void main() {
     fragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red color
   }`;
-        const positions = new Float32Array([
-            -0.5, -0.5, 0.0,
-            0.5, -0.5, 0.0,
-            0.0, 0.5, 0.0,
-        ]);
+        const _cubeInfo = CG.geometry.createCube(1);
 
         const positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, _cubeInfo.vertices, gl.STATIC_DRAW);
+        const _indexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, _indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, _cubeInfo.indices, gl.STATIC_DRAW);
 
         const _programWrapper = CG.createProgramWrapper(gl, vsSource, fsSource);
         _programWrapper.bindAttribute("a_position", 3, gl.FLOAT, false, 0, 0);
@@ -52,7 +52,7 @@
 
             _programWrapper.useProgram();
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.drawElements(gl.TRIANGLES, _cubeInfo.indices.length, gl.UNSIGNED_SHORT, 0);
 
             requestAnimationFrame(render);
         }
