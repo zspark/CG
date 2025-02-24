@@ -28,6 +28,13 @@ window.CG ??= {};
         get material() {
             CG.info('[mesh] TODO: need material!');
         }
+
+        get VAO() {
+            return this.#_ref_geo.VAO;
+        }
+
+        draw(primitiveType){
+        }
     }
 
     window.CG.Mesh = Mesh;

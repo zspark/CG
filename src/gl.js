@@ -79,7 +79,7 @@ window.CG ??= {};
         });
     }
 
-
+    const _wm_program = new WeakMap();
     class Program {
         #_glProgram;
         #_gl;
@@ -135,6 +135,7 @@ window.CG ??= {};
             }
 
             this.#_glProgram = shaderProgram;
+            _wm_program.set(this, shaderProgram);
         }
         getAttribLocation(name) {
             return this.#_gl.getAttribLocation(this.#_glProgram, name);
@@ -166,17 +167,18 @@ window.CG ??= {};
     class Texture {
         #_glTexture;
         #_gl;
-        constructor(gl) { this.#_gl = gl; }
+        #_texUnit = -1;
+        constructor(gl) {
+            this.#_gl = gl;
+        }
+
+        get textureUnit() { return this.#_texUnit; }
 
         createGLTexture(data) {
             if (!!this.#_glTexture) return;
             const gl = this.#_gl;
-            const _texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, _texture);
+            this.#_createTexture(gl);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
-            this.#_setDefaultParameters(gl);
-            this.#_glTexture = _texture;
-            _wm_texture.set(this, _texture);
             return this;
         }
 
@@ -186,19 +188,19 @@ window.CG ??= {};
         createGLTextureWithSize(width, height) {
             if (!!this.#_glTexture) return;
             const gl = this.#_gl;
-            const _texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, _texture);
+            this.#_createTexture(gl);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width ?? gl.drawingBufferWidth, height ?? gl.drawingBufferHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-            this.#_setDefaultParameters(gl);
-            this.#_glTexture = _texture;
-            _wm_texture.set(this, _texture);
             return this;
         }
 
-        #_setDefaultParameters(gl) {
+        #_createTexture(gl) {
+            const _texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, _texture);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            this.#_glTexture = _texture;
+            _wm_texture.set(this, _texture);
         }
 
         setParameter(name, value) {
@@ -206,10 +208,11 @@ window.CG ??= {};
             this.#_gl.texParameteri(gl.TEXTURE_2D, name, value);
         }
 
-        bindTexture(textureUnit = 0) {
+        bind(textureUnit) {
             const gl = this.#_gl;
             gl.activeTexture(gl.TEXTURE0 + textureUnit);
             gl.bindTexture(gl.TEXTURE_2D, this.#_glTexture);
+            this.#_texUnit = textureUnit;
             return this;
         }
 
@@ -223,21 +226,24 @@ window.CG ??= {};
 
     const _wm_framebuffer = new WeakMap();
     class Framebuffer {
-        #_glFramebuffer;
+        #_glFramebuffer = null;
         #_gl;
-        constructor(gl) {
+        constructor(gl, isBackFBO = true) {
             this.#_gl = gl;
-            this.#_glFramebuffer = gl.createFramebuffer();
+            if (isBackFBO) {
+                this.#_glFramebuffer = gl.createFramebuffer();
+            }
             _wm_framebuffer.set(this, this.#_glFramebuffer);
         }
 
-        attachColorTexture(texture, attachment = 0, textarget = undefined) {
+        attachColorTexture(texture, attachment = 0, target = undefined) {
+            if (!this.#_glFramebuffer) return this;
             const gl = this.#_gl;
-            textarget ??= gl.TEXTURE_2D;
+            target ??= gl.TEXTURE_2D;
             const _glTex = _wm_texture.get(texture);
-            gl.bindTexture(textarget, _glTex);
+            gl.bindTexture(target, _glTex);
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.#_glFramebuffer);
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + attachment, textarget, _glTex, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + attachment, target, _glTex, 0);
             return this;
         }
 
@@ -251,6 +257,83 @@ window.CG ??= {};
         }
 
         destroy() {
+            this.#_glFramebuffer && this.#_gl.deleteFrameBuffer(this.#_glFramebuffer);
+        }
+    }
+
+    class Pipeline {
+        FBO;
+        program;
+        VAO;
+        arrTextures = [];
+
+        #_gl;
+        #_drawParameter;
+        #_isVertexMethod = false;// I prefer elements mode;
+        constructor(gl) {
+            this.#_gl = gl;
+        }
+
+        setFBO(fbo) { this.FBO = fbo; return this; }
+        setProgram(program) { this.program = program; return this; }
+        setVAO(vao) { this.VAO = vao; return this; }
+        setTextures(...tex) {
+            this.arrTextures.length = 0;
+            this.arrTextures.push(...tex);
+            return this;
+        }
+
+        setDrawArraysParameters(...args) {
+            this.#_drawParameter = args;
+            this.#_isVertexMethod = true;
+            return this;
+        }
+        setDrawElementsParameters(...args) {
+            this.#_drawParameter = args;
+            this.#_isVertexMethod = false;
+            return this;
+        }
+
+        validate() {
+            const gl = this.#_gl;
+            let r = this.FBO && this.FBO instanceof CG.glWrapper.Framebuffer;
+            if (!r) {
+                CG.vital('[Pipeline] frame buffer is not exist OR is not a valid Framebuffer instance.');
+            }
+            r = this.program && this.program instanceof CG.glWrapper.Program;
+            if (!r) {
+                CG.vital('[Pipeline] program is not exist OR is not a valid Program instance.');
+            }
+            r = this.VAO && gl.isVertexArray(this.VAO);
+            if (!r) {
+                CG.vital('[Pipeline] VAO is not exist OR is not a valid gl vertex array object.');
+            }
+            //todo:
+            return this;
+        }
+
+        execute() {
+            this.FBO.bind();
+
+            const gl = this.#_gl;
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(gl.LESS);
+            gl.depthRange(0.0, 1.0);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.blendEquation(gl.FUNC_ADD);
+
+            gl.bindVertexArray(this.VAO);
+            this.arrTextures.forEach((t) => {
+                t.bind(1);
+            });
+            this.program.use().updateUniforms();
+            if (this.#_isVertexMethod) {
+                gl.drawArrays(...this.#_drawParameter);
+            } else {
+                gl.drawElements(...this.#_drawParameter);
+            }
+            return this;
         }
     }
 
@@ -259,6 +342,7 @@ window.CG ??= {};
         Program,
         Texture,
         Framebuffer,
+        Pipeline,
     });
     window.CG.createGlContext = createGlContext;
     CG.warn("[gl.js] createProgramWrapper under CG has been deprecated!");

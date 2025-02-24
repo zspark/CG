@@ -190,26 +190,24 @@ window.CG ??= {};
             //TODO:
         }
 
-        static ATTRIB_POSITION = "position";
-        static ATTRIB_TEXTURE_UV = "texcoord";
-        static ATTRIB_NORMAL = "normal";
-        static ATTRIB_COLOR = "color";
+        static ATTRIB_POSITION = 0;
+        static ATTRIB_TEXTURE_UV = 1;
+        static ATTRIB_NORMAL = 2;
+        static ATTRIB_COLOR = 3;
 
-        #_bindingFunc;
+        #_inited = false;
         #_vertices;
         #_indices;
-        #_useVAO = true;
         #_glVAO;
         #_glVertexBuffer;
         #_glIndexBuffer;
-        #_attributeLayouts = {};
+        #_attributeLayouts = new Array(15);
         #_vertexBufferLength = -1;
         #_indexBufferLength = -1;
-        constructor(vertices, indices, useVAO = true) {
+
+        constructor(vertices, indices) {
             this.#_vertices = vertices;
             this.#_indices = indices;
-            this.#_useVAO = useVAO;
-            this.#_bindingFunc = this.#_bindAttributes;
         }
 
         get vertexBufferLength() {
@@ -220,81 +218,48 @@ window.CG ??= {};
             return this.#_indexBufferLength;
         }
 
-        createGLBuffers(gl, usage = undefined) {
-            if (this.#_vertices) this.createVertexGLBuffer(gl, this.#_vertices, usage);
-            if (this.#_indices) this.createIndexGLBuffer(gl, this.#_indices, usage);
+        get VAO() {
+            return this.#_glVAO;
+        }
+
+        /**
+        * create gl buffers and record to VAO.
+        */
+        init(gl, usage = undefined) {
+            if (this.#_inited) return this;
+
+            this.#_glVAO = gl.createVertexArray();
+            gl.bindVertexArray(this.#_glVAO);
+
+            usage ??= gl.STATIC_DRAW;
+            if (this.#_vertices && !this.#_glVertexBuffer) {
+                this.#_glVertexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, this.#_vertices, usage);
+                this.#_vertexBufferLength = this.#_vertices.length;
+
+                this.#_attributeLayouts.forEach((v, i) => {
+                    if (v) {
+                        gl.enableVertexAttribArray(i);
+                        gl.vertexAttribPointer(i, ...v);
+                    }
+                });
+            }
+
+            if (this.#_indices && !this.#_glIndexBuffer) {
+                this.#_glIndexBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#_glIndexBuffer);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.#_indices, usage);
+                this.#_indexBufferLength = this.#_indices.length;
+            }
+            gl.bindVertexArray(null);
+
             this.#_indices = this.#_vertices = undefined;
             return this;
         }
-        createVertexGLBuffer(gl, data, usage = undefined) {
-            if (this.#_glVertexBuffer) return this;
-            this.#_glVertexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, data, usage ?? gl.STATIC_DRAW);
-            this.#_vertexBufferLength = data.length;
-            return this;
-        }
+
         setAttributeLayout(attributeName, size, type, normalized, stride, offset) {
-            this.#_attributeLayouts[attributeName] = {
-                size, type, normalized, stride, offset,
-            };
-            return this;
-        }
-
-        createIndexGLBuffer(gl, data, usage = undefined) {
-            if (this.#_glIndexBuffer) return this;
-            this.#_glIndexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#_glIndexBuffer);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, usage ?? gl.STATIC_DRAW);
-            this.#_indexBufferLength = data.length;
-            return this;
-        }
-
-        bindAttributes(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
-            this.#_bindingFunc(gl, positionLocation, uvLocation, normalLocation, colorLocation);
-        }
-        #_bindAttributes_VAO(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
-            gl.bindVertexArray(this.#_glVAO);
-        }
-        #_bindAttributes(gl, positionLocation, uvLocation = -1, normalLocation = -1, colorLocation = -1) {
-            if (this.#_useVAO) {
-                if (!this.#_glVAO) {
-                    this.#_glVAO = gl.createVertexArray();
-                }
-                gl.bindVertexArray(this.#_glVAO);
-            }
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#_glIndexBuffer);
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.#_glVertexBuffer);
-
-            if (positionLocation >= 0) {
-                //CG.info('[gl.js] position attribute location is:', positionLocation);
-                let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_POSITION];
-                gl.enableVertexAttribArray(positionLocation);
-                gl.vertexAttribPointer(positionLocation, size, type, normalized, stride, offset);
-            }
-
-            if (uvLocation >= 0) {
-                let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_TEXTURE_UV];
-                gl.enableVertexAttribArray(uvLocation);
-                gl.vertexAttribPointer(uvLocation, size, type, normalized, stride, offset);
-            }
-
-            if (normalLocation >= 0) {
-                gl.enableVertexAttribArray(normalLocation);
-                let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_NORMAL];
-                gl.vertexAttribPointer(normalLocation, size, type, normalized, stride, offset);
-            }
-
-            if (colorLocation >= 0) {
-                gl.enableVertexAttribArray(colorLocation);
-                let { size, type, normalized, stride, offset } = this.#_attributeLayouts[CG.Geometry.ATTRIB_COLOR];
-                gl.vertexAttribPointer(colorLocation, size, type, normalized, stride, offset);
-            }
-
-            if (this.#_useVAO) {
-                this.#_bindingFunc = this.#_bindAttributes_VAO;
-                gl.bindVertexArray(null);
-            }
+            this.#_attributeLayouts[attributeName] = [size, type, normalized, stride, offset];
             return this;
         }
 

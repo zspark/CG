@@ -7,15 +7,17 @@ window.CG ??= {};
         #_helperVec4_x = new CG.Vec4();
         #_helperVec4_y = new CG.Vec4();
         #_helperVec4_z = new CG.Vec4();
-        #_mouseEvents;
         #_spaceCtrl;
         #_space;
+        #_viewProjectionMatrix = new CG.Mat44().setToIdentity();
+        #_frustum = new CG.Frustum();
 
-        constructor(posX, posY, posZ, events) {
+        constructor(posX, posY, posZ) {
             this.#_space = new CG.OrthogonalSpace().setPosition(posX, posY, posZ);
-            this._mouseEvents = events;
             this.#_spaceCtrl = new CG.SpaceController(this.#_space);
+        }
 
+        setMouseEvents(events) {
             let _onMoveFn;
             const _onDown = (evt) => {
                 //CG.info(evt);
@@ -78,10 +80,24 @@ window.CG ??= {};
                 //this.#_spaceCtrl.rotateAroundY(CG.Utils.deg2Rad(delta*5));
             });
             events.onDown(_onDown);
+            return this;
         }
 
         get viewMatrix() {
             return this.#_space.transformInv;
+        }
+
+        get viewProjectionMatrix() {
+            return this.#_viewProjectionMatrix;
+        }
+
+        update(dt) {
+            this.#_frustum.projectionMatrix.multiply(this.viewMatrix, this.#_viewProjectionMatrix);
+        }
+
+        setFrustum(frustum) {
+            this.#_frustum = frustum;
+            return this;
         }
 
         moveHorizontally(deltaX, delta) {

@@ -29,85 +29,90 @@
     <script src="./src/mouse-events.js"></script>
     <script src="./src/space-controller.js"></script>
     <script src="./src/camera.js"></script>
+    <script src="./src/frustum.js"></script>
     <script src="./src/mesh.js"></script>
     <script src="./glsl/fade-away-from-camera.js"></script>
     <script src="./glsl/only-texture.js"></script>
     <script>
-        const _imgElement = document.getElementById("color-texture");
-        _imgElement.remove();
+        const _imgElement = document.getElementById("color-texture"); _imgElement.remove();
         const {gl, canvas} = CG.createGlContext('glcanvas');
-        const _mouseEvents = CG.registMouseEvents(canvas);
-        const _mvpMatrix = new CG.Mat44();
-        const _camera = new CG.Camera(0, 2, 8, _mouseEvents).lookAt(CG.Vec4.VEC4_0001);
-        const _projMat = new CG.Utils.createPerspectiveMatrix(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 1000);
+        const _tempMat44 = new CG.Mat44();
+        const _camera = new CG.Camera(0, 2, 8)
+            .setMouseEvents(CG.registMouseEvents(canvas))
+            .setFrustum(new CG.Frustum().createPerspectiveProjection(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 1000))
+            .lookAt(CG.Vec4.VEC4_0001);
 
-        const _uniformUpdater_ground_tex = {
+        const _defaultFBO = new CG.glWrapper.Framebuffer(gl, false);
+
+
+
+
+
+        //--------------------------------------------------------------------------------
+        const _programFadeAway = new CG.glWrapper.Program(gl, CG.shaderSource.fadeAwayFromCamera.vs, CG.shaderSource.fadeAwayFromCamera.fs)
+            .setUniformUpdater({
+                updateu_mvpMatrix: (uLoc) => {
+                    gl.uniformMatrix4fv(uLoc, false, _camera.viewProjectionMatrix._dataArr32);
+                },
+                updateu_mvMatrix: (uLoc) => {
+                    gl.uniformMatrix4fv(uLoc, false, _camera.viewMatrix._dataArr32);
+                }
+            });
+        const _meshGrid = new CG.Mesh(CG.Geometry.createGridPlane(100, 1).init(gl));
+
+
+
+
+        //--------------------------------------------------------------------------------
+        const _programTextureOnly = new CG.glWrapper.Program(gl, CG.shaderSource.onlyTexture.vs, CG.shaderSource.onlyTexture.fs).setUniformUpdater({
             updateu_mvpMatrix: (uLoc) => {
-                gl.uniformMatrix4fv(uLoc, false, _mvpMatrix._dataArr32);
+                _meshPlane.cascade(_camera.viewProjectionMatrix, _tempMat44);
+                gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
             },
             updateu_texture: (uLoc) => {
-                gl.uniform1i(uLoc, 3);
+                gl.uniform1i(uLoc, _colorTexture.textureUnit);
             }
-        }
-        const _uniformUpdater_ground = {
-            updateu_mvpMatrix: (uLoc) => {
-                _meshPlane.cascade(_mvpMatrix, _mvpMatrix);
-                gl.uniformMatrix4fv(uLoc, false, _mvpMatrix._dataArr32);
-            },
-            updateu_mvMatrix: (uLoc) => {
-                gl.uniformMatrix4fv(uLoc, false, _camera.viewMatrix._dataArr32);
-            }
-        }
+        });
+        const _meshPlane = new CG.Mesh(CG.Geometry.createPlane(4, 3).init(gl)).setPosition(0, 0, 0);
+        const _colorTexture = new CG.glWrapper.Texture(gl).createGLTexture(_imgElement);
+        //--------------------------------------------------------------------------------
 
 
-        const _colorTextureForFBO = new CG.glWrapper.Texture(gl).createGLTextureWithSize();
-        const _secondFBO = new CG.glWrapper.Framebuffer(gl).attachColorTexture(_colorTextureForFBO);
-        const _programFadeAway = new CG.glWrapper.Program(gl, CG.shaderSource.fadeAwayFromCamera.vs, CG.shaderSource.fadeAwayFromCamera.fs).setUniformUpdater(_uniformUpdater_ground);
-        const _aLoc_position_plane = _programFadeAway.getAttribLocation("a_position");
 
-        const _geoPlane = CG.Geometry.createGridPlane(100, 1).createGLBuffers(gl);
-        const _meshGround = new CG.Mesh(_geoPlane);
 
-        const _programTextureOnly = new CG.glWrapper.Program(gl, CG.shaderSource.onlyTexture.vs, CG.shaderSource.onlyTexture.fs).setUniformUpdater(_uniformUpdater_ground_tex);
-        const _aLoc_position = _programTextureOnly.getAttribLocation("a_position");
-        const _aLoc_uv = _programTextureOnly.getAttribLocation("a_texCoord");
+        const _pipe_grid = new CG.glWrapper.Pipeline(gl)
+            .setFBO(_defaultFBO)
+            .setVAO(_meshGrid.VAO)
+            .setProgram(_programFadeAway)
+            .setDrawArraysParameters(gl.LINES, 0, _meshGrid.vertexDataLengthInFloat)
+            .validate();
+        const _pipe_plane = new CG.glWrapper.Pipeline(gl)
+            .setFBO(_defaultFBO)
+            .setVAO(_meshPlane.VAO)
+            .setProgram(_programTextureOnly)
+            .setTextures(_colorTexture)
+            .setDrawElementsParameters(gl.TRIANGLES, _meshPlane.numberIndices, gl.UNSIGNED_SHORT, 0)
+            .validate();
+        //--------------------------------------------------------------------------------
 
-        const _geo = CG.Geometry.createPlane(4, 3).createGLBuffers(gl);
-        const _meshPlane = new CG.Mesh(_geo).setPosition(0, 0, 0);
-        const _texture = new CG.glWrapper.Texture(gl).createGLTexture(_imgElement);
 
-        gl.enable(gl.DEPTH_TEST);
-        gl.depthFunc(gl.LESS);
-        gl.depthRange(0.0, 1.0);
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendEquation(gl.FUNC_ADD);
+
+
 
         function render() {
-            _secondFBO.bind();
-            renderScene(gl, _texture);
-            _secondFBO.unbind();
-            renderScene(gl, _colorTextureForFBO);
+            _camera.update();
+
+
+            gl.clearColor(0.2, 0.2, 0.2, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            _pipe_grid.execute();
+            _pipe_plane.execute();
+
+
             requestAnimationFrame(render);
         }
 
         render();
-
-        function renderScene(gl, texture) {
-            gl.clearColor(0.2, 0.2, 0.2, 1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            _projMat.multiply(_camera.viewMatrix, _mvpMatrix)
-
-            _programFadeAway.use().updateUniforms();
-            _geoPlane.bindAttributes(gl, _aLoc_position_plane);
-            gl.drawArrays(gl.LINES, 0, _meshGround.vertexDataLengthInFloat);
-
-
-            _programTextureOnly.use().updateUniforms();
-            texture.bindTexture(3);
-            _geo.bindAttributes(gl, _aLoc_position, _aLoc_uv);
-            gl.drawElements(gl.TRIANGLES, _meshPlane.numberIndices, gl.UNSIGNED_SHORT, 0);
-        }
 
     </script>
 </body>
