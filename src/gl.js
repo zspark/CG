@@ -173,6 +173,13 @@ window.CG ??= {};
             return this;
         }
 
+        updateData(data, xoffset, yoffset, width, height) {
+            if (!this.#_glTexture) return;
+            gl.bindTexture(gl.TEXTURE_2D, this.#_glTexture);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset, yoffset, width, width, gl.RGBA, gl.UNSIGNED_BYTE, data);
+            return this;
+        }
+
         /**
         * defaults to gl.drawingBufferWidth and ...height
         */

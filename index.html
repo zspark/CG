@@ -18,8 +18,8 @@
 
 <body>
     <canvas id="glcanvas" width="640" height="480"></canvas>
-    <img id="color-texture" src="./assets/uv-grid.webp" crossOrigin="anonymous"></img>
     <script src="./src/log.js"></script>
+    <script src="./src/assets-loader.js"></script>
     <script src="./src/math.js"></script>
     <script src="./src/gl.js"></script>
     <script src="./src/glsl.js"></script>
@@ -32,9 +32,12 @@
     <script src="./src/frustum.js"></script>
     <script src="./src/mesh.js"></script>
     <script src="./glsl/fade-away-from-camera.js"></script>
-    <script src="./glsl/gouraud.js"></script>
+    <script src="./glsl/only-texture.js"></script>
     <script>
-        const _imgElement = document.getElementById("color-texture"); _imgElement.remove();
+        const _loader = CG.createResourceLoader("./assets/");
+        _loader.loadTexture("uv-grid.webp").then((image) => {
+            _texture.updateData(image, 0, 0, image.width, image.height);
+        });
         const {gl, canvas} = CG.createGlContext('glcanvas');
         const _tempMat44 = new CG.Mat44();
         const _camera = new CG.Camera(0, 2, 14)
@@ -72,9 +75,9 @@
 
 
         //--------------------------------------------------------------------------------
-        const _program = new CG.glWrapper.Program(gl, CG.shaderSource.gouraud.vs, CG.shaderSource.gouraud.fs);
-        const _mesh = new CG.Mesh(CG.Geometry.createCube(4).init(gl)).setPosition(0, 0, 0);
-        //const _mesh = new CG.Mesh(CG.Geometry.createPlane(4, 3).init(gl)).setPosition(0, 0, 0);
+        const _program = new CG.glWrapper.Program(gl, CG.shaderSource.onlyTexture.vs, CG.shaderSource.onlyTexture.fs);
+        const _mesh = new CG.Mesh(CG.Geometry.createPlane(4, 3).init(gl)).setPosition(0, 0, 0);
+        const _texture = new CG.glWrapper.Texture(gl).createGLTextureWithSize(1024, 1024);
 
         const _pipe_cube = new CG.glWrapper.Pipeline(gl)
             .setFBO(_defaultFBO)
@@ -82,32 +85,17 @@
             .setVAO(_mesh.VAO)
             .setUniformUpdater(
                 {
+                    updateu_texture: (uLoc) => {
+                        gl.uniform1i(uLoc, _texture.textureUnit);
+                    },
                     updateu_mvpMatrix: (uLoc) => {
                         _mesh.cascade(_camera.viewProjectionMatrix, _tempMat44);
                         gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
                     },
-                    updateu_mMatrix: (uLoc) => {
-                        _mesh.getTransform(_tempMat44);
-                        gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
-                    },
-                    updateu_ambientColor: (uLoc) => {
-                        gl.uniform4f(uLoc, 0.2, 0.2, 0.2, 1.0);
-                    },
-                    updateu_pointLightColor: (uLoc) => {
-                        gl.uniform4f(uLoc, 0.5, 0.5, 0.5, 1.0);
-                    },
-                    updateu_pointLightPositionW: (uLoc) => {
-                        gl.uniform3f(uLoc, 14.0, 14.0, 14.0);
-                    },
-                    updateu_cameraPositionW: (uLoc) => {
-                        gl.uniform3f(uLoc, _camera.position.x, _camera.position.y, _camera.position.z);
-                    },
-                    updateu_alpha: (uLoc) => {
-                        gl.uniform1f(uLoc, 40.0);
-                    },
                 })
             .setDrawElementsParameters(gl.TRIANGLES, _mesh.numberIndices, gl.UNSIGNED_SHORT, 0)
-            .cullFace(true)
+            .setTextures(_texture)
+            .cullFace(false)
             .validate();
         _renderer.addPipeline(_pipe_grid, _pipe_cube);
         //--------------------------------------------------------------------------------
@@ -118,9 +106,7 @@
 
         function render() {
             _camera.update();
-
             _renderer.render();
-
             requestAnimationFrame(render);
         }
 
