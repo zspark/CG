@@ -17,6 +17,10 @@ window.CG ??= {};
             this.#_spaceCtrl = new CG.SpaceController(this.#_space);
         }
 
+        get position() {
+            return this.#_space.getPosition(this.#_helperVec4_z);
+        }
+
         setMouseEvents(events) {
             let _onMoveFn;
             const _onDown = (evt) => {

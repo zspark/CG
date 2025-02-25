@@ -125,25 +125,35 @@ window.CG ??= {};
     class Geometry {
         static createCube(edgeLength) {
             const _half = edgeLength * .5;
+            const _n = 1.0 / Math.sqrt(3);
             const vertices = new Float32Array([
                 -_half, -_half, _half, // 前下左 0
+                -_n, -_n, _n,
                 1, 0, 0,//0
                 _half, -_half, _half, // 前下右 1
+                _n, -_n, _n,
                 0, 1, 0,//1
                 _half, _half, _half, // 前上右 2
+                _n, _n, _n,
                 0, 0, 1,//2
                 -_half, _half, _half, // 前上左 3
+                -_n, _n, _n,
                 1, 1, 1,//3
                 -_half, -_half, -_half, // 后下左 4
+                -_n, -_n, -_n,
                 0, 0, 1,//4
                 _half, -_half, -_half, // 后下右 5
+                _n, -_n, -_n,
                 1, 1, 1,//5
                 _half, _half, -_half, // 后上右 6
+                _n, _n, -_n,
                 1, 0, 0,//6
                 -_half, _half, -_half, // 后上左 7
+                -_n, _n, -_n,
                 0, 1, 0,//7
             ]);
 
+            //CG.log(vertices);
             const indices = new Uint16Array([
                 0, 1, 2, 0, 2, 3, // 前面
                 1, 5, 6, 1, 6, 2, // 右面
@@ -154,8 +164,9 @@ window.CG ??= {};
             ]);
 
             return new Geometry(vertices, indices)
-                .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 24, 0)
-                .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, 5126, false, 24, 12);
+                .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 36, 0)
+                .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, 5126, false, 36, 12)
+                .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, 5126, false, 36, 24);
 
         }
 
@@ -169,20 +180,25 @@ window.CG ??= {};
             const vertices = new Float32Array([
                 width, height, 0,
                 0.0, 0.0,
+                0, 0, 1,
                 -width, height, 0,
                 1.0, 0.0,
+                0, 0, 1,
                 -width, -height, 0,
                 1.0, 1.0,
+                0, 0, 1,
                 width, -height, 0,
                 0.0, 1.0,
+                0, 0, 1,
             ]);
             const indices = new Uint16Array([
                 0, 1, 2,
                 2, 3, 0
             ]);
             return new Geometry(vertices, indices)
-                .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 20, 0)
-                .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, 5126, false, 20, 12);
+                .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 32, 0)
+                .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, 5126, false, 32, 12)
+                .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, 5126, false, 32, 20);
         }
 
         static assembleFromGLTF(glftContent) {
@@ -255,6 +271,7 @@ window.CG ??= {};
             gl.bindVertexArray(null);
 
             this.#_indices = this.#_vertices = undefined;
+            this.#_inited = true;
             return this;
         }
 

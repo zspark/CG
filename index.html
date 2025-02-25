@@ -32,7 +32,7 @@
     <script src="./src/frustum.js"></script>
     <script src="./src/mesh.js"></script>
     <script src="./glsl/fade-away-from-camera.js"></script>
-    <script src="./glsl/transparent.js"></script>
+    <script src="./glsl/phong.js"></script>
     <script>
         const _imgElement = document.getElementById("color-texture"); _imgElement.remove();
         const {gl, canvas} = CG.createGlContext('glcanvas');
@@ -52,21 +52,6 @@
         //--------------------------------------------------------------------------------
         const _programFadeAway = new CG.glWrapper.Program(gl, CG.shaderSource.fadeAwayFromCamera.vs, CG.shaderSource.fadeAwayFromCamera.fs);
         const _meshGrid = new CG.Mesh(CG.Geometry.createGridPlane(100, 1).init(gl));
-
-
-
-
-        //--------------------------------------------------------------------------------
-        const _program = new CG.glWrapper.Program(gl, CG.shaderSource.transparent.vs, CG.shaderSource.transparent.fs);
-        const _mesh = new CG.Mesh(CG.Geometry.createCube(4).init(gl)).setPosition(0, 0, 0);
-        //--------------------------------------------------------------------------------
-
-        const _meshPlane = new CG.Mesh(CG.Geometry.createPlane(4, 3).init(gl)).setPosition(0, 0, 5);
-        //--------------------------------------------------------------------------------
-
-
-
-
         const _pipe_grid = new CG.glWrapper.Pipeline(gl)
             .setFBO(_defaultFBO)
             .setProgram(_programFadeAway)
@@ -82,6 +67,15 @@
             .cullFace(true)
             .setDrawArraysParameters(gl.LINES, 0, _meshGrid.vertexDataLengthInFloat)
             .validate();
+
+
+
+
+        //--------------------------------------------------------------------------------
+        const _program = new CG.glWrapper.Program(gl, CG.shaderSource.phong.vs, CG.shaderSource.phong.fs);
+        const _mesh = new CG.Mesh(CG.Geometry.createCube(4).init(gl)).setPosition(0, 0, 0);
+        //const _mesh = new CG.Mesh(CG.Geometry.createPlane(4, 3).init(gl)).setPosition(0, 0, 0);
+
         const _pipe_cube = new CG.glWrapper.Pipeline(gl)
             .setFBO(_defaultFBO)
             .setProgram(_program)
@@ -92,31 +86,30 @@
                         _mesh.cascade(_camera.viewProjectionMatrix, _tempMat44);
                         gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
                     },
-                    updateu_color: (uLoc) => {
-                        gl.uniform3fv(uLoc, [0.0, 1.0, 0.0]);
+                    updateu_mMatrix: (uLoc) => {
+                        _mesh.getTransform(_tempMat44);
+                        gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
+                    },
+                    updateu_ambientColor: (uLoc) => {
+                        gl.uniform4f(uLoc, 0.2, 0.2, 0.2, 1.0);
+                    },
+                    updateu_pointLightColor: (uLoc) => {
+                        gl.uniform4f(uLoc, 0.5, 0.5, 0.5, 1.0);
+                    },
+                    updateu_pointLightPositionW: (uLoc) => {
+                        gl.uniform3f(uLoc, 0.0, 0.0, 14.0);
+                    },
+                    updateu_cameraPositionW: (uLoc) => {
+                        gl.uniform3f(uLoc, _camera.position.x, _camera.position.y, _camera.position.z);
+                    },
+                    updateu_alpha: (uLoc) => {
+                        gl.uniform1f(uLoc, 40.0);
                     },
                 })
             .setDrawElementsParameters(gl.TRIANGLES, _mesh.numberIndices, gl.UNSIGNED_SHORT, 0)
             .cullFace(true)
             .validate();
-        const _pipe_plane = new CG.glWrapper.Pipeline(gl)
-            .setFBO(_defaultFBO)
-            .setProgram(_program)
-            .setVAO(_meshPlane.VAO)
-            .setUniformUpdater({
-                updateu_mvpMatrix: (uLoc) => {
-                    _meshPlane.cascade(_camera.viewProjectionMatrix, _tempMat44);
-                    gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
-                },
-                updateu_color: (uLoc) => {
-                    gl.uniform3fv(uLoc, [1.0, 0.0, 0.0]);
-                },
-            })
-            .cullFace(false)
-            .setDrawElementsParameters(gl.TRIANGLES, _meshPlane.numberIndices, gl.UNSIGNED_SHORT, 0)
-            .validate();
-        _renderer.addPipeline(_pipe_grid);
-        _renderer.addTransparentPipeline( _pipe_cube, _pipe_plane);
+        _renderer.addPipeline(_pipe_grid, _pipe_cube);
         //--------------------------------------------------------------------------------
 
 
