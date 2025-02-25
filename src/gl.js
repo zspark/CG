@@ -83,7 +83,6 @@ window.CG ??= {};
     class Program {
         #_glProgram;
         #_gl;
-        #_uniformUpdater;
         #_mapUniform = new Map();
         constructor(gl, vsSource, fsSource) {
             this.#_gl = gl;
@@ -140,19 +139,11 @@ window.CG ??= {};
         getAttribLocation(name) {
             return this.#_gl.getAttribLocation(this.#_glProgram, name);
         }
-        setUniformUpdater(updater) {
-            this.#_uniformUpdater = updater;
-            return this;
-        }
-        updateUniforms() {
-            const _upt = this.#_uniformUpdater;
-            this.#_mapUniform.forEach((v, k) => {
-                _upt[`update${k}`](v);
-            });
-            return this;
-        }
-        use() {
+        use(uniformUpdater) {
             this.#_gl.useProgram(this.#_glProgram);
+            this.#_mapUniform.forEach((v, k) => {
+                uniformUpdater[`update${k}`](v);
+            });
             return this;
         };
 
@@ -270,8 +261,15 @@ window.CG ??= {};
         #_gl;
         #_drawParameter;
         #_isVertexMethod = false;// I prefer elements mode;
+        #_uniformUpdater;
+        #_enableCullFace = true;
         constructor(gl) {
             this.#_gl = gl;
+        }
+
+        cullFace(enable) {
+            this.#_enableCullFace = enable;
+            return this;
         }
 
         setFBO(fbo) { this.FBO = fbo; return this; }
@@ -288,6 +286,12 @@ window.CG ??= {};
             this.#_isVertexMethod = true;
             return this;
         }
+
+        setUniformUpdater(updater) {
+            this.#_uniformUpdater = updater;
+            return this;
+        }
+
         setDrawElementsParameters(...args) {
             this.#_drawParameter = args;
             this.#_isVertexMethod = false;
@@ -296,18 +300,13 @@ window.CG ??= {};
 
         validate() {
             const gl = this.#_gl;
-            let r = this.FBO && this.FBO instanceof CG.glWrapper.Framebuffer;
-            if (!r) {
+            if (!(this.FBO && this.FBO instanceof CG.glWrapper.Framebuffer))
                 CG.vital('[Pipeline] frame buffer is not exist OR is not a valid Framebuffer instance.');
-            }
-            r = this.program && this.program instanceof CG.glWrapper.Program;
-            if (!r) {
+            if (!(this.program && this.program instanceof CG.glWrapper.Program))
                 CG.vital('[Pipeline] program is not exist OR is not a valid Program instance.');
-            }
-            r = this.VAO && gl.isVertexArray(this.VAO);
-            if (!r) {
+            if (!(this.VAO && gl.isVertexArray(this.VAO)))
                 CG.vital('[Pipeline] VAO is not exist OR is not a valid gl vertex array object.');
-            }
+            if (!this.#_uniformUpdater) CG.vital('[Pipeline] uniform updater is not exist.');
             //todo:
             return this;
         }
@@ -316,18 +315,18 @@ window.CG ??= {};
             this.FBO.bind();
 
             const gl = this.#_gl;
-            gl.enable(gl.DEPTH_TEST);
-            gl.depthFunc(gl.LESS);
+            this.#_enableCullFace ? gl.enable(gl.CULL_FACE) : gl.disable(gl.CULL_FACE);
             gl.depthRange(0.0, 1.0);
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.blendEquation(gl.FUNC_ADD);
 
             gl.bindVertexArray(this.VAO);
-            this.arrTextures.forEach((t) => {
-                t.bind(1);
-            });
-            this.program.use().updateUniforms();
+            //TODO: further improvments.
+            for (let i = 0, N = this.arrTextures.length; i < N; ++i) {
+                this.arrTextures[i].bind(i);
+            };
+            this.program.use(this.#_uniformUpdater);
             if (this.#_isVertexMethod) {
                 gl.drawArrays(...this.#_drawParameter);
             } else {
@@ -337,12 +336,50 @@ window.CG ??= {};
         }
     }
 
+    class Renderer {
+        #_maxTextureUnits;
+        #_renderState;
+        #_arrPipeline = [];
+        #_arrTransparentPipeline = [];
+
+        #_gl;
+        constructor(gl) {
+            this.#_gl = gl;
+            this.#_maxTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+        }
+
+        render() {
+            gl.enable(gl.DEPTH_TEST);
+            gl.depthFunc(gl.LESS);
+            this.#_arrPipeline.forEach((p) => {
+                p.execute();
+            });
+            gl.disable(gl.DEPTH_TEST);
+            this.#_arrTransparentPipeline.forEach((p) => {
+                p.execute();
+            });
+        }
+
+        addPipeline(...p) {
+            this.#_arrPipeline.push(...p);
+        }
+        addTransparentPipeline(...p) {
+            this.#_arrTransparentPipeline.push(...p);
+        }
+
+        /*
+        #sortPipline() {
+            //TODO:
+        }
+        */
+    }
 
     window.CG.glWrapper = Object.freeze({
         Program,
         Texture,
         Framebuffer,
         Pipeline,
+        Renderer,
     });
     window.CG.createGlContext = createGlContext;
     CG.warn("[gl.js] createProgramWrapper under CG has been deprecated!");
