@@ -32,7 +32,7 @@
     <script src="./src/frustum.js"></script>
     <script src="./src/mesh.js"></script>
     <script src="./glsl/fade-away-from-camera.js"></script>
-    <script src="./glsl/blinn-phong.js"></script>
+    <script src="./glsl/gouraud.js"></script>
     <script>
         const _imgElement = document.getElementById("color-texture"); _imgElement.remove();
         const {gl, canvas} = CG.createGlContext('glcanvas');
@@ -72,7 +72,7 @@
 
 
         //--------------------------------------------------------------------------------
-        const _program = new CG.glWrapper.Program(gl, CG.shaderSource.blinnPhong.vs, CG.shaderSource.blinnPhong.fs);
+        const _program = new CG.glWrapper.Program(gl, CG.shaderSource.gouraud.vs, CG.shaderSource.gouraud.fs);
         const _mesh = new CG.Mesh(CG.Geometry.createCube(4).init(gl)).setPosition(0, 0, 0);
         //const _mesh = new CG.Mesh(CG.Geometry.createPlane(4, 3).init(gl)).setPosition(0, 0, 0);
 
@@ -97,7 +97,7 @@
                         gl.uniform4f(uLoc, 0.5, 0.5, 0.5, 1.0);
                     },
                     updateu_pointLightPositionW: (uLoc) => {
-                        gl.uniform3f(uLoc, 0.0, 0.0, 14.0);
+                        gl.uniform3f(uLoc, 14.0, 14.0, 14.0);
                     },
                     updateu_cameraPositionW: (uLoc) => {
                         gl.uniform3f(uLoc, _camera.position.x, _camera.position.y, _camera.position.z);
