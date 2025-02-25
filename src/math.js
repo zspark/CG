@@ -144,6 +144,9 @@ window.CG ??= {};
         }
 
         clone() { return new Vec4(this.x, this.y, this.z, this.w); }
+        toArray() {
+            return [this.x, this.y, this.z, this.w];
+        };
 
         toString() {
             return `(${this.x}, ${this.y}, ${this.z}, ${this.w})`;
@@ -247,6 +250,9 @@ window.CG ??= {};
         toString() {
             return `(${this.x}, ${this.y}, ${this.z})`;
         }
+        toArray() {
+            return [this.x, this.y, this.z];
+        };
     }
 
     const _identityMat44Data = Object.freeze([

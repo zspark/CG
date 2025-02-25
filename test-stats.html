@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>test - dat.gui</title>
+</head>
+
+<body>
+    <canvas id="glcanvas" width="640" height="480"></canvas>
+    <script type="text/javascript" src="./third/stats.min.js"></script>
+
+    <script>
+        var stats = new Stats();
+        stats.showPanel(1); // 0: fps, 1: ms, 2: mb, 3+: custom
+        document.body.appendChild(stats.dom);
+
+        function animate() {
+
+            stats.begin();
+
+            // monitored code goes here
+
+            stats.end();
+
+            requestAnimationFrame(animate);
+
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+
+</body>
+
+</html>

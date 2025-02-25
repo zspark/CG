@@ -2,3 +2,5 @@ temp.*
 tmp.*
 temp/
 tmp/
+/.tmp.driveupload/
+/.tmp.drivedownload/

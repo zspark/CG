@@ -7,23 +7,26 @@ window.CG ??= {};
     * baseURL should ended up with '\'
     */
     function createResourceLoader(baseURL) {
-        return {
-            loadShader: (url) => {
-                return fetch(`${baseURL}${url}`).then(response => {
-                    if (!response.ok) {
-                        CG.vital(`[assets-loader] HTTP error! status: ${response.status}
+        const _loadFile = (url) => {
+            return fetch(`${baseURL}${url}`).then(response => {
+                if (!response.ok) {
+                    CG.vital(`[assets-loader] HTTP error! status: ${response.status}
 url: ${url}`);
-                    }
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.includes("application/json")) {
-                        return response.json();
-                    } else {
-                        return response.text();
-                    }
-                }, (error) => {
-                    CG.vital(`[assets-loader] resource load error. url: ${url}
+                }
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    return response.json();
+                } else {
+                    return response.text();
+                }
+            }, (error) => {
+                CG.vital(`[assets-loader] resource load error. url: ${url}
 error: ${error}`);
-                });
+            });
+        };
+        return {
+            loadShader: (sourceName) => {
+                return Promise.all([_loadFile(`${sourceName}-vert.glsl`), _loadFile(`${sourceName}-frag.glsl`)]);
             },
             loadTexture: (url) => {
                 return new Promise((d, f) => {
