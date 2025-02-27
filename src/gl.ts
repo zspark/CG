@@ -313,7 +313,7 @@ export class Renderer {
 
     render(): Renderer {
         const gl = this._gl;
-        gl.clearColor(0.2, 0.2, 0.2, 1.0);
+        gl.clearColor(0.15, 0.15, 0.15, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LESS);

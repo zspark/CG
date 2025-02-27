@@ -11,9 +11,10 @@ import OrthogonalSpace from "./orthogonal-space.js"
 
 export default class SpaceController {
     private _helperQuatProxy = new Quat();
-    private _helperQuat = new Quat([0, 0, 0, 0]);
-    private _helperQuatConj = new Quat([0, 0, 0, 0]);
-    private _helperQuatTemp = new Quat([0, 0, 0, 0]);
+    private _data: Float32Array = new Float32Array(12).fill(0);
+    private _helperQuat = new Quat(this._data, 0, 4);
+    private _helperQuatConj = new Quat(this._data, 4, 8);
+    private _helperQuatTemp = new Quat(this._data, 8, 12);
     private _helperMat44 = new Mat44();
     private _helperVec4_x = new Vec4();
     private _helperVec4_y = new Vec4();
@@ -98,7 +99,7 @@ export default class SpaceController {
     */
     axisZPointsTo(pos: xyzw, positive: boolean = true): SpaceController {
         let _space = this._space;
-        const _d = _space.transform._dataArr32;
+        const _d = _space.transform.data;
         if (pos.isSame(_d[12], _d[13], _d[14], _d[15])) return this;
 
         let _x = this._helperVec4_x;
@@ -132,7 +133,7 @@ export default class SpaceController {
         //matrix version;
         const _m4 = this._helperMat44;
         Mat44.createRotateAroundY(delta, _m4).multiplyLeftTop33(this._space.transform, _m4);
-        const _d = _m4._dataArr32;
+        const _d = _m4.data;
         this._space.setAxisXYZ(_d[0], _d[1], _d[2], _d[4], _d[5], _d[6], _d[8], _d[9], _d[10]);
         return this;
     }

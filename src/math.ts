@@ -35,11 +35,6 @@ class float32AsVec3 {
     }
 }
 */
-export type arrayLike = {
-    [key: number]: number,
-    length: number,
-}
-
 export type roMat44 = Readonly<Mat44>;
 export interface xyzw {
     readonly x: number;
@@ -56,23 +51,30 @@ export class Vec4 implements xyzw {
     static VEC4_0010 = Object.freeze(new Vec4(0, 0, 1, 0));
     static VEC4_0001 = Object.freeze(new Vec4(0, 0, 0, 1));
 
-    _data: number[] = new Array(4);
+    data: Float32Array;
 
-    constructor(x: number = 0, y: number = 0, z: number = 0, w: number = 0) {
-        this.reset(x, y, z, w);
+    constructor(x: number = 0, y: number = 0, z: number = 0, w: number = 0, storage?: Float32Array) {
+        if (storage) {
+            this.data = storage;
+        } else {
+            this.data = new Float32Array([x, y, z, w]);
+        }
     }
 
-    get x(): number { return this._data[0]; }
-    get y(): number { return this._data[1]; }
-    get z(): number { return this._data[2]; }
-    get w(): number { return this._data[3]; }
-    set x(v: number) { this._data[0] = v; }
-    set y(v: number) { this._data[1] = v; }
-    set z(v: number) { this._data[2] = v; }
-    set w(v: number) { this._data[3] = v; }
+    get x(): number { return this.data[0]; }
+    get y(): number { return this.data[1]; }
+    get z(): number { return this.data[2]; }
+    get w(): number { return this.data[3]; }
+    set x(v: number) { this.data[0] = v; }
+    set y(v: number) { this.data[1] = v; }
+    set z(v: number) { this.data[2] = v; }
+    set w(v: number) { this.data[3] = v; }
 
     reset(x: number, y: number, z: number, w: number): Vec4 {
-        this._data.splice(0, 4, x, y, z, w);
+        this.data[0] = x;
+        this.data[1] = y;
+        this.data[2] = z;
+        this.data[3] = w;
         return this;
     }
 
@@ -107,7 +109,7 @@ export class Vec4 implements xyzw {
 
     isSame(x: number, y: number, z: number, w: number): boolean {
         let _fn = utils.numberSame;
-        return _fn(this._data[0], x) && _fn(this._data[1], y) && _fn(this._data[2], z) && _fn(this._data[3], w);
+        return _fn(this.data[0], x) && _fn(this.data[1], y) && _fn(this.data[2], z) && _fn(this.data[3], w);
     }
     isSameVec(vec: xyzw): boolean {
         return this.isSame(vec.x, vec.y, vec.z, vec.w);
@@ -163,104 +165,95 @@ export class Vec4 implements xyzw {
     }
 }
 
-const _identityMat44Data: readonly number[] = Object.freeze([
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1]);
-const _identityMat33Data: readonly number[] = Object.freeze([
-    1, 0, 0,
-    0, 1, 0,
-    0, 0, 1]);
 
+const _identityMat44Data = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 /**
 * column major in store.
 */
 export class Mat44 {
-    _dataArr32 = new Float32Array(16);
+    static IdentityMat44 = Object.freeze(new Mat44().reset(_identityMat44Data, 0, 16));
+    data = new Float32Array(16);
     constructor() { }
 
     static createRotateAroundX(theta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[5] = Math.cos(theta);
-        outMat._dataArr32[9] = -Math.sin(theta);
-        outMat._dataArr32[6] = Math.sin(theta);
-        outMat._dataArr32[10] = Math.cos(theta);
+        outMat.data[5] = Math.cos(theta);
+        outMat.data[9] = -Math.sin(theta);
+        outMat.data[6] = Math.sin(theta);
+        outMat.data[10] = Math.cos(theta);
         return outMat;
     }
     static createRotateAroundY(theta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[0] = Math.cos(theta);
-        outMat._dataArr32[8] = Math.sin(theta);
-        outMat._dataArr32[2] = -Math.sin(theta);
-        outMat._dataArr32[10] = Math.cos(theta);
+        outMat.data[0] = Math.cos(theta);
+        outMat.data[8] = Math.sin(theta);
+        outMat.data[2] = -Math.sin(theta);
+        outMat.data[10] = Math.cos(theta);
         return outMat;
     }
     static createRotateAroundZ(theta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[0] = Math.cos(theta);
-        outMat._dataArr32[4] = -Math.sin(theta);
-        outMat._dataArr32[1] = Math.sin(theta);
-        outMat._dataArr32[5] = Math.cos(theta);
+        outMat.data[0] = Math.cos(theta);
+        outMat.data[4] = -Math.sin(theta);
+        outMat.data[1] = Math.sin(theta);
+        outMat.data[5] = Math.cos(theta);
         return outMat;
     }
 
     static createTranslateX(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[12] = delta;
+        outMat.data[12] = delta;
         return outMat;
     }
     static createTranslateY(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[13] = delta;
+        outMat.data[13] = delta;
         return outMat;
     }
     static createTranslateZ(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[14] = delta;
+        outMat.data[14] = delta;
         return outMat;
     }
     static createScaleOfX(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[0] = delta;
+        outMat.data[0] = delta;
         return outMat;
     }
     static createScaleOfY(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[5] = delta;
+        outMat.data[5] = delta;
         return outMat;
     }
     static createScaleOfZ(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[10] = delta;
+        outMat.data[10] = delta;
         return outMat;
     }
     static createScaleOfSpace(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat._dataArr32[0] = delta;
-        outMat._dataArr32[5] = delta;
-        outMat._dataArr32[10] = delta;
+        outMat.data[0] = delta;
+        outMat.data[5] = delta;
+        outMat.data[10] = delta;
         return outMat;
     }
 
     setIdentity(): Mat44 {
-        this._dataArr32.set(_identityMat44Data, 0);
+        this.data.set(_identityMat44Data, 0);
         return this;
     }
 
     /**
-     * arrLikeData should stored in column major
+     * data should stored in column major
      */
-    reset(arrLikeData: arrayLike, startIndex: number = 0, length: number = 16): Mat44 {
-        if (arrLikeData.length - startIndex < length) log.vital(`[Mat44] parameter lacks of elements, should be at least ${length}!`);
-        for (let i: number = 0; i < length; ++i, ++startIndex) {
-            this._dataArr32[i] = arrLikeData[startIndex];
-        }
+    reset(data: Float32List, startIndex: number, length: number): Mat44 {
+        if (data.length - startIndex < length) log.vital(`[Mat44] parameter lacks of elements, should be at least ${length}!`);
+        this.data.set(data, 0);
         return this;
     }
 
     transpose(): Mat44 {
-        const _data = this._dataArr32;
+        const _data = this.data;
         let _a = _data[1]; _data[1] = _data[4]; _data[4] = _a;
         _a = _data[2]; _data[2] = _data[8]; _data[8] = _a;
         _a = _data[3]; _data[3] = _data[12]; _data[12] = _a;
@@ -271,7 +264,7 @@ export class Mat44 {
     }
 
     multiplyLeftTop33(mat44Right: roMat44, outMat44?: Mat44): Mat44 {
-        const a = this._dataArr32;
+        const a = this.data;
         let a00 = a[0],
             a01 = a[1],
             a02 = a[2];
@@ -281,7 +274,7 @@ export class Mat44 {
         let a20 = a[8],
             a21 = a[9],
             a22 = a[10];
-        const b = mat44Right._dataArr32;
+        const b = mat44Right.data;
         let b00 = b[0],
             b01 = b[1],
             b02 = b[2];
@@ -292,7 +285,7 @@ export class Mat44 {
             b21 = b[9],
             b22 = b[10];
         outMat44 ??= new Mat44();
-        const out = outMat44._dataArr32;
+        const out = outMat44.data;
         out[0] = b00 * a00 + b01 * a10 + b02 * a20;
         out[1] = b00 * a01 + b01 * a11 + b02 * a21;
         out[2] = b00 * a02 + b01 * a12 + b02 * a22;
@@ -307,7 +300,7 @@ export class Mat44 {
 
     multiply(mat44Right: roMat44, outMat44?: Mat44): Mat44 {
         outMat44 ??= new Mat44();
-        const left = this._dataArr32;
+        const left = this.data;
         let a00 = left[0],
             a01 = left[1],
             a02 = left[2],
@@ -325,8 +318,8 @@ export class Mat44 {
             a32 = left[14],
             a33 = left[15];
         // Cache only the current line of the second matrix
-        const _outData = outMat44._dataArr32;
-        const right = mat44Right._dataArr32;
+        const _outData = outMat44.data;
+        const right = mat44Right.data;
         let b0 = right[0],
             b1 = right[1],
             b2 = right[2],
@@ -363,7 +356,7 @@ export class Mat44 {
     }
 
     multiplyVec4(vec4: xyzw, outVec4?: Vec4): Vec4 {
-        const d = this._dataArr32;
+        const d = this.data;
         const { x, y, z, w } = vec4;
         outVec4 ??= new Vec4();
         outVec4.x = d[0] * x + d[4] * y + d[8] * z + d[12] * w;
@@ -374,15 +367,15 @@ export class Mat44 {
     }
 
     clone(): Mat44 {
-        return new Mat44().reset(this._dataArr32, 0, 16);
+        return new Mat44().reset(this.data, 0, 16);
     }
 
     copyFrom(mat44: Mat44): Mat44 {
-        return this.reset(mat44._dataArr32, 0, 16);
+        return this.reset(mat44.data, 0, 16);
     }
 
     determinant(): number {
-        const a = this._dataArr32;
+        const a = this.data;
         let a00 = a[0],
             a01 = a[1],
             a02 = a[2],
@@ -416,7 +409,7 @@ export class Mat44 {
     }
 
     invert(): Mat44 {
-        const a = this._dataArr32;
+        const a = this.data;
         let a00 = a[0],
             a01 = a[1],
             a02 = a[2],
@@ -471,7 +464,7 @@ export class Mat44 {
     }
 
     setColumn(col: 0 | 1 | 2 | 3, x: number, y: number, z: number, w: number): Mat44 {
-        const _data = this._dataArr32.subarray(4 * col);
+        const _data = this.data.subarray(4 * col);
         _data[0] = x;
         _data[1] = y;
         _data[2] = z;
@@ -479,7 +472,7 @@ export class Mat44 {
         return this;
     }
     setColumns(a?: xyzw, b?: xyzw, c?: xyzw, d?: xyzw): Mat44 {
-        const _data = this._dataArr32;
+        const _data = this.data;
         if (a) {
             _data[0] = a.x;
             _data[1] = a.y;
@@ -515,7 +508,7 @@ export class Mat44 {
         return this;
     }
     toString(): string {
-        const _data = this._dataArr32;
+        const _data = this.data;
         return `${_data[0]}, ${_data[4]}, ${_data[8]}, ${_data[12]}
 ${_data[1]}, ${_data[5]}, ${_data[9]}, ${_data[13]}
 ${_data[2]}, ${_data[6]}, ${_data[10]}, ${_data[14]}
@@ -536,38 +529,38 @@ export class Quat implements xyzw {
         return outQuat;
     }
 
-    _refData: number[] | Float32Array;
-    constructor(dataToBeShared?: number[] | Float32Array) {
-        this._refData = dataToBeShared;
+    data: Float32Array;
+    constructor(dataToBeShared?: Float32List, start: number = 0, length: number = 4) {
+        this.data = dataToBeShared instanceof Float32Array ? dataToBeShared.subarray(start, start + length) : new Float32Array(dataToBeShared);
     }
 
-    get x(): number { return this._refData[0]; }
-    get y(): number { return this._refData[1]; }
-    get z(): number { return this._refData[2]; }
-    get w(): number { return this._refData[3]; }
-    set x(v: number) { this._refData[0] = v; }
-    set y(v: number) { this._refData[1] = v; }
-    set z(v: number) { this._refData[2] = v; }
-    set w(v: number) { this._refData[3] = v; }
+    get x(): number { return this.data[0]; }
+    get y(): number { return this.data[1]; }
+    get z(): number { return this.data[2]; }
+    get w(): number { return this.data[3]; }
+    set x(v: number) { this.data[0] = v; }
+    set y(v: number) { this.data[1] = v; }
+    set z(v: number) { this.data[2] = v; }
+    set w(v: number) { this.data[3] = v; }
 
     identity(): Quat {
-        this._refData[0] = 0;
-        this._refData[1] = 0;
-        this._refData[2] = 0;
-        this._refData[3] = 1;
+        this.data[0] = 0;
+        this.data[1] = 0;
+        this.data[2] = 0;
+        this.data[3] = 1;
         return this;
     }
 
     shareVec4(vec: Vec4): Quat {
-        this._refData = vec._data;
+        this.data = vec.data;
         return this;
     }
 
     reset(x: number, y: number, z: number, w: number): Quat {
-        this._refData[0] = x;
-        this._refData[1] = y;
-        this._refData[2] = z;
-        this._refData[3] = w;
+        this.data[0] = x;
+        this.data[1] = y;
+        this.data[2] = z;
+        this.data[3] = w;
         return this;
     }
 
@@ -584,10 +577,10 @@ export class Quat implements xyzw {
     }
 
     isSame(x: number, y: number, z: number, w: number): boolean {
-        return (utils.numberSame(this._refData[0], x) &&
-            utils.numberSame(this._refData[1], y) &&
-            utils.numberSame(this._refData[2], z) &&
-            utils.numberSame(this._refData[3], w));
+        return (utils.numberSame(this.data[0], x) &&
+            utils.numberSame(this.data[1], y) &&
+            utils.numberSame(this.data[2], z) &&
+            utils.numberSame(this.data[3], w));
     }
 
     dot(q: xyzw): number {
@@ -595,34 +588,34 @@ export class Quat implements xyzw {
     }
 
     add(q: xyzw): Quat {
-        this._refData[0] += q.x;
-        this._refData[1] += q.y;
-        this._refData[2] += q.z;
-        this._refData[3] += q.w;
+        this.data[0] += q.x;
+        this.data[1] += q.y;
+        this.data[2] += q.z;
+        this.data[3] += q.w;
         return this;
     }
 
     conjugate(): Quat {
-        this._refData[0] *= -1;
-        this._refData[1] *= -1;
-        this._refData[2] *= -1;
+        this.data[0] *= -1;
+        this.data[1] *= -1;
+        this.data[2] *= -1;
         return this;
     }
 
     multiply(q: xyzw, outQuat?: Quat): Quat {
-        let ax = this._refData[0],
-            ay = this._refData[1],
-            az = this._refData[2],
-            aw = this._refData[3];
+        let ax = this.data[0],
+            ay = this.data[1],
+            az = this.data[2],
+            aw = this.data[3];
         let bx = q.x,
             by = q.y,
             bz = q.z,
             bw = q.w;
         outQuat ??= new Quat();
-        outQuat._refData[0] = ax * bw + aw * bx + ay * bz - az * by;
-        outQuat._refData[1] = ay * bw + aw * by + az * bx - ax * bz;
-        outQuat._refData[2] = az * bw + aw * bz + ax * by - ay * bx;
-        outQuat._refData[3] = aw * bw - ax * bx - ay * by - az * bz;
+        outQuat.data[0] = ax * bw + aw * bx + ay * bz - az * by;
+        outQuat.data[1] = ay * bw + aw * by + az * bx - ax * bz;
+        outQuat.data[2] = az * bw + aw * bz + ax * by - ay * bx;
+        outQuat.data[3] = aw * bw - ax * bx - ay * by - az * bz;
         return outQuat;
     }
 
@@ -632,19 +625,19 @@ export class Quat implements xyzw {
             return this;
         }
         mag = 1.0 / mag;
-        this._refData[0] *= mag;
-        this._refData[1] *= mag;
-        this._refData[2] *= mag;
-        this._refData[3] *= mag;
+        this.data[0] *= mag;
+        this.data[1] *= mag;
+        this.data[2] *= mag;
+        this.data[3] *= mag;
         return this;
     }
 
     clone(): Quat { return new Quat([0, 0, 0, 0]).copyFrom(this); }
     copyFrom(v: xyzw): Quat {
-        this._refData[0] = v.x;
-        this._refData[1] = v.y;
-        this._refData[2] = v.z;
-        this._refData[3] = v.w;
+        this.data[0] = v.x;
+        this.data[1] = v.y;
+        this.data[2] = v.z;
+        this.data[3] = v.w;
         return this;
     }
 
