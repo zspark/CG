@@ -4,3 +4,5 @@ temp/
 tmp/
 /.tmp.driveupload/
 /.tmp.drivedownload/
+/dist/
+/src/**/*.js

@@ -18,124 +18,23 @@
 
 <body>
     <canvas id="glcanvas" width="640" height="480"></canvas>
-    <script type="text/javascript" src="./third/dat.gui.min.js"></script>
     <script type="text/javascript" src="./third/stats.min.js"></script>
-    <script src="./src/log.js"></script>
-    <script src="./src/assets-loader.js"></script>
-    <script src="./src/math.js"></script>
-    <script src="./src/gl.js"></script>
-    <script src="./src/glsl.js"></script>
-    <script src="./src/geometry.js"></script>
-    <script src="./src/orthogonal-space.js"></script>
-    <script src="./src/utils.js"></script>
-    <script src="./src/mouse-events.js"></script>
-    <script src="./src/space-controller.js"></script>
-    <script src="./src/camera.js"></script>
-    <script src="./src/frustum.js"></script>
-    <script src="./src/mesh.js"></script>
-    <script src="./src/light-source.js"></script>
-    <script src="./glsl/fade-away-from-camera.js"></script>
-    <script src="./glsl/only-texture.js"></script>
-    <script>
+    <script type="module">
+        import Application from "./dist/application.js";
+
         const _stats = new Stats();
         _stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
         document.body.appendChild(_stats.dom);
-        const obj = {type: 1};
-        const _gui = new dat.GUI();
-        _gui.add(obj, 'type', {'point light': 1, 'parallel light': 2, 'spot light': 3}).onChange((value) => {
-            console.log(value);
-            if (value === "1") {
-                _light = _pointLight;
-            } else if (value === "2") {
-                _light = _parallelLight;
-            } else if (value === "3") {
-                _light = _spotLight;
-            }
-        });
 
-        const {gl, canvas} = CG.createGlContext('glcanvas');
-        const _tempMat44 = new CG.Mat44();
-        const _camera = new CG.Camera(-18, 55, 63)
-            .setMouseEvents(CG.registMouseEvents(canvas))
-            .setFrustum(new CG.Frustum().createPerspectiveProjection(CG.Utils.deg2Rad(60), 640 / 480, 0.1, 1000))
-            .lookAt(CG.Vec4.VEC4_0001);
-
-        const _defaultFBO = new CG.glWrapper.Framebuffer(gl, false);
-        const _renderer = new CG.glWrapper.Renderer(gl);
-        const _loader = CG.createResourceLoader("./");
-        const _pointLight = new CG.Light.PointLight(0, 14, 0);
-        const _spotLight = new CG.Light.SpotLight(0, 14, 0).setCutoffDistance(16).setAngle(CG.Utils.deg2Rad(60));
-        const _parallelLight = new CG.Light.ParallelLight(0, 14, 0);
-        let _light = _pointLight;
-
-
-
-
-
-
-        //--------------------------------------------------------------------------------
-        const _mesh = new CG.Mesh(CG.Geometry.createPlane(40, 40).init(gl)).setPosition(0, 0, 0);
-        const _ctrl = new CG.SpaceController(_mesh).rotateAroundSelfX(CG.Utils.deg2Rad(-90));
-
-        _loader.loadShader("glsl/lights").then((sources) => {
-            const _program = new CG.glWrapper.Program(gl, sources[0], sources[1]);
-            const _pipe_cube = new CG.glWrapper.Pipeline(gl)
-                .setFBO(_defaultFBO)
-                .setProgram(_program)
-                .setVAO(_mesh.VAO)
-                .setUniformUpdater({
-                    updateu_mvpMatrix: (uLoc) => {
-                        _mesh.cascade(_camera.viewProjectionMatrix, _tempMat44);
-                        gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
-                    },
-                    updateu_mMatrix: (uLoc) => {
-                        _mesh.getTransform(_tempMat44);
-                        gl.uniformMatrix4fv(uLoc, false, _tempMat44._dataArr32);
-                    },
-                    updateu_lightType: (uLoc) => {
-                        gl.uniform1i(uLoc, Number(obj.type));
-                    },
-                    updateu_lightAngle: (uLoc) => {
-                        gl.uniform1f(uLoc, _light.angle);
-                    },
-                    updateu_lightCutoff: (uLoc) => {
-                        gl.uniform1f(uLoc, _light.cutoffDis);
-                    },
-                    updateu_lightColor: (uLoc) => {
-                        const c = _light.color;
-                        gl.uniform4fv(uLoc, c.toArray());
-                    },
-                    updateu_lightPositionW: (uLoc) => {
-                        const p = new CG.Vec4();
-                        _light.getPosition(p);
-                        gl.uniform3f(uLoc, p.x, p.y, p.z);
-                    },
-                    updateu_lightDirectionW: (uLoc) => {
-                        let d = _light.direction;
-                        if (!d) gl.uniform3f(uLoc, 0, 0, 0);
-                        else gl.uniform3f(uLoc, d.x, d.y, d.z);
-                    },
-                })
-                .setDrawElementsParameters(gl.TRIANGLES, _mesh.numberIndices, gl.UNSIGNED_SHORT, 0)
-                .cullFace(false)
-                .validate();
-            _renderer.addPipeline(_pipe_cube);
-            render();
-        });
-        //--------------------------------------------------------------------------------
-
-
-
-
+        const _app = new Application();
 
         function render() {
             _stats.begin();
-            _camera.update();
-            _renderer.render();
+            _app.run();
             _stats.end();
             requestAnimationFrame(render);
         }
-
+        render();
 
     </script>
 </body>
