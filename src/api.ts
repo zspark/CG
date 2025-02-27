@@ -1,6 +1,6 @@
 export { default as log } from "./log.js";
 export { default as utils } from "./utils.js";
-export { createGlContext, UniformUpdater, Program, Texture, Framebuffer, Pipeline, Renderer } from "./gl.js";
+export { createGlContext, UniformUpdater, Program, Texture, SkyboxTexture, Framebuffer, Pipeline, Renderer } from "./gl.js";
 export { default as createLoader, ILoader } from "./assets-loader.js";
 export { default as Camera } from "./camera.js";
 export { default as Frustum } from "./frustum.js";

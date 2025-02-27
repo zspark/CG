@@ -25,6 +25,8 @@ export function createGlContext(canvasElementId: string): { gl: WebGL2RenderingC
     if (!gl) {
         log.vital("[gl] WebGL 2.0 not supported!");
     }
+    //@ts-ignore
+    window.gl = gl;// debug use;
     return { gl, canvas };
 }
 
@@ -112,26 +114,26 @@ const _wm_texture = new WeakMap();
 export class Texture {
     private _glTexture: WebGLTexture;
     private _gl: WebGL2RenderingContext;
-    private _texUnit: number = -1;
+    private _texUnit: GLint = -1;
     constructor(gl: WebGL2RenderingContext) {
         this._gl = gl;
     }
 
-    get textureUnit(): number { return this._texUnit; }
+    get textureUnit(): GLint { return this._texUnit; }
 
     createGLTexture(data: any): Texture {
-        if (!!this._glTexture) return;
+        if (!!this._glTexture) return this;
         const gl = this._gl;
-        this.#_createTexture(gl);
+        this._createTexture(gl);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
         return this;
     }
 
     updateData(data: any, xoffset: number, yoffset: number, width: number, height: number): Texture {
-        if (!this._glTexture) return;
+        if (!this._glTexture) return this;
         const gl = this._gl;
         gl.bindTexture(gl.TEXTURE_2D, this._glTexture);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset, yoffset, width, width, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
         return this;
     }
 
@@ -139,14 +141,14 @@ export class Texture {
     * defaults to gl.drawingBufferWidth and ...height
     */
     createGLTextureWithSize(width: number, height: number): Texture {
-        if (!!this._glTexture) return;
+        if (!!this._glTexture) return this;
         const gl = this._gl;
-        this.#_createTexture(gl);
+        this._createTexture(gl);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width ?? gl.drawingBufferWidth, height ?? gl.drawingBufferHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         return this;
     }
 
-    #_createTexture(gl: WebGL2RenderingContext) {
+    private _createTexture(gl: WebGL2RenderingContext): void {
         const _texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, _texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -156,9 +158,10 @@ export class Texture {
         _wm_texture.set(this, _texture);
     }
 
-    setParameter(name: number, value: number) {
-        if (!this._glTexture) return;
+    setParameter(name: number, value: number): Texture {
+        if (!this._glTexture) return this;
         this._gl.texParameteri(this._gl.TEXTURE_2D, name, value);
+        return this;
     }
 
     bind(textureUnit: number): Texture {
@@ -170,6 +173,96 @@ export class Texture {
     }
 
     destroyGLTexture(): Texture {
+        const gl = this._gl;
+        gl.deleteTexture(this._glTexture);
+        this._glTexture = undefined;
+        return this;
+    }
+}
+
+export class SkyboxTexture {
+    private _glTexture: WebGLTexture;
+    private _gl: WebGL2RenderingContext;
+    private _texUnit: GLint = -1;
+    private _genMipmap: boolean;
+    constructor(gl: WebGL2RenderingContext, genMipmap = true) {
+        this._gl = gl;
+        this._genMipmap = genMipmap;
+    }
+
+    get textureUnit(): GLint { return this._texUnit; }
+
+    /**
+     * data[0-5]: x+,x-,y+, y-, z+,z-
+     */
+    createGLTexture(data: any[]): SkyboxTexture {
+        if (!!this._glTexture) return this;
+        const gl = this._gl;
+        this._createTexture(gl);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[0]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[1]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[2]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[3]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[4]);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data[5]);
+        return this;
+    }
+
+    createGLTextureWithSize(width: number, height: number): SkyboxTexture {
+        if (!!this._glTexture) return this;
+        const gl = this._gl;
+        this._createTexture(gl);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        return this;
+    }
+
+    /**
+     * data[0-5]: x+,x-,y+, y-, z+,z-
+     */
+    updateData(data: any[], xoffset: number, yoffset: number, width: number, height: number): SkyboxTexture {
+        if (!this._glTexture) return this;
+        const gl = this._gl;
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._glTexture);
+        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[0]);
+        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[1]);
+        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[2]);
+        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[3]);
+        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[4]);
+        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[5]);
+        return this;
+    }
+
+    private _createTexture(gl: WebGL2RenderingContext): void {
+        const _texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, _texture);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        this._genMipmap && gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+        this._glTexture = _texture;
+        _wm_texture.set(this, _texture);
+    }
+
+    setParameter(name: number, value: number): SkyboxTexture {
+        if (!this._glTexture) return this;
+        this._gl.texParameteri(this._gl.TEXTURE_CUBE_MAP, name, value);
+        return this;
+    }
+
+    bind(textureUnit: number): SkyboxTexture {
+        const gl = this._gl;
+        gl.activeTexture(gl.TEXTURE0 + textureUnit);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._glTexture);
+        this._texUnit = textureUnit;
+        return this;
+    }
+
+    destroyGLTexture(): SkyboxTexture {
         const gl = this._gl;
         gl.deleteTexture(this._glTexture);
         this._glTexture = undefined;
@@ -219,7 +312,7 @@ export class Pipeline {
     FBO: Framebuffer;
     program: Program;
     VAO: WebGLVertexArrayObject;
-    arrTextures: Texture[] = [];
+    arrTextures: Array<Texture | SkyboxTexture> = [];
 
     private _gl: WebGL2RenderingContext;
     private _drawParameter: DrawArraysParameter | DrawElementsParameter;
@@ -238,7 +331,7 @@ export class Pipeline {
     setFBO(fbo: Framebuffer): Pipeline { this.FBO = fbo; return this; }
     setProgram(program: Program): Pipeline { this.program = program; return this; }
     setVAO(vao: WebGLVertexArrayObject): Pipeline { this.VAO = vao; return this; }
-    setTextures(...tex: Texture[]): Pipeline {
+    setTextures(...tex: Array<Texture | SkyboxTexture>): Pipeline {
         this.arrTextures.length = 0;
         this.arrTextures.push(...tex);
         return this;
