@@ -1,11 +1,28 @@
 import log from "./log.js"
-import { xyzw, Mat44, Vec4 } from "./math.js"
+import { xyzw, roMat44, Mat44, Vec4 } from "./math.js"
 import OrthogonalSpace from "./orthogonal-space.js"
 import Frustum from "./frustum.js"
 import SpaceController from "./space-controller.js"
 import { mouseEvents, mouseEventCallback } from "./mouse-events.js"
 
-export default class Camera {
+export interface ICamera {
+    position: xyzw;
+
+    setMouseEvents(events: mouseEvents): Camera;
+    viewMatrix: roMat44;
+    viewProjectionMatrix: roMat44;
+    update(dt: number): void;
+
+    setFrustum(frustum: Frustum): Camera
+    moveHorizontally(deltaX: number, delta: number): Camera
+    moveAround(pos: xyzw, dir_normalized: xyzw, theta: number): Camera;
+    /**
+    * pos must be defined under world coordinate
+    */
+    lookAt(pos: xyzw): Camera
+};
+
+export default class Camera implements ICamera {
     private _helperMat44 = new Mat44();
     private _helperVec4_x = new Vec4();
     private _helperVec4_y = new Vec4();
@@ -21,11 +38,11 @@ export default class Camera {
         this._spaceCtrl = new SpaceController(this._space);
     }
 
-    get position() {
+    get position(): xyzw {
         return this._space.getPosition(this._helperVec4_z);
     }
 
-    setMouseEvents(events: mouseEvents) {
+    setMouseEvents(events: mouseEvents): Camera {
         let _onMoveFn: mouseEventCallback;
         const _onDown: mouseEventCallback = (evt) => {
             //log.info(evt);
@@ -84,23 +101,28 @@ export default class Camera {
             this._spaceCtrl.moveForward(delta);
             //this._spaceCtrl.moveRight(delta);
             //this._spaceCtrl.moveUp(delta);
-            //this._spaceCtrl.axisZPointsTo(Vec4.VEC4_0001, false);
+            //this._spaceCtrl.axisZPointsToVec(Vec4.VEC4_0001, false);
             //this._spaceCtrl.rotateAroundY(Utils.deg2Rad(delta*5));
         });
         events.onDown(_onDown);
         return this;
     }
 
-    get viewMatrix() {
+    get viewMatrix(): roMat44 {
         return this._space.transformInv;
     }
 
-    get viewProjectionMatrix() {
+    get viewProjectionMatrix(): roMat44 {
         return this._viewProjectionMatrix;
     }
 
-    update(dt: number) {
+    update(dt: number): void {
         this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+    }
+
+    setPosition(posX: number, posY: number, posZ: number): Camera {
+        this._space.setPosition(posX, posY, posZ);
+        return this;
     }
 
     setFrustum(frustum: Frustum): Camera {
@@ -118,11 +140,8 @@ export default class Camera {
         return this;
     }
 
-    /**
-    * pos must be defined under world coordinate
-    */
     lookAt(pos: xyzw): Camera {
-        this._spaceCtrl.axisZPointsTo(pos, false);
+        this._spaceCtrl.axisZPointsToVec(pos, false);
         return this;
     }
 }

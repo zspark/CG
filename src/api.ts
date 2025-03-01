@@ -1,12 +1,12 @@
 export { default as log } from "./log.js";
 export { default as utils } from "./utils.js";
-export { createGlContext, UniformUpdater, Program, Texture, SkyboxTexture, Framebuffer, Pipeline, Renderer } from "./gl.js";
+export { createGlContext, UniformUpdater, Program, Texture, SkyboxTexture, Framebuffer, Pipeline, PipelineOption, SubPipeline, SubPipelineOption, Renderer } from "./gl.js";
 export { default as createLoader, ILoader } from "./assets-loader.js";
-export { default as Camera } from "./camera.js";
+export { ICamera, default as Camera } from "./camera.js";
 export { default as Frustum } from "./frustum.js";
 export { IGeometry, createTriangle, createCube, createPlane, createGridPlane, default as Geometry } from "./geometry.js";
 export { default as light, ILight } from "./light-source.js";
-export { roMat44, xyzw, Vec4, Mat44, Quat } from "./math.js";
+export { roMat44, xyzw, rgba, Vec4, Mat44, Quat } from "./math.js";
 export { default as Mesh } from "./mesh.js";
 export { default as registMouseEvents, mouseEventCallback, mouseEvents } from "./mouse-events.js";
 export { default as OrthogonalSpace } from "./orthogonal-space.js";

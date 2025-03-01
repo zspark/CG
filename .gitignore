@@ -6,3 +6,5 @@ tmp/
 /.tmp.drivedownload/
 /dist/
 /src/**/*.js
+wxlDepthTest.html
+/third/gl-matrix-min.js

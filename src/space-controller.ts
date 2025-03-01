@@ -57,24 +57,18 @@ export default class SpaceController {
         return this;
     }
 
-    createScaleOfX(delta: number): SpaceController {
-        Mat44.createScaleOfX(delta, this._helperMat44);
-        this._space.transformSelf(this._helperMat44);
-        return this;
-    }
-    createScaleOfY(delta: number): SpaceController {
-        Mat44.createScaleOfY(delta, this._helperMat44);
-        this._space.transformSelf(this._helperMat44);
-        return this;
-    }
-    createScaleOfZ(delta: number): SpaceController {
-        Mat44.createScaleOfZ(delta, this._helperMat44);
+    scale(scaleX: number, scaleY: number, scaleZ: number): SpaceController {
+        Mat44.createScale(scaleX, scaleY, scaleZ, this._helperMat44);
         this._space.transformSelf(this._helperMat44);
         return this;
     }
 
-    setPosition(posInParentSpace: Vec4): SpaceController {
+    setPositionVec(posInParentSpace: xyzw): SpaceController {
         this._space.setPositionVec(posInParentSpace);
+        return this;
+    }
+    setPosition(x: number, y: number, z: number): SpaceController {
+        this._space.setPosition(x, y, z);
         return this;
     }
 
@@ -94,10 +88,14 @@ export default class SpaceController {
         return this;
     }
 
+    axisZPointsTo(x: number, y: number, z: number, positive: boolean = true): SpaceController {
+        return this.axisZPointsToVec(this._helperVec4_w.reset(x, y, z, 1.0), positive);
+    }
     /*
     * point z-axis towards 'pos', and keeps y axis upward.
+    * pos should be in parent space;
     */
-    axisZPointsTo(pos: xyzw, positive: boolean = true): SpaceController {
+    axisZPointsToVec(pos: xyzw, positive: boolean = true): SpaceController {
         let _space = this._space;
         const _d = _space.transform.data;
         if (pos.isSame(_d[12], _d[13], _d[14], _d[15])) return this;
@@ -108,7 +106,7 @@ export default class SpaceController {
         _z.reset(_d[12], _d[13], _d[14], _d[15]).negate().addVec(pos).normalize();
         if (!positive) _z.negate();
         if (Vec4.VEC4_0100.cross(_z, _x).isSameVec(Vec4.VEC4_0000)) {
-            log.warn("[space-controller] two axises are parallel, cancel 'axisZPointsTo() from executing!");
+            log.warn("[space-controller] two axises are parallel, cancel 'axisZPointsToVec() from executing!");
         } else {
             _x.removeY().removeW().normalize();
             _z.cross(_x, _y).normalize();

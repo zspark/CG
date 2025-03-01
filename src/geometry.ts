@@ -26,42 +26,53 @@ export interface IGeometry {
 
 export function createCube(edgeLength: number): IGeometry {
     const _half = edgeLength * .5;
-    const _n = 1.0 / Math.sqrt(3);
     const vertices = new Float32Array([
-        -_half, -_half, _half, // 前下左 0
-        -_n, -_n, _n,
-        1, 0, 0,//0
-        _half, -_half, _half, // 前下右 1
-        _n, -_n, _n,
-        0, 1, 0,//1
-        _half, _half, _half, // 前上右 2
-        _n, _n, _n,
-        0, 0, 1,//2
-        -_half, _half, _half, // 前上左 3
-        -_n, _n, _n,
-        1, 1, 1,//3
-        -_half, -_half, -_half, // 后下左 4
-        -_n, -_n, -_n,
-        0, 0, 1,//4
-        _half, -_half, -_half, // 后下右 5
-        _n, -_n, -_n,
-        1, 1, 1,//5
-        _half, _half, -_half, // 后上右 6
-        _n, _n, -_n,
-        1, 0, 0,//6
-        -_half, _half, -_half, // 后上左 7
-        -_n, _n, -_n,
-        0, 1, 0,//7
+        // Front face
+        -_half, -_half, _half, 0, 0, 1, 1, 0, 0,// Vertex 0
+        _half, -_half, _half, 0, 0, 1, 0, 1, 0,// Vertex 1
+        _half, _half, _half, 0, 0, 1, 0, 0, 1,// Vertex 2
+        -_half, _half, _half, 0, 0, 1, 1, 1, 0,// Vertex 3
+
+        // Back face
+        -_half, -_half, -_half, 0, 0, -1, 1, 0, 1,// Vertex 4
+        -_half, _half, -_half, 0, 0, -1, 0, 1, 1,// Vertex 5
+        _half, _half, -_half, 0, 0, -1, 1, 1, 1,// Vertex 6
+        _half, -_half, -_half, 0, 0, -1, 0, 0, 0,// Vertex 7
+
+        // Top face
+        -_half, _half, -_half, 0, 1, 0, 0, 1, 1,// Vertex 8
+        -_half, _half, _half, 0, 1, 0, 1, 1, 0,// Vertex 9
+        _half, _half, _half, 0, 1, 0, 0, 0, 1,// Vertex 10
+        _half, _half, -_half, 0, 1, 0, 1, 1, 1,// Vertex 11
+
+        // Bottom face
+        -_half, -_half, -_half, 0, -1, 0, 1, 0, 1,// Vertex 12
+        _half, -_half, -_half, 0, -1, 0, 0, 0, 0,// Vertex 13
+        _half, -_half, _half, 0, -1, 0, 0, 1, 0,// Vertex 14
+        -_half, -_half, _half, 0, -1, 0, 1, 0, 0,// Vertex 15
+
+        // Right face
+        _half, -_half, -_half, 1, 0, 0, 0, 0, 0,// Vertex 16
+        _half, _half, -_half, 1, 0, 0, 1, 1, 1,// Vertex 17
+        _half, _half, _half, 1, 0, 0, 0, 0, 1,// Vertex 18
+        _half, -_half, _half, 1, 0, 0, 0, 1, 0,// Vertex 19
+
+        // Left face
+        -_half, -_half, -_half, -1, 0, 0, 1, 0, 1,// Vertex 20
+        -_half, -_half, _half, -1, 0, 0, 1, 0, 0,// Vertex 21
+        -_half, _half, _half, -1, 0, 0, 1, 1, 0,// Vertex 22
+        -_half, _half, -_half, -1, 0, 0, 0, 1, 1,// Vertex 23
     ]);
+
 
     //CG.log(vertices);
     const indices = new Uint16Array([
-        0, 1, 2, 0, 2, 3, // 前面
-        1, 5, 6, 1, 6, 2, // 右面
-        5, 4, 7, 5, 7, 6, // 后面
-        4, 0, 3, 4, 3, 7, // 左面
-        3, 2, 6, 3, 6, 7, // 上面
-        0, 4, 5, 0, 5, 1, // 下面
+        0, 1, 2, 0, 2, 3,  // Front
+        4, 5, 6, 4, 6, 7,  // Back
+        8, 9, 10, 8, 10, 11, // Top
+        12, 13, 14, 12, 14, 15, // Bottom
+        16, 17, 18, 16, 18, 19, // Right
+        20, 21, 22, 20, 22, 23, // Left
     ]);
 
     return new Geometry(vertices, indices)
@@ -97,6 +108,8 @@ export function createGridPlane(quaterSize: number, step = 1): IGeometry {
 }
 
 export function createPlane(width: number, height: number): IGeometry {
+    width *= .5;
+    height *= .5;
     const vertices = new Float32Array([
         width, height, 0,
         0.0, 0.0,

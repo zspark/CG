@@ -1,9 +1,14 @@
 import OrthogonalSpace from "./orthogonal-space.js"
-import { xyzw, Vec4 } from "./math.js"
+import SpaceController from "./space-controller.js"
+import Frustum from "./frustum.js"
+import { roMat44, rgba, xyzw, Vec4, Mat44 } from "./math.js"
 
 export interface ILight extends OrthogonalSpace {
     setColor(r: number, g: number, b: number): void;
-    color: xyzw;
+    color: rgba;
+    /**
+     * we use z- as light's forward direction;
+     */
     setDirection(x: number, y: number, z: number): void;
     direction: xyzw;
     update(dt: number): void;
@@ -11,85 +16,87 @@ export interface ILight extends OrthogonalSpace {
     angle: number;
     setCutoffDistance(value: number): void;
     cutoffDistance: number;
+    lightMatrix: roMat44;
+    lightProjectionMatrix: roMat44;
 };
 
-class PointLight extends OrthogonalSpace implements ILight {
-    private _color = new Vec4(1, 1, 1, 1);
+class Light extends OrthogonalSpace {
+    protected _hpVec4 = new Vec4();
+    protected _frustum = new Frustum();
+    protected _ctrl = new SpaceController();
+    protected _lightProjectionMatrix = new Mat44().setIdentity();
+    protected _color = new Vec4(1, 1, 1, 1);
     constructor(posX: number, posY: number, posZ: number) {
         super();
         super.setPosition(posX, posY, posZ);
+        this._ctrl.setSpace(this);
+    }
+    get color(): rgba { return this._color; }
+    get direction(): xyzw { return this.axisZ; }
+    get lightProjectionMatrix(): roMat44 {
+        return this._lightProjectionMatrix;
+    }
+    get lightMatrix(): roMat44 {
+        return this.transformInv;
     }
     setColor(r: number, g: number, b: number): void {
         this._color.reset(r, g, b, 10);
     }
-    get color(): xyzw { return this._color; }
-    setDirection(x: number, y: number, z: number): void { }
-    get direction(): xyzw { return Vec4.VEC4_0000; }
-    setAngle(value: number): void { }
-    get angle(): number { return 0; }
-    setCutoffDistance(value: number): void { }
-    get cutoffDistance(): number { return 0 }
-
-    update(dt: number) { }
+    setDirection(x: number, y: number, z: number): void {
+        this._hpVec4.copyFrom(this.position).add(x, y, z, 0);
+        this._ctrl.axisZPointsToVec(this._hpVec4, false);
+    }
+    protected update(dt: number): void {
+        this._frustum.projectionMatrix.multiply(this.transformInv, this._lightProjectionMatrix);
+    }
 }
 
-class ParallelLight extends OrthogonalSpace implements ILight {
-    private _color = new Vec4(1, 1, 1, 1);
-    private _dir = new Vec4(0, -1, 0);
+class PointLight extends Light implements ILight {
     constructor(posX: number, posY: number, posZ: number) {
-        super();
-        super.setPosition(posX, posY, posZ);
+        super(posX, posY, posZ);
+        this._frustum.createPerspectiveProjection(Math.PI / 2.0, 1, 1, 100);
     }
-    setColor(r: number, g: number, b: number): void {
-        this._color.reset(r, g, b, 10);
-    }
-    get color(): xyzw { return this._color; }
-
-    setDirection(x: number, y: number, z: number) {
-        this._dir.reset(x, y, z, 0.0);
-        return this;
-    }
-    get direction(): xyzw {
-        return this._dir;
-    }
-    setAngle(value: number): void { }
     get angle(): number { return 0; }
-    setCutoffDistance(value: number): void { }
     get cutoffDistance(): number { return 0 }
-
-    update(dt: number) { }
+    setAngle(value: number): void { }
+    setCutoffDistance(value: number): void { }
+    update(dt: number): void {
+        super.update(dt);
+    }
 }
 
-class SpotLight extends OrthogonalSpace implements ILight {
-    private _color = new Vec4(1, 1, 1, 1);
-    private _dir = new Vec4(0, -1, 0);
+class ParallelLight extends Light implements ILight {
+    constructor(posX: number, posY: number, posZ: number) {
+        super(posX, posY, posZ);
+        this._frustum.createOrthogonalProjection(-10, 10, -10, 10, 0, 100);
+    }
+    get angle(): number { return 0; }
+    get cutoffDistance(): number { return 0 }
+    setAngle(value: number): void { }
+    setCutoffDistance(value: number): void { }
+    update(dt: number) {
+        super.update(dt);
+    }
+}
+
+class SpotLight extends Light implements ILight {
     private _cutoffDis = 100;
     private _angle = Math.PI / 6;
     constructor(posX: number, posY: number, posZ: number) {
-        super();
-        super.setPosition(posX, posY, posZ);
+        super(posX, posY, posZ);
+        this._frustum.createPerspectiveProjection(Math.PI / 3.0, 640 / 480, 1, 100);
     }
-    setColor(r: number, g: number, b: number): void {
-        this._color.reset(r, g, b, 10);
-    }
-    get color(): xyzw { return this._color; }
-
-    setDirection(x: number, y: number, z: number) {
-        this._dir.reset(x, y, z, 0.0);
-    }
-    get direction(): xyzw { return this._dir; }
-
+    get angle(): number { return this._angle; }
+    get cutoffDistance(): number { return this._cutoffDis; }
     setAngle(value: number): void {
         this._angle = value;
     }
-    get angle(): number { return this._angle; }
-
     setCutoffDistance(value: number): void {
         this._cutoffDis = value;
     }
-    get cutoffDistance(): number { return this._cutoffDis; }
-
-    update(dt: number) { }
+    update(dt: number) {
+        super.update(dt);
+    }
 }
 
 

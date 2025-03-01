@@ -32,10 +32,6 @@ export default class OrthogonalSpace {
     get transform(): roMat44 {
         return this._transform;
     }
-    cascade(mat44Left: Mat44, outMat44: Mat44): Mat44 {
-        mat44Left.multiply(this._transform, outMat44);
-        return outMat44;
-    }
     transformSelf(mat44: Mat44): void {
         this._transform.multiply(mat44, this._transform);
         this._invMatDirty = true;

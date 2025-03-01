@@ -43,6 +43,7 @@ export interface xyzw {
     readonly w: number;
     isSame: (x: number, y: number, z: number, w: number) => boolean;
 }
+export type rgba = xyzw;
 
 export class Vec4 implements xyzw {
     static VEC4_0000 = Object.freeze(new Vec4(0, 0, 0, 0));
@@ -210,7 +211,7 @@ export class Mat44 {
         outMat.data[13] = delta;
         return outMat;
     }
-    static createTranslateZ(delta: number, outMat: Mat44): Mat44 {
+    static createTranslateZ(delta: number, outMat?: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
         outMat.data[14] = delta;
         return outMat;
@@ -230,11 +231,11 @@ export class Mat44 {
         outMat.data[10] = delta;
         return outMat;
     }
-    static createScaleOfSpace(delta: number, outMat: Mat44): Mat44 {
+    static createScale(scaleX: number, scaleY: number, scaleZ: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
-        outMat.data[0] = delta;
-        outMat.data[5] = delta;
-        outMat.data[10] = delta;
+        outMat.data[0] = scaleX;
+        outMat.data[5] = scaleY;
+        outMat.data[10] = scaleZ;
         return outMat;
     }
 
@@ -366,6 +367,38 @@ export class Mat44 {
         return outVec4;
     }
 
+    invertTransposeLeftTop33(): Mat44 {
+        const a = this.data;
+        let a00 = a[0],
+            a01 = a[1],
+            a02 = a[2];
+        let a10 = a[4],
+            a11 = a[5],
+            a12 = a[6];
+        let a20 = a[8],
+            a21 = a[9],
+            a22 = a[10];
+        let b01 = a22 * a11 - a12 * a21;
+        let b11 = -a22 * a10 + a12 * a20;
+        let b21 = a21 * a10 - a11 * a20;
+        // Calculate the determinant
+        let det = a00 * b01 + a01 * b11 + a02 * b21;
+        if (!det) {
+            return this;
+        }
+        det = 1.0 / det;
+        a[0] = b01 * det;
+        a[4] = (-a22 * a01 + a02 * a21) * det;
+        a[8] = (a12 * a01 - a02 * a11) * det;
+        a[1] = b11 * det;
+        a[5] = (a22 * a00 - a02 * a20) * det;
+        a[9] = (-a12 * a00 + a02 * a10) * det;
+        a[2] = b21 * det;
+        a[6] = (-a21 * a00 + a01 * a20) * det;
+        a[10] = (a11 * a00 - a01 * a10) * det;
+        return this;
+    }
+
     clone(): Mat44 {
         return new Mat44().reset(this.data, 0, 16);
     }
@@ -441,7 +474,7 @@ export class Mat44 {
         // Calculate the determinant
         let _det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
         if (!_det) {
-            return null;
+            return this;
         }
         _det = 1.0 / _det;
         a[0] = (a11 * b11 - a12 * b10 + a13 * b09) * _det;
