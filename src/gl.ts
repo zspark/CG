@@ -20,7 +20,7 @@ export type BufferDescriptor = {
     offset: GLintptr
 };
 
-export function createGlContext(canvasElementId: string): { gl: WebGL2RenderingContext, canvas: HTMLCanvasElement } {
+export function createGlContext(canvasElementId: string): WebGL2RenderingContext {
     const canvas: HTMLCanvasElement = document.getElementById(canvasElementId) as HTMLCanvasElement;
     const gl = canvas.getContext('webgl2', { stencil: true });
     if (!gl) {
@@ -28,7 +28,7 @@ export function createGlContext(canvasElementId: string): { gl: WebGL2RenderingC
     }
     //@ts-ignore
     window.gl = gl;// debug use;
-    return { gl, canvas };
+    return gl;
 }
 
 export type UniformUpdater = {
@@ -358,10 +358,17 @@ export class Pipeline {
     private _gl: WebGL2RenderingContext;
     private _arrSubPipeline: SubPipeline[] = [];
     private _arrOneTimeSubPipeline: SubPipeline[] = [];
-    private _enableCullFace = true;
+    private _enableCullFace = false;
     private _culledFace: GLenum;
-    private _enableDepthTest = true;
+
+    private _enableDepthTest = false;
     private _depthTestFunc: GLenum;
+
+    private _enableBlend = false;
+    private _blendFuncSF: GLenum;
+    private _blendFuncDF: GLenum;
+    private _blendEquation: GLenum;
+
     private _drawBuffers: GLenum[];
     private _priority: number;
     constructor(gl: WebGL2RenderingContext, priority: number = 0) {
@@ -382,6 +389,13 @@ export class Pipeline {
     depthTest(enable: boolean, func: GLenum): Pipeline {
         this._enableDepthTest = enable;
         this._depthTestFunc = func;
+        return this;
+    }
+    blend(enable: boolean, funcSF: GLenum, funcDF: GLenum, equation: GLenum): Pipeline {
+        this._enableBlend = enable;
+        this._blendFuncSF = funcSF;
+        this._blendFuncDF = funcDF;
+        this._blendEquation = equation;
         return this;
     }
     cullFace(enable: boolean, culledFace: GLenum): Pipeline {
@@ -411,6 +425,7 @@ export class Pipeline {
 
         renderState.setCullFace(this._enableCullFace, this._culledFace);
         renderState.setDepthTest(this._enableDepthTest, this._depthTestFunc);
+        renderState.setBlend(this._enableBlend, this._blendFuncSF, this._blendFuncDF, this._blendEquation);
 
         const gl = this._gl;
         this._drawBuffers && gl.drawBuffers(this._drawBuffers);
@@ -522,7 +537,21 @@ class RenderState {
     private _state: Map<GLenum, boolean | GLenum> = new Map();
     private _wm_glObject = new WeakMap();
     private _gl: WebGL2RenderingContext;
-    constructor(gl: WebGL2RenderingContext) { this._gl = gl; }
+    constructor(gl: WebGL2RenderingContext) {
+        this._gl = gl;
+        const _s = this._state;
+        _s.set(gl.BLEND, gl.getParameter(gl.BLEND));
+        _s.set(gl.BLEND_EQUATION, gl.getParameter(gl.BLEND_EQUATION));
+        _s.set(gl.BLEND_SRC_RGB, gl.getParameter(gl.BLEND_SRC_RGB));
+        _s.set(gl.BLEND_DST_RGB, gl.getParameter(gl.BLEND_DST_RGB));
+
+        _s.set(gl.DEPTH_TEST, gl.getParameter(gl.DEPTH_TEST));
+        _s.set(gl.DEPTH_FUNC, gl.getParameter(gl.DEPTH_FUNC));
+
+        _s.set(gl.CULL_FACE, gl.getParameter(gl.CULL_FACE));
+        _s.set(gl.CULL_FACE_MODE, gl.getParameter(gl.CULL_FACE_MODE));
+    }
+
     bind(obj: IBindableObject) {
         if (this._wm_glObject.get(obj.constructor) === obj) return this;
         else {
@@ -558,10 +587,10 @@ class RenderState {
                 gl.blendEquation(equation);
                 _state.set(gl.BLEND_EQUATION, equation);
             }
-            if (_state.get(28286888) != funcSF || _state.get(2866258925) != funcDF) {
+            if (_state.get(gl.BLEND_SRC_RGB) != funcSF || _state.get(gl.BLEND_DST_RGB) != funcDF) {
                 gl.blendFunc(funcSF, funcDF);
-                _state.set(28286888, funcSF);
-                _state.set(2866258925, funcDF);
+                _state.set(gl.BLEND_SRC_RGB, funcSF);
+                _state.set(gl.BLEND_DST_RGB, funcDF);
             }
         }
     }

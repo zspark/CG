@@ -19,45 +19,31 @@ export default class Application {
     private _backFBO: CG.Framebuffer;
     private _renderer: CG.Renderer;
     private _depthTexture: CG.Texture;
+    private _meshGrid: CG.Mesh;
+    private _meshCube: CG.Mesh;
     //private _light: CG.ILight = new CG.light.ParallelLight(10, 20, -10);
     private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
-    private _pipeDepth: CG.Pipeline;
 
     constructor() {
-        const obj = { type: 1 };
-        this._gui.add(obj, 'type', { 'point light': 1, 'parallel light': 2, 'spot light': 3 }).onChange((value: string) => {
-        });
-        const _shadowMapSize = 1024;
-        const { gl, canvas } = CG.createGlContext('glcanvas');
-        this._gl = gl;
-        this._camera = new CG.Camera(-10, 15, 8)
-            //.setPosition(10, 20, -10)
-            .lookAt(CG.Vec4.VEC4_0001)
-            .setMouseEvents(CG.registMouseEvents(canvas))
-            .setFrustum(this._frustum);
+        this.createGUI();
 
+        const _shadowMapSize = 1024;
+        const gl = this._gl = CG.createGlContext('glcanvas');
+        this._camera = new CG.Camera(-10, 15, 8).lookAt(CG.Vec4.VEC4_0001).setMouseEvents(CG.registMouseEvents(gl.canvas as HTMLCanvasElement)).setFrustum(this._frustum)//.setPosition(10, 20, -10)
         this._defaultFBO = new CG.Framebuffer(gl, undefined, undefined, false);
         this._backFBO = new CG.Framebuffer(gl, _shadowMapSize, _shadowMapSize, true);
         this._depthTexture = new CG.Texture(gl).createGLTextureWithSize(_shadowMapSize, _shadowMapSize, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT);
         this._backFBO.attachDepthTexture(this._depthTexture).validate();
         this._renderer = new CG.Renderer(gl);
         this._light.setDirection(-1, -1, 1);
-        this._geometryCube.init(gl);
 
+        this.createGrid();
         this.createAxes();
 
 
         //--------------------------------------------------------------------------------
-        const _meshFloor = new CG.Mesh(CG.createPlane(80, 80).init(gl));
-        const _meshCube = new CG.Mesh(this._geometryCube);
-        const _meshCube2 = new CG.Mesh(this._geometryCube);
-        const _meshCube3 = new CG.Mesh(this._geometryCube);
-        const _meshCube4 = new CG.Mesh(this._geometryCube);
-        this._ctrl.setSpace(_meshFloor).rotateAroundSelfX(CG.utils.deg2Rad(-90)).setPosition(0, -3, 0)
-            .setSpace(_meshCube).scale(3, 3, 4)
-            .setSpace(_meshCube2).moveUp(6).moveRight(2).moveForward(-2).rotateAroundSelfX(0.6).rotateAroundSelfZ(0.3)
-            .setSpace(_meshCube3).moveForward(6).moveUp(3).rotateAroundSelfZ(Math.PI / 6).scale(1, 4, 1)
-            .setSpace(_meshCube4).moveRight(6);
+        const _meshCube = this._meshCube = new CG.Mesh(this._geometryCube.init(gl));
+        this._ctrl.setSpace(_meshCube).setPosition(1, 1, 1);
         const _subPipeCube = new CG.SubPipeline()
             .setGeometry(_meshCube.geometry)
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube, new CG.Vec4(1, 0, 0, 1)))
@@ -67,49 +53,17 @@ export default class Application {
                 type: gl.UNSIGNED_SHORT,
                 offset: 0
             })
-        const _subPipeCube2 = _subPipeCube.clone().setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
-        const _subPipeCube3 = _subPipeCube.clone().setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
-        const _subPipeCube4 = _subPipeCube.clone().setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube4, new CG.Vec4(0, 1, 1, 1)))
-        const _subPipeFloor = new CG.SubPipeline()
-            .setGeometry(_meshFloor.geometry)
-            .setDrawElementsParameters({
-                mode: gl.TRIANGLES,
-                count: _meshFloor.numberIndices,
-                type: gl.UNSIGNED_SHORT,
-                offset: 0
-            })
-            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshFloor, new CG.Vec4(1, 1, 1, 1)));
 
-
-
-        this._loader.loadShader("./glsl/shadow-map-gen-depth").then((sources) => {
-            this._pipeDepth = new CG.Pipeline(gl, -1)
-                .setFBO(this._backFBO)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
-                .cullFace(true, gl.FRONT)
-                .drawBuffers(gl.NONE)
-                .appendSubPipeline(_subPipeCube)
-                .appendSubPipeline(_subPipeCube2)
-                .appendSubPipeline(_subPipeCube3)
-                .appendSubPipeline(_subPipeCube4)
-            this._renderer.addPipeline(this._pipeDepth);
-        });
-
-
-        this._loader.loadShader("./glsl/shadow-map").then((sources) => {
+        this._loader.loadShader("./glsl/vertexColor").then((sources) => {
             //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
-            const _pipeShadow = new CG.Pipeline(gl, 1)
+            const _p = new CG.Pipeline(gl, 10000)
                 .setFBO(this._defaultFBO)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .cullFace(true, gl.BACK)
+                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipeCube)
-                .appendSubPipeline(_subPipeCube2)
-                .appendSubPipeline(_subPipeCube3)
-                .appendSubPipeline(_subPipeCube4)
-                .appendSubPipeline(_subPipeFloor)
-            _subPipeFloor.setTextures(this._depthTexture)
-            this._renderer.addPipeline(_pipeShadow);
+            this._renderer.addPipeline(_p);
         });
+
         //--------------------------------------------------------------------------------
 
     }
@@ -125,6 +79,10 @@ export default class Application {
         return {
             updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
                 camera.viewProjectionMatrix.multiply(mesh.transform, this._tempMat44);
+                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
+            },
+            updateu_mvMatrix: (uLoc: WebGLUniformLocation) => {
+                camera.viewMatrix.multiply(mesh.transform, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mlMatrix_normal: (uLoc: WebGLUniformLocation) => {
@@ -181,7 +139,7 @@ export default class Application {
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshAxes, new CG.Vec4(1, 1, 1, 1)));
 
         this._loader.loadShader("./glsl/axes").then((sources) => {
-            const _pipeAxes = new CG.Pipeline(gl, 0)
+            const _pipeAxes = new CG.Pipeline(gl, -100000)
                 .setFBO(this._defaultFBO)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipeAxes)
@@ -190,5 +148,56 @@ export default class Application {
         });
     }
 
+    createGrid() {
+        const gl = this._gl;
+        this._meshGrid = new CG.Mesh(CG.createGridPlane(100).init(gl));
+        const _subGrid = new CG.SubPipeline()
+            .setGeometry(this._meshGrid.geometry)
+            .setDrawArraysParameters({
+                mode: gl.LINES,
+                first: 0,
+                count: 3000,
+            })
+            .setUniformUpdater(this.createUpdater(this._camera, this._light, this._meshGrid, new CG.Vec4(1, 1, 1, 1)));
+
+        this._loader.loadShader("./glsl/fade-away-from-camera").then((sources) => {
+            const _p = new CG.Pipeline(gl, 100000)
+                .setFBO(this._defaultFBO)
+                .blend(true, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_ADD)
+                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .appendSubPipeline(_subGrid)
+            this._renderer.addPipeline(_p);
+        });
+    }
+
+    createGUI() {
+        let _data = [0, 0, 0, 0, 0, 0];
+        const obj = { rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0, rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0 };
+        this._gui.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
+            //console.log(v);
+            this._ctrl.setSpace(this._meshCube).rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]));
+            _data[0] = v;
+        });
+        this._gui.add(obj, 'rotateSlefY').min(-360).max(360).step(0.25).onChange((v: number) => {
+            this._ctrl.setSpace(this._meshCube).rotateAroundSelfY(CG.utils.deg2Rad(v - _data[1]));
+            _data[1] = v;
+        });
+        this._gui.add(obj, 'rotateSlefZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+            this._ctrl.setSpace(this._meshCube).rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[2]));
+            _data[2] = v;
+        });
+        this._gui.add(obj, 'rotateParentX').min(-360).max(360).step(0.25).onChange((v: number) => {
+            this._ctrl.setSpace(this._meshCube).rotateAroundParentX(CG.utils.deg2Rad(v - _data[3]));
+            _data[3] = v;
+        });
+        this._gui.add(obj, 'rotateParentY').min(-360).max(360).step(0.25).onChange((v: number) => {
+            this._ctrl.setSpace(this._meshCube).rotateAroundParentY(CG.utils.deg2Rad(v - _data[4]));
+            _data[4] = v;
+        });
+        this._gui.add(obj, 'rotateParentZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+            this._ctrl.setSpace(this._meshCube).rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
+            _data[5] = v;
+        });
+    }
 }
 

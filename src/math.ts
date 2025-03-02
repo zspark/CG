@@ -239,6 +239,48 @@ export class Mat44 {
         return outMat;
     }
 
+    /**
+     * create a matrix that rotate point in Z,Y,X order(Z first then Y, then X), with all axis staticly.
+     */
+    static craeteRotateOfZYX_static(deltaX: number, deltaY: number, deltaZ: number, outMat: Mat44): Mat44 {
+        (outMat ??= new Mat44()).setIdentity();
+        let sinx = Math.sin(deltaX), cosx = Math.cos(deltaX);
+        let siny = Math.sin(deltaY), cosy = Math.cos(deltaY);
+        let sinz = Math.sin(deltaZ), cosz = Math.cos(deltaZ);
+        const d = outMat.data;
+        d[0] = cosy * cosz;
+        d[1] = sinx * siny * cosz + cosx * sinz;
+        d[2] = -cosx * siny * cosz + sinx * sinz;
+        d[4] = -cosy * sinz;
+        d[5] = -sinx * siny * sinz + cosx * cosz;
+        d[6] = cosx * siny * sinz + sinx * cosz;
+        d[8] = siny;
+        d[9] = -sinx * cosy;
+        d[10] = cosx * cosy;
+        return outMat;
+    }
+
+    /**
+     * create a matrix that rotate point in X,Y,Z order(X first then Y, then Z), with all axis staticly.
+     */
+    static craeteRotateOfXYZ_static(deltaX: number, deltaY: number, deltaZ: number, outMat: Mat44): Mat44 {
+        (outMat ??= new Mat44()).setIdentity();
+        let sinx = Math.sin(deltaX), cosx = Math.cos(deltaX);
+        let siny = Math.sin(deltaY), cosy = Math.cos(deltaY);
+        let sinz = Math.sin(deltaZ), cosz = Math.cos(deltaZ);
+        const d = outMat.data;
+        d[0] = cosz * cosy;
+        d[1] = sinz * cosy;
+        d[2] = -siny;
+        d[4] = cosz * siny * sinx - sinz * cosx;
+        d[5] = sinz * siny * sinx + cosz * cosx;
+        d[6] = cosy * sinx;
+        d[8] = cosz * siny * cosx + sinz * sinx;
+        d[9] = sinz * siny * cosx - cosz * sinx;
+        d[10] = cosy * cosx;
+        return outMat;
+    }
+
     setIdentity(): Mat44 {
         this.data.set(_identityMat44Data, 0);
         return this;

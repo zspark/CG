@@ -15,6 +15,9 @@ export default class SpaceController {
     private _helperQuat = new Quat(this._data, 0, 4);
     private _helperQuatConj = new Quat(this._data, 4, 8);
     private _helperQuatTemp = new Quat(this._data, 8, 12);
+    private _helperMat44S = new Mat44();
+    private _helperMat44R = new Mat44();
+    private _helperMat44T = new Mat44();
     private _helperMat44 = new Mat44();
     private _helperVec4_x = new Vec4();
     private _helperVec4_y = new Vec4();
@@ -24,6 +27,9 @@ export default class SpaceController {
 
     constructor(space?: OrthogonalSpace) {
         this.setSpace(space);
+        this._helperMat44S.setIdentity();
+        this._helperMat44R.setIdentity();
+        this._helperMat44T.setIdentity();
     }
     setSpace(space: OrthogonalSpace): SpaceController {
         this._space = space;
@@ -71,20 +77,40 @@ export default class SpaceController {
         this._space.setPosition(x, y, z);
         return this;
     }
+    rotateAroundParentX(deltaX: number): SpaceController {
+        Mat44.craeteRotateOfXYZ_static(deltaX, 0, 0, this._helperMat44R);
+        this._space.transformInvSelf(this._helperMat44R);
+        return this;
+    }
+    rotateAroundParentY(deltaY: number): SpaceController {
+        Mat44.craeteRotateOfXYZ_static(0, deltaY, 0, this._helperMat44R);
+        this._space.transformInvSelf(this._helperMat44R);
+        return this;
+    }
+    rotateAroundParentZ(deltaZ: number): SpaceController {
+        Mat44.craeteRotateOfXYZ_static(0, 0, deltaZ, this._helperMat44R);
+        this._space.transformInvSelf(this._helperMat44R);
+        return this;
+    }
 
-    rotateAroundSelfX(delta: number): SpaceController {
-        Mat44.createRotateAroundX(delta, this._helperMat44);
+    rotateAroundSelfXYZ(deltaX: number, deltaY: number, deltaZ: number): SpaceController {
+        Mat44.craeteRotateOfZYX_static(deltaX, deltaY, deltaZ, this._helperMat44R);
         this._space.transformSelf(this._helperMat44);
         return this;
     }
-    rotateAroundSelfY(delta: number): SpaceController {
-        Mat44.createRotateAroundY(delta, this._helperMat44);
-        this._space.transformSelf(this._helperMat44);
+    rotateAroundSelfX(deltaX: number): SpaceController {
+        Mat44.craeteRotateOfZYX_static(deltaX, 0, 0, this._helperMat44R);
+        this._space.transformSelf(this._helperMat44R);
         return this;
     }
-    rotateAroundSelfZ(delta: number): SpaceController {
-        Mat44.createRotateAroundZ(delta, this._helperMat44);
-        this._space.transformSelf(this._helperMat44);
+    rotateAroundSelfY(deltaY: number): SpaceController {
+        Mat44.craeteRotateOfZYX_static(0, deltaY, 0, this._helperMat44R);
+        this._space.transformSelf(this._helperMat44R);
+        return this;
+    }
+    rotateAroundSelfZ(deltaZ: number): SpaceController {
+        Mat44.craeteRotateOfZYX_static(0, 0, deltaZ, this._helperMat44R);
+        this._space.transformSelf(this._helperMat44R);
         return this;
     }
 

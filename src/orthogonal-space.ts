@@ -32,7 +32,11 @@ export default class OrthogonalSpace {
     get transform(): roMat44 {
         return this._transform;
     }
-    transformSelf(mat44: Mat44): void {
+    transformInvSelf(mat44: roMat44): void {
+        mat44.multiply(this._transform, this._transform);
+        this._invMatDirty = true;
+    }
+    transformSelf(mat44: roMat44): void {
         this._transform.multiply(mat44, this._transform);
         this._invMatDirty = true;
     }

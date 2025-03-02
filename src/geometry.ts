@@ -15,9 +15,9 @@ export interface IGeometry extends IBindableObject {
 
 export function createAxes(length: number = 1): IGeometry {
     const vertices = new Float32Array([
-        0, 0, 0,/*color*/ 1, 0, 0,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
-        0, 0, 0,/*color*/ 0, 1, 0,/**/ 0, length, 0,/*color*/ 0, 1, 0, // x;
-        0, 0, 0,/*color*/ 0, 0, 1,/**/ 0, 0, length,/*color*/ 0, 0, 1, // x;
+        0, 0, 0,/*color*/ 1, 0.2, 0.2,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
+        0, 0, 0,/*color*/ 0.2, 1, 0.2,/**/ 0, length, 0,/*color*/ 0, 1, 0, // x;
+        0, 0, 0,/*color*/ 0.2, 0.2, 1,/**/ 0, 0, length,/*color*/ 0, 0, 1, // x;
     ]);
     return new Geometry(vertices)
         .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 24, 0)
