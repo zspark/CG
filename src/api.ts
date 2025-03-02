@@ -4,7 +4,7 @@ export { createGlContext, UniformUpdater, Program, Texture, SkyboxTexture, Frame
 export { default as createLoader, ILoader } from "./assets-loader.js";
 export { ICamera, default as Camera } from "./camera.js";
 export { default as Frustum } from "./frustum.js";
-export { IGeometry, createAxes, createTriangle, createCube, createPlane, createGridPlane, default as Geometry } from "./geometry.js";
+export { IGeometry, geometry, default as Geometry } from "./geometry.js";
 export { default as light, ILight } from "./light-source.js";
 export { roMat44, xyzw, rgba, Vec4, Mat44, Quat } from "./math.js";
 export { default as Mesh } from "./mesh.js";

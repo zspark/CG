@@ -1,8 +1,9 @@
+import glC from "./gl-const.js";
 import OrthogonalSpace from "./orthogonal-space.js"
 import Mesh from "./mesh.js"
-import { default as Geometry, createAxes } from "./geometry.js"
+import { geometry } from "./geometry.js"
 import { roMat44, Mat44 } from "./math.js";
-import { Program, Pipeline, SubPipeline, Framebuffer, Renderer } from "./gl.js";
+import { Program, Pipeline, SubPipeline, Renderer } from "./gl.js";
 import createLoader from "./assets-loader.js";
 
 export default class Axes extends Mesh {
@@ -11,13 +12,13 @@ export default class Axes extends Mesh {
     private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _pipeline: Pipeline;
 
-    constructor(gl: WebGL2RenderingContext, fbo: Framebuffer, renderer: Renderer) {
-        super(createAxes(5).init(gl));
+    constructor(gl: WebGL2RenderingContext, renderer: Renderer) {
+        super(geometry.createAxes(5).init(gl));
         this._pipeline = new Pipeline(gl, -100000);
         this._ref_target = this;
         const _subPipeAxes = new SubPipeline().setGeometry(this.geometry)
             .setDrawArraysParameters({
-                mode: gl.LINES,
+                mode: glC.LINES,
                 first: 0,
                 count: 30,
             }).setUniformUpdater({
@@ -29,10 +30,9 @@ export default class Axes extends Mesh {
 
         createLoader("./").loadShader("./glsl/vertexColor").then((sources) => {
             this._pipeline
-                .setFBO(fbo)
                 .setProgram(new Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipeAxes)
-                .depthTest(false/*, gl.LESS*/)
+                .depthTest(false/*, glC.LESS*/)
             renderer.addPipeline(this._pipeline);
         });
     }

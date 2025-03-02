@@ -1,4 +1,5 @@
 import log from "./log.js"
+import { default as glC, initGLConstant } from "./gl-const.js"
 import { IGeometry } from "./geometry.js";
 
 export type DrawArraysParameter = {
@@ -26,6 +27,7 @@ export function createGlContext(canvasElementId: string): WebGL2RenderingContext
     if (!gl) {
         log.vital("[gl] WebGL 2.0 not supported!");
     }
+    initGLConstant(gl);
     //@ts-ignore
     window.gl = gl;// debug use;
     return gl;
@@ -325,9 +327,11 @@ export class Framebuffer implements IBindableObject {
     }
 
     validate(): Framebuffer {
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._glFramebuffer);
-        if (this._gl.checkFramebufferStatus(this._gl.FRAMEBUFFER) !== this._gl.FRAMEBUFFER_COMPLETE) log.vital("[Framebuffer] framebuffer is't setup correctly.");
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
+        if (this._glFramebuffer) {
+            this._gl.bindFramebuffer(glC.FRAMEBUFFER, this._glFramebuffer);
+            if (this._gl.checkFramebufferStatus(glC.FRAMEBUFFER) !== glC.FRAMEBUFFER_COMPLETE) log.vital("[Framebuffer] framebuffer is't setup correctly.");
+            this._gl.bindFramebuffer(glC.FRAMEBUFFER, null);
+        }
         return this;
     }
 
@@ -410,8 +414,8 @@ export class Pipeline {
 
 
     validate(): Pipeline {
-        if (!(this.FBO && this.FBO instanceof Framebuffer))
-            log.vital('[Pipeline] frame buffer is not exist OR is not a valid Framebuffer instance.');
+        if (this.FBO && !(this.FBO instanceof Framebuffer))
+            log.vital('[Pipeline] FBO is not a valid Framebuffer instance.');
         if (!(this.program && this.program instanceof Program))
             log.vital('[Pipeline] program is not exist OR is not a valid Program instance.');
         //todo:
@@ -611,6 +615,7 @@ class RenderState {
 }
 
 export class Renderer {
+    private _defaultFBO: Framebuffer;
     private _maxTextureUnits: number;
     private _renderState: RenderState;
     private _arrPipeline: Pipeline[];
@@ -618,10 +623,11 @@ export class Renderer {
     private _arrPipeline_2: Pipeline[] = [];
     private _arrOneTimePipeline: Pipeline[] = [];
     private _arrTransparentPipeline: Pipeline[] = [];
-
     private _gl: WebGL2RenderingContext;
+
     constructor(gl: WebGL2RenderingContext) {
         this._gl = gl;
+        this._defaultFBO = new Framebuffer(gl, null, null, false);
         this._maxTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
         this._arrPipeline = this._arrPipeline_1;
         this._renderState = new RenderState(gl);
@@ -645,6 +651,7 @@ export class Renderer {
 
     addPipeline(p: Pipeline, option?: PipelineOption): Renderer {
         let _onlyOnce = (option?.onlyOnce) ? true : false;
+        p.FBO ??= this._defaultFBO;
         _onlyOnce ? this._arrOneTimePipeline.push(p) : this._arrPipeline.push(p);
         this._sortPipline();
         return this;

@@ -13,9 +13,8 @@ export default class Application {
     private _frustum = new CG.Frustum().createPerspectiveProjection(CG.utils.deg2Rad(60), 640 / 480, Application.NEAR_PLANE, Application.FAR_PLANE);
     //private _frustum = new CG.Frustum().createOrthogonalProjection(-10, 10, -10, 10, 0, 100);
     private _ctrl = new CG.SpaceController();
-    private _geometryCube = CG.createCube(2);
+    private _geometryCube: CG.IGeometry;
     private _gl: WebGL2RenderingContext;
-    private _defaultFBO: CG.Framebuffer;
     private _backFBO: CG.Framebuffer;
     private _renderer: CG.Renderer;
     private _depthTexture: CG.Texture;
@@ -31,19 +30,19 @@ export default class Application {
         const _shadowMapSize = 1024;
         const gl = this._gl = CG.createGlContext('glcanvas');
         this._camera = new CG.Camera(-10, 15, 8).lookAt(CG.Vec4.VEC4_0001).setMouseEvents(CG.registMouseEvents(gl.canvas as HTMLCanvasElement)).setFrustum(this._frustum)//.setPosition(10, 20, -10)
-        this._defaultFBO = new CG.Framebuffer(gl, undefined, undefined, false);
         this._backFBO = new CG.Framebuffer(gl, _shadowMapSize, _shadowMapSize, true);
         this._depthTexture = new CG.Texture(gl).createGLTextureWithSize(_shadowMapSize, _shadowMapSize, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT);
         this._backFBO.attachDepthTexture(this._depthTexture).validate();
         this._renderer = new CG.Renderer(gl);
-        this._axis = new CG.Axes(gl, this._defaultFBO, this._renderer);
+        this._axis = new CG.Axes(gl, this._renderer);
         this._light.setDirection(-1, -1, 1);
+        this._geometryCube = CG.geometry.createCube(2).init(gl);
 
         this.createGrid();
 
 
         //--------------------------------------------------------------------------------
-        const _meshCube = this._meshCube = new CG.Mesh(this._geometryCube.init(gl));
+        const _meshCube = this._meshCube = new CG.Mesh(this._geometryCube);
         this._ctrl.setSpace(_meshCube).setPosition(1, 1, 1);
         const _subPipeCube = new CG.SubPipeline()
             .setGeometry(_meshCube.geometry)
@@ -58,7 +57,6 @@ export default class Application {
         this._loader.loadShader("./glsl/vertexColor").then((sources) => {
             //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
             const _p = new CG.Pipeline(gl, 10000)
-                .setFBO(this._defaultFBO)
                 .cullFace(true, gl.BACK)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipeCube)
@@ -131,7 +129,7 @@ export default class Application {
 
     createGrid() {
         const gl = this._gl;
-        this._meshGrid = new CG.Mesh(CG.createGridPlane(100).init(gl));
+        this._meshGrid = new CG.Mesh(CG.geometry.createGridPlane(100).init(gl));
         const _subGrid = new CG.SubPipeline()
             .setGeometry(this._meshGrid.geometry)
             .setDrawArraysParameters({
@@ -143,10 +141,10 @@ export default class Application {
 
         this._loader.loadShader("./glsl/fade-away-from-camera").then((sources) => {
             const _p = new CG.Pipeline(gl, 100000)
-                .setFBO(this._defaultFBO)
                 .blend(true, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_ADD)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .setProgram(new CG.Program(gl, sources[0], sources[1]))
                 .appendSubPipeline(_subGrid)
+                .validate()
             this._renderer.addPipeline(_p);
         });
     }

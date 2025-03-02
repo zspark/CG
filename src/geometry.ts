@@ -1,4 +1,5 @@
 import log from "./log.js";
+import glC from "./gl-const.js";
 import { BufferDescriptor, IBindableObject } from "./gl.js";
 
 export interface IGeometry extends IBindableObject {
@@ -13,127 +14,128 @@ export interface IGeometry extends IBindableObject {
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
 }
 
-export function createAxes(length: number = 1): IGeometry {
-    const vertices = new Float32Array([
-        0, 0, 0,/*color*/ 1, 0.2, 0.2,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
-        0, 0, 0,/*color*/ 0.2, 1, 0.2,/**/ 0, length, 0,/*color*/ 0, 1, 0, // x;
-        0, 0, 0,/*color*/ 0.2, 0.2, 1,/**/ 0, 0, length,/*color*/ 0, 0, 1, // x;
-    ]);
-    return new Geometry(vertices)
-        .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 24, 0)
-        .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, 5126, false, 24, 12);
-}
+export const geometry: { [key: string]: (...value: any[]) => IGeometry } = {
+    createAxes: (length: number = 1): IGeometry => {
+        const vertices = new Float32Array([
+            0, 0, 0,/*color*/ 1, 0.2, 0.2,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
+            0, 0, 0,/*color*/ 0.2, 1, 0.2,/**/ 0, length, 0,/*color*/ 0, 1, 0, // x;
+            0, 0, 0,/*color*/ 0.2, 0.2, 1,/**/ 0, 0, length,/*color*/ 0, 0, 1, // x;
+        ]);
+        return new Geometry(vertices)
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 24, 0)
+            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 24, 12);
+    },
 
-export function createCube(edgeLength: number): IGeometry {
-    const _half = edgeLength * .5;
-    const vertices = new Float32Array([
-        // Front face
-        -_half, -_half, _half, 0, 0, 1, 1, 0, 0,// Vertex 0
-        _half, -_half, _half, 0, 0, 1, 0, 1, 0,// Vertex 1
-        _half, _half, _half, 0, 0, 1, 0, 0, 1,// Vertex 2
-        -_half, _half, _half, 0, 0, 1, 1, 1, 0,// Vertex 3
+    createCube: (edgeLength: number): IGeometry => {
+        const _half = edgeLength * .5;
+        const vertices = new Float32Array([
+            // Front face
+            -_half, -_half, _half, 0, 0, 1, 1, 0, 0,// Vertex 0
+            _half, -_half, _half, 0, 0, 1, 0, 1, 0,// Vertex 1
+            _half, _half, _half, 0, 0, 1, 0, 0, 1,// Vertex 2
+            -_half, _half, _half, 0, 0, 1, 1, 1, 0,// Vertex 3
 
-        // Back face
-        -_half, -_half, -_half, 0, 0, -1, 1, 0, 1,// Vertex 4
-        -_half, _half, -_half, 0, 0, -1, 0, 1, 1,// Vertex 5
-        _half, _half, -_half, 0, 0, -1, 1, 1, 1,// Vertex 6
-        _half, -_half, -_half, 0, 0, -1, 0, 0, 0,// Vertex 7
+            // Back face
+            -_half, -_half, -_half, 0, 0, -1, 1, 0, 1,// Vertex 4
+            -_half, _half, -_half, 0, 0, -1, 0, 1, 1,// Vertex 5
+            _half, _half, -_half, 0, 0, -1, 1, 1, 1,// Vertex 6
+            _half, -_half, -_half, 0, 0, -1, 0, 0, 0,// Vertex 7
 
-        // Top face
-        -_half, _half, -_half, 0, 1, 0, 0, 1, 1,// Vertex 8
-        -_half, _half, _half, 0, 1, 0, 1, 1, 0,// Vertex 9
-        _half, _half, _half, 0, 1, 0, 0, 0, 1,// Vertex 10
-        _half, _half, -_half, 0, 1, 0, 1, 1, 1,// Vertex 11
+            // Top face
+            -_half, _half, -_half, 0, 1, 0, 0, 1, 1,// Vertex 8
+            -_half, _half, _half, 0, 1, 0, 1, 1, 0,// Vertex 9
+            _half, _half, _half, 0, 1, 0, 0, 0, 1,// Vertex 10
+            _half, _half, -_half, 0, 1, 0, 1, 1, 1,// Vertex 11
 
-        // Bottom face
-        -_half, -_half, -_half, 0, -1, 0, 1, 0, 1,// Vertex 12
-        _half, -_half, -_half, 0, -1, 0, 0, 0, 0,// Vertex 13
-        _half, -_half, _half, 0, -1, 0, 0, 1, 0,// Vertex 14
-        -_half, -_half, _half, 0, -1, 0, 1, 0, 0,// Vertex 15
+            // Bottom face
+            -_half, -_half, -_half, 0, -1, 0, 1, 0, 1,// Vertex 12
+            _half, -_half, -_half, 0, -1, 0, 0, 0, 0,// Vertex 13
+            _half, -_half, _half, 0, -1, 0, 0, 1, 0,// Vertex 14
+            -_half, -_half, _half, 0, -1, 0, 1, 0, 0,// Vertex 15
 
-        // Right face
-        _half, -_half, -_half, 1, 0, 0, 0, 0, 0,// Vertex 16
-        _half, _half, -_half, 1, 0, 0, 1, 1, 1,// Vertex 17
-        _half, _half, _half, 1, 0, 0, 0, 0, 1,// Vertex 18
-        _half, -_half, _half, 1, 0, 0, 0, 1, 0,// Vertex 19
+            // Right face
+            _half, -_half, -_half, 1, 0, 0, 0, 0, 0,// Vertex 16
+            _half, _half, -_half, 1, 0, 0, 1, 1, 1,// Vertex 17
+            _half, _half, _half, 1, 0, 0, 0, 0, 1,// Vertex 18
+            _half, -_half, _half, 1, 0, 0, 0, 1, 0,// Vertex 19
 
-        // Left face
-        -_half, -_half, -_half, -1, 0, 0, 1, 0, 1,// Vertex 20
-        -_half, -_half, _half, -1, 0, 0, 1, 0, 0,// Vertex 21
-        -_half, _half, _half, -1, 0, 0, 1, 1, 0,// Vertex 22
-        -_half, _half, -_half, -1, 0, 0, 0, 1, 1,// Vertex 23
-    ]);
+            // Left face
+            -_half, -_half, -_half, -1, 0, 0, 1, 0, 1,// Vertex 20
+            -_half, -_half, _half, -1, 0, 0, 1, 0, 0,// Vertex 21
+            -_half, _half, _half, -1, 0, 0, 1, 1, 0,// Vertex 22
+            -_half, _half, -_half, -1, 0, 0, 0, 1, 1,// Vertex 23
+        ]);
 
 
-    //CG.log(vertices);
-    const indices = new Uint16Array([
-        0, 1, 2, 0, 2, 3,  // Front
-        4, 5, 6, 4, 6, 7,  // Back
-        8, 9, 10, 8, 10, 11, // Top
-        12, 13, 14, 12, 14, 15, // Bottom
-        16, 17, 18, 16, 18, 19, // Right
-        20, 21, 22, 20, 22, 23, // Left
-    ]);
+        //CG.log(vertices);
+        const indices = new Uint16Array([
+            0, 1, 2, 0, 2, 3,  // Front
+            4, 5, 6, 4, 6, 7,  // Back
+            8, 9, 10, 8, 10, 11, // Top
+            12, 13, 14, 12, 14, 15, // Bottom
+            16, 17, 18, 16, 18, 19, // Right
+            20, 21, 22, 20, 22, 23, // Left
+        ]);
 
-    return new Geometry(vertices, indices)
-        .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 36, 0)
-        .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, 5126, false, 36, 12)
-        .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, 5126, false, 36, 24);
+        return new Geometry(vertices, indices)
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 36, 0)
+            .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 36, 12)
+            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 36, 24);
 
-}
+    },
 
-export function createTriangle(scale: number = 1): IGeometry {
-    const vertices = [0, 0.7 * scale, 0, -0.7 * scale, -0.3 * scale, 0, 0.7 * scale, -0.3 * scale, 0];
-    const indices = [0, 1, 2];
+    createTriangle: (scale: number = 1): IGeometry => {
+        const vertices = [0, 0.7 * scale, 0, -0.7 * scale, -0.3 * scale, 0, 0.7 * scale, -0.3 * scale, 0];
+        const indices = [0, 1, 2];
 
-    return new Geometry(new Float32Array(vertices), new Uint16Array(indices))
-        .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 0, 0);
-}
+        return new Geometry(new Float32Array(vertices), new Uint16Array(indices))
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0);
+    },
 
-export function createGridPlane(quaterSize: number, step = 1): IGeometry {
-    const vertices = [];
+    createGridPlane: (quaterSize: number, step = 1): IGeometry => {
+        const vertices = [];
 
-    let _start = -Math.floor(quaterSize / step) * step;
-    for (let t = _start; t <= quaterSize; t += step) {
-        vertices.push(
-            t, 0, -quaterSize,
-            t, 0, quaterSize,
-            -quaterSize, 0, t,
-            quaterSize, 0, t
-        );
+        let _start = -Math.floor(quaterSize / step) * step;
+        for (let t = _start; t <= quaterSize; t += step) {
+            vertices.push(
+                t, 0, -quaterSize,
+                t, 0, quaterSize,
+                -quaterSize, 0, t,
+                quaterSize, 0, t
+            );
+        }
+
+        return new Geometry(new Float32Array(vertices))
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0);
+    },
+
+    createPlane: (width: number, height: number): IGeometry => {
+        width *= .5;
+        height *= .5;
+        const vertices = new Float32Array([
+            width, height, 0,
+            0.0, 0.0,
+            0, 0, 1,
+            -width, height, 0,
+            1.0, 0.0,
+            0, 0, 1,
+            -width, -height, 0,
+            1.0, 1.0,
+            0, 0, 1,
+            width, -height, 0,
+            0.0, 1.0,
+            0, 0, 1,
+        ]);
+        const indices = new Uint16Array([
+            0, 1, 2,
+            2, 3, 0
+        ]);
+        return new Geometry(vertices, indices)
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 32, 0)
+            .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, glC.FLOAT, false, 32, 12)
+            .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 32, 20);
     }
-
-    return new Geometry(new Float32Array(vertices))
-        .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 0, 0);
 }
-
-export function createPlane(width: number, height: number): IGeometry {
-    width *= .5;
-    height *= .5;
-    const vertices = new Float32Array([
-        width, height, 0,
-        0.0, 0.0,
-        0, 0, 1,
-        -width, height, 0,
-        1.0, 0.0,
-        0, 0, 1,
-        -width, -height, 0,
-        1.0, 1.0,
-        0, 0, 1,
-        width, -height, 0,
-        0.0, 1.0,
-        0, 0, 1,
-    ]);
-    const indices = new Uint16Array([
-        0, 1, 2,
-        2, 3, 0
-    ]);
-    return new Geometry(vertices, indices)
-        .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 32, 0)
-        .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, 5126, false, 32, 12)
-        .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, 5126, false, 32, 20);
-}
-
 
 /**
 * Geometry is a mathmatical shape, shared with man meshes.
@@ -143,8 +145,6 @@ export function createPlane(width: number, height: number): IGeometry {
 * color attribute must use FLOAT, should be clamped to [0, 1];
 * index must use UNSIGNED_SHORT;
 *
-* gl.FLOAT 5126
-* gl.UNSIGNED_SHORT 5123
 */
 export default class Geometry implements IGeometry {
     /*
