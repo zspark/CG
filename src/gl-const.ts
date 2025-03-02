@@ -20,6 +20,7 @@ type _glConst = {
     BLEND: GLenum,
     SRC_ALPHA: GLenum,
     ONE_MINUS_SRC_ALPHA: GLenum,
+    FUNC_ADD: GLenum,
 
     CULL_FACE: GLenum,
     CULL_FACE_MODE: GLenum,
@@ -36,6 +37,7 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.DEPTH_FUNC = gl.DEPTH_FUNC;
     glConst.DEPTH = gl.DEPTH;
     glConst.BLEND = gl.BLEND;
+    glConst.FUNC_ADD = gl.FUNC_ADD;
     glConst.SRC_ALPHA = gl.SRC_ALPHA;
     glConst.ONE_MINUS_SRC_ALPHA = gl.ONE_MINUS_SRC_ALPHA;
     glConst.CULL_FACE = gl.CULL_FACE;

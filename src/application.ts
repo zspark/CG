@@ -23,6 +23,7 @@ export default class Application {
     //private _light: CG.ILight = new CG.light.ParallelLight(10, 20, -10);
     private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
     private _axis: CG.Axes;
+    private _gridFloor: CG.GridFloor;
 
     constructor() {
         this.createGUI();
@@ -35,10 +36,9 @@ export default class Application {
         this._backFBO.attachDepthTexture(this._depthTexture).validate();
         this._renderer = new CG.Renderer(gl);
         this._axis = new CG.Axes(gl, this._renderer);
+        this._gridFloor = new CG.GridFloor(gl, this._renderer);
         this._light.setDirection(-1, -1, 1);
         this._geometryCube = CG.geometry.createCube(2).init(gl);
-
-        this.createGrid();
 
 
         //--------------------------------------------------------------------------------
@@ -71,6 +71,7 @@ export default class Application {
     run(dt: number) {
         this._light.update(dt);
         this._camera.update(dt);
+        this._gridFloor.update(dt, this._camera);
         this._axis.update(dt, this._camera.viewProjectionMatrix);
         this._renderer.render();
     }
@@ -125,28 +126,6 @@ export default class Application {
             },
             /// --------------------------------------------------------------------------------
         }
-    }
-
-    createGrid() {
-        const gl = this._gl;
-        this._meshGrid = new CG.Mesh(CG.geometry.createGridPlane(100).init(gl));
-        const _subGrid = new CG.SubPipeline()
-            .setGeometry(this._meshGrid.geometry)
-            .setDrawArraysParameters({
-                mode: gl.LINES,
-                first: 0,
-                count: 3000,
-            })
-            .setUniformUpdater(this.createUpdater(this._camera, this._light, this._meshGrid, new CG.Vec4(1, 1, 1, 1)));
-
-        this._loader.loadShader("./glsl/fade-away-from-camera").then((sources) => {
-            const _p = new CG.Pipeline(gl, 100000)
-                .blend(true, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.FUNC_ADD)
-                .setProgram(new CG.Program(gl, sources[0], sources[1]))
-                .appendSubPipeline(_subGrid)
-                .validate()
-            this._renderer.addPipeline(_p);
-        });
     }
 
     createGUI() {

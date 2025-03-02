@@ -14,7 +14,13 @@ export interface IGeometry extends IBindableObject {
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
 }
 
-export const geometry: { [key: string]: (...value: any[]) => IGeometry } = {
+export const geometry: {
+    createAxes: (length: number) => IGeometry,
+    createCube: (length: number) => IGeometry,
+    createPlane: (width: number, height: number) => IGeometry,
+    createGridPlane: (length: number) => IGeometry,
+    createTriangle: (scale: number) => IGeometry,
+} = {
     createAxes: (length: number = 1): IGeometry => {
         const vertices = new Float32Array([
             0, 0, 0,/*color*/ 1, 0.2, 0.2,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;

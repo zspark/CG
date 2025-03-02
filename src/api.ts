@@ -12,3 +12,4 @@ export { default as registMouseEvents, mouseEventCallback, mouseEvents } from ".
 export { default as OrthogonalSpace } from "./orthogonal-space.js";
 export { default as SpaceController } from "./space-controller.js";
 export { default as Axes } from "./axes.js";
+export { default as GridFloor } from "./grid-floor.js";
