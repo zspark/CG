@@ -3,11 +3,14 @@ import * as dat from "../third/dat.gui.module.js";
 import * as CG from "./api.js";
 
 export default class Application {
+    static NEAR_PLANE = 1;
+    static FAR_PLANE = 100;
+
     private _gui = new dat.GUI();
     private _tempMat44 = new CG.Mat44();
     private _loader = CG.createLoader("./");
     private _camera: CG.ICamera;
-    private _frustum = new CG.Frustum().createPerspectiveProjection(CG.utils.deg2Rad(60), 640 / 480, 1, 100);
+    private _frustum = new CG.Frustum().createPerspectiveProjection(CG.utils.deg2Rad(60), 640 / 480, Application.NEAR_PLANE, Application.FAR_PLANE);
     //private _frustum = new CG.Frustum().createOrthogonalProjection(-10, 10, -10, 10, 0, 100);
     private _ctrl = new CG.SpaceController();
     private _geometryCube = CG.createCube(2);
@@ -123,13 +126,17 @@ export default class Application {
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mlMatrix_normal: (uLoc: WebGLUniformLocation) => {
-                this._tempMat44.copyFrom(mesh.transform).invertTransposeLeftTop33();
-                //this._tempMat44.copyFrom(mesh.transform).invert().transpose();
+                //this._tempMat44.copyFrom(mesh.transform).invert().transpose(); // remember, this's wrong!!!
+                this._tempMat44.copyFrom(mesh.transform).invertTransposeLeftTop33();// this one is right.
                 light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mlpMatrix: (uLoc: WebGLUniformLocation) => {
                 light.lightProjectionMatrix.multiply(mesh.transform, this._tempMat44);
+                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
+            },
+            updateu_mlMatrix: (uLoc: WebGLUniformLocation) => {
+                light.lightMatrix.multiply(mesh.transform, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_shadowMap: (uLoc: WebGLUniformLocation) => {
@@ -138,6 +145,13 @@ export default class Application {
             updateu_color: (uLoc: WebGLUniformLocation) => {
                 gl.uniform3f(uLoc, color.x, color.y, color.z);
             },
+            updateu_nearFarPlane: (uLoc: WebGLUniformLocation) => {
+                gl.uniform2f(uLoc, Application.NEAR_PLANE, Application.FAR_PLANE);
+            },
+
+
+            /// --------------------------------------------------------------------------------
+            /// debug normals;
             updateu_debugNormalModelMatrix: (uLoc: WebGL2RenderingContext) => { // model to world
                 this._tempMat44.copyFrom(mesh.transform).invertTransposeLeftTop33();
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
@@ -148,6 +162,7 @@ export default class Application {
             updateu_debugNormalSpace: (uLoc: WebGL2RenderingContext) => { // 0:model space; 1:world space; 2:view space;
                 gl.uniform1i(uLoc, 2);
             },
+            /// --------------------------------------------------------------------------------
         }
     }
 
