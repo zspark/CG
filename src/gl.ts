@@ -386,19 +386,19 @@ export class Pipeline {
         _onlyOnce ? this._arrOneTimeSubPipeline.push(subp) : this._arrSubPipeline.push(subp);
         return this;
     }
-    depthTest(enable: boolean, func: GLenum): Pipeline {
+    depthTest(enable: boolean, func?: GLenum): Pipeline {
         this._enableDepthTest = enable;
         this._depthTestFunc = func;
         return this;
     }
-    blend(enable: boolean, funcSF: GLenum, funcDF: GLenum, equation: GLenum): Pipeline {
+    blend(enable: boolean, funcSF?: GLenum, funcDF?: GLenum, equation?: GLenum): Pipeline {
         this._enableBlend = enable;
         this._blendFuncSF = funcSF;
         this._blendFuncDF = funcDF;
         this._blendEquation = equation;
         return this;
     }
-    cullFace(enable: boolean, culledFace: GLenum): Pipeline {
+    cullFace(enable: boolean, culledFace?: GLenum): Pipeline {
         this._enableCullFace = enable;
         this._culledFace = culledFace;
         return this;

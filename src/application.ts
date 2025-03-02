@@ -23,6 +23,7 @@ export default class Application {
     private _meshCube: CG.Mesh;
     //private _light: CG.ILight = new CG.light.ParallelLight(10, 20, -10);
     private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
+    private _axis: CG.Axes;
 
     constructor() {
         this.createGUI();
@@ -35,10 +36,10 @@ export default class Application {
         this._depthTexture = new CG.Texture(gl).createGLTextureWithSize(_shadowMapSize, _shadowMapSize, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT);
         this._backFBO.attachDepthTexture(this._depthTexture).validate();
         this._renderer = new CG.Renderer(gl);
+        this._axis = new CG.Axes(gl, this._defaultFBO, this._renderer);
         this._light.setDirection(-1, -1, 1);
 
         this.createGrid();
-        this.createAxes();
 
 
         //--------------------------------------------------------------------------------
@@ -61,6 +62,7 @@ export default class Application {
                 .cullFace(true, gl.BACK)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipeCube)
+            this._axis.attachTo(_meshCube);
             this._renderer.addPipeline(_p);
         });
 
@@ -71,6 +73,7 @@ export default class Application {
     run(dt: number) {
         this._light.update(dt);
         this._camera.update(dt);
+        this._axis.update(dt, this._camera.viewProjectionMatrix);
         this._renderer.render();
     }
 
@@ -126,28 +129,6 @@ export default class Application {
         }
     }
 
-    createAxes() {
-        const gl = this._gl;
-        const _meshAxes = new CG.Mesh(CG.createAxes(5).init(gl));
-        const _subPipeAxes = new CG.SubPipeline()
-            .setGeometry(_meshAxes.geometry)
-            .setDrawArraysParameters({
-                mode: gl.LINES,
-                first: 0,
-                count: 30,
-            })
-            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshAxes, new CG.Vec4(1, 1, 1, 1)));
-
-        this._loader.loadShader("./glsl/axes").then((sources) => {
-            const _pipeAxes = new CG.Pipeline(gl, -100000)
-                .setFBO(this._defaultFBO)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
-                .appendSubPipeline(_subPipeAxes)
-                .depthTest(false, gl.LESS)
-            this._renderer.addPipeline(_pipeAxes);
-        });
-    }
-
     createGrid() {
         const gl = this._gl;
         this._meshGrid = new CG.Mesh(CG.createGridPlane(100).init(gl));
@@ -172,7 +153,16 @@ export default class Application {
 
     createGUI() {
         let _data = [0, 0, 0, 0, 0, 0];
-        const obj = { rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0, rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0 };
+        const obj = {
+            rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0,
+            rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0,
+            attachToCube: () => {
+                this._axis.attachTo(this._meshCube);
+            },
+            attachToParent: () => {
+                this._axis.attachTo(null);
+            },
+        };
         this._gui.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
             //console.log(v);
             this._ctrl.setSpace(this._meshCube).rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]));
@@ -198,6 +188,8 @@ export default class Application {
             this._ctrl.setSpace(this._meshCube).rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
             _data[5] = v;
         });
+        this._gui.add(obj, 'attachToCube');
+        this._gui.add(obj, 'attachToParent');
     }
 }
 

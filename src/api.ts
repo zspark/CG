@@ -11,3 +11,4 @@ export { default as Mesh } from "./mesh.js";
 export { default as registMouseEvents, mouseEventCallback, mouseEvents } from "./mouse-events.js";
 export { default as OrthogonalSpace } from "./orthogonal-space.js";
 export { default as SpaceController } from "./space-controller.js";
+export { default as Axes } from "./axes.js";
