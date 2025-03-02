@@ -57,6 +57,7 @@ function displayTexture(gl: WebGL2RenderingContext, texture: WebGLTexture, width
     console.log("Texture displayed in DOM as an image.");
 }
 
+//@ts-ignore
 window.displayTexture = displayTexture;
 
 export default { deg2Rad, rad2Deg, numberSame, displayTexture };

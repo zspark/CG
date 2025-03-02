@@ -28,7 +28,7 @@ export default class Mesh extends OrthogonalSpace {
         return undefined;
     }
 
-    get VAO(): WebGLVertexArrayObject {
-        return this._ref_geo.VAO;
+    get geometry(): IGeometry {
+        return this._ref_geo;
     }
 }

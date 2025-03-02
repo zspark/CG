@@ -44,6 +44,8 @@ export default class Application {
         this._light.setDirection(-1, -1, 1);
         this._geometryCube.init(gl);
 
+        this.createAxes();
+
 
         //--------------------------------------------------------------------------------
         const _meshFloor = new CG.Mesh(CG.createPlane(80, 80).init(gl));
@@ -57,7 +59,7 @@ export default class Application {
             .setSpace(_meshCube3).moveForward(6).moveUp(3).rotateAroundSelfZ(Math.PI / 6).scale(1, 4, 1)
             .setSpace(_meshCube4).moveRight(6);
         const _subPipeCube = new CG.SubPipeline()
-            .setVAO(_meshCube.VAO)
+            .setGeometry(_meshCube.geometry)
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube, new CG.Vec4(1, 0, 0, 1)))
             .setDrawElementsParameters({
                 mode: gl.TRIANGLES,
@@ -69,7 +71,7 @@ export default class Application {
         const _subPipeCube3 = _subPipeCube.clone().setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
         const _subPipeCube4 = _subPipeCube.clone().setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube4, new CG.Vec4(0, 1, 1, 1)))
         const _subPipeFloor = new CG.SubPipeline()
-            .setVAO(_meshFloor.VAO)
+            .setGeometry(_meshFloor.geometry)
             .setDrawElementsParameters({
                 mode: gl.TRIANGLES,
                 count: _meshFloor.numberIndices,
@@ -81,7 +83,7 @@ export default class Application {
 
 
         this._loader.loadShader("./glsl/shadow-map-gen-depth").then((sources) => {
-            this._pipeDepth = new CG.Pipeline(gl)
+            this._pipeDepth = new CG.Pipeline(gl, -1)
                 .setFBO(this._backFBO)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .cullFace(true, gl.FRONT)
@@ -96,7 +98,7 @@ export default class Application {
 
         this._loader.loadShader("./glsl/shadow-map").then((sources) => {
             //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
-            const _pipeShadow = new CG.Pipeline(gl)
+            const _pipeShadow = new CG.Pipeline(gl, 1)
                 .setFBO(this._defaultFBO)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .cullFace(true, gl.BACK)
@@ -164,6 +166,28 @@ export default class Application {
             },
             /// --------------------------------------------------------------------------------
         }
+    }
+
+    createAxes() {
+        const gl = this._gl;
+        const _meshAxes = new CG.Mesh(CG.createAxes(5).init(gl));
+        const _subPipeAxes = new CG.SubPipeline()
+            .setGeometry(_meshAxes.geometry)
+            .setDrawArraysParameters({
+                mode: gl.LINES,
+                first: 0,
+                count: 30,
+            })
+            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshAxes, new CG.Vec4(1, 1, 1, 1)));
+
+        this._loader.loadShader("./glsl/axes").then((sources) => {
+            const _pipeAxes = new CG.Pipeline(gl, 0)
+                .setFBO(this._defaultFBO)
+                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .appendSubPipeline(_subPipeAxes)
+                .depthTest(false, gl.LESS)
+            this._renderer.addPipeline(_pipeAxes);
+        });
     }
 
 }

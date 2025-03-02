@@ -1,27 +1,27 @@
 import log from "./log.js";
-import { BufferDescriptor } from "./gl.js";
+import { BufferDescriptor, IBindableObject } from "./gl.js";
 
-type geometryInfo = {
-    vertices: Float32Array;
-    uvs?: Float32Array;
-    normals?: Float32Array;
-    colors?: Uint8Array;
-    indices?: Uint16Array;
-}
-
-export interface IGeometry {
+export interface IGeometry extends IBindableObject {
     vertexBufferLength: number;
     indexBufferLength: number;
-    VAO: WebGLVertexArrayObject;
 
     /**
     * create gl buffers and record to VAO.
     */
     init(gl: WebGL2RenderingContext, usage?: number): IGeometry;
-
     setAttributeLayout(attributeName: number, size: number, type: number, normalized: boolean, stride: number, offset: number): IGeometry;
-
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
+}
+
+export function createAxes(length: number = 1): IGeometry {
+    const vertices = new Float32Array([
+        0, 0, 0,/*color*/ 1, 0, 0,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
+        0, 0, 0,/*color*/ 0, 1, 0,/**/ 0, length, 0,/*color*/ 0, 1, 0, // x;
+        0, 0, 0,/*color*/ 0, 0, 1,/**/ 0, 0, length,/*color*/ 0, 0, 1, // x;
+    ]);
+    return new Geometry(vertices)
+        .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, 5126, false, 24, 0)
+        .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, 5126, false, 24, 12);
 }
 
 export function createCube(edgeLength: number): IGeometry {
@@ -168,6 +168,7 @@ export default class Geometry implements IGeometry {
     private _attributeLayouts: Array<BufferDescriptor> = [];
     private _vertexBufferLength = -1;
     private _indexBufferLength = -1;
+    private _gl: WebGL2RenderingContext;
 
     constructor(vertices: Float32Array, indices?: Uint16Array) {
         this._vertices = vertices;
@@ -182,15 +183,19 @@ export default class Geometry implements IGeometry {
         return this._indexBufferLength;
     }
 
-    get VAO(): WebGLVertexArrayObject {
-        return this._glVAO;
+    bind(): void {
+        this._gl.bindVertexArray(this._glVAO);
     }
 
     /**
     * create gl buffers and record to VAO.
     */
     init(gl: WebGL2RenderingContext, usage?: number): IGeometry {
-        if (this._inited) return this;
+        if (this._inited) {
+            log.warn("[geometry] this instance have already been initiated.");
+            return this;
+        }
+        this._gl = gl;
 
         this._glVAO = gl.createVertexArray();
         gl.bindVertexArray(this._glVAO);
@@ -217,6 +222,8 @@ export default class Geometry implements IGeometry {
             this._indexBufferLength = this._indices.length;
         }
         gl.bindVertexArray(null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
         this._indices = this._vertices = undefined;
         this._inited = true;
@@ -229,13 +236,14 @@ export default class Geometry implements IGeometry {
     }
 
     destroyGLObjects(gl: any) {
-        if (!!this._glVertexBuffer) gl.deleteBuffer(this._glVertexBuffer);
-        if (!!this._glIndexBuffer) gl.deleteBuffer(this._glIndexBuffer);
-        this._attributeLayouts.length = 0;
-        this._glIndexBuffer = this._glIndexBuffer = undefined;
-
-        gl.deleteVertexArray(this._glVAO);
-        this._glVAO = undefined;
+        if (this._inited) {
+            if (!!this._glVertexBuffer) gl.deleteBuffer(this._glVertexBuffer);
+            if (!!this._glIndexBuffer) gl.deleteBuffer(this._glIndexBuffer);
+            if (!!this._glVAO) gl.deleteVertexArray(this._glVAO);
+            this._glIndexBuffer = this._glIndexBuffer = this._glVAO = undefined;
+            this._attributeLayouts.length = 0;
+        }
+        this._inited = false;
         return this;
     }
 }

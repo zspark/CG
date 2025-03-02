@@ -1,4 +1,5 @@
 import log from "./log.js"
+import { IGeometry } from "./geometry.js";
 
 export type DrawArraysParameter = {
     mode: GLenum,
@@ -35,7 +36,7 @@ export type UniformUpdater = {
 }
 
 const _wm_program = new WeakMap();
-export class Program {
+export class Program implements IBindableObject {
     private _glProgram: WebGLProgram;
     private _gl: WebGL2RenderingContext;
     private _mapUniform = new Map();
@@ -101,9 +102,8 @@ export class Program {
         });
         return this;
     };
-    use(): Program {
+    bind(): void {
         this._gl.useProgram(this._glProgram);
-        return this;
     };
 
     destroy() {
@@ -257,6 +257,7 @@ export class SkyboxTexture {
         this._genMipmap && gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
         this._glTexture = _texture;
         _wm_texture.set(this, _texture);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
     }
 
     setParameter(name: number, value: number): SkyboxTexture {
@@ -282,7 +283,7 @@ export class SkyboxTexture {
 }
 
 const _wm_framebuffer = new WeakMap();
-export class Framebuffer {
+export class Framebuffer implements IBindableObject {
     private _glFramebuffer: WebGLFramebuffer = null;
     private _gl: WebGL2RenderingContext;
     private _width;
@@ -305,6 +306,8 @@ export class Framebuffer {
         gl.bindTexture(target, _glTex);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + attachment, target, _glTex, 0);
+        gl.bindTexture(target, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         return this;
     }
 
@@ -316,12 +319,15 @@ export class Framebuffer {
         gl.bindTexture(target, _glTex);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, target, _glTex, 0);
+        gl.bindTexture(target, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         return this;
     }
 
     validate(): Framebuffer {
         this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._glFramebuffer);
         if (this._gl.checkFramebufferStatus(this._gl.FRAMEBUFFER) !== this._gl.FRAMEBUFFER_COMPLETE) log.vital("[Framebuffer] framebuffer is't setup correctly.");
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
         return this;
     }
 
@@ -332,10 +338,6 @@ export class Framebuffer {
         //gl.clearColor(0.15, 0.15, 0.15, 1.0);
         //gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        return this;
-    }
-    unbind() {
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
         return this;
     }
 
@@ -358,17 +360,28 @@ export class Pipeline {
     private _arrOneTimeSubPipeline: SubPipeline[] = [];
     private _enableCullFace = true;
     private _culledFace: GLenum;
+    private _enableDepthTest = true;
+    private _depthTestFunc: GLenum;
     private _drawBuffers: GLenum[];
-    constructor(gl: WebGL2RenderingContext) {
+    private _priority: number;
+    constructor(gl: WebGL2RenderingContext, priority: number = 0) {
         this._gl = gl;
         this._culledFace = gl.BACK;
+        this._depthTestFunc = gl.LESS;
+        this._priority = priority;
     }
 
+    get priority(): number { return this._priority; }
     setFBO(fbo: Framebuffer): Pipeline { this.FBO = fbo; return this; }
     setProgram(program: Program): Pipeline { this.program = program; return this; }
     appendSubPipeline(subp: SubPipeline, option?: SubPipelineOption): Pipeline {
         let _onlyOnce = (option?.onlyOnce) ? true : false;
         _onlyOnce ? this._arrOneTimeSubPipeline.push(subp) : this._arrSubPipeline.push(subp);
+        return this;
+    }
+    depthTest(enable: boolean, func: GLenum): Pipeline {
+        this._enableDepthTest = enable;
+        this._depthTestFunc = func;
         return this;
     }
     cullFace(enable: boolean, culledFace: GLenum): Pipeline {
@@ -391,32 +404,26 @@ export class Pipeline {
         return this;
     }
 
-    execute(): Pipeline {
+    execute(renderState: RenderState): Pipeline {
         if (this._arrSubPipeline.length <= 0) return this;
-        this.FBO.bind();
-        this.program.use();
+        renderState.bind(this.FBO);
+        renderState.bind(this.program);
+
+        renderState.setCullFace(this._enableCullFace, this._culledFace);
+        renderState.setDepthTest(this._enableDepthTest, this._depthTestFunc);
 
         const gl = this._gl;
-        //gl.depthRange(0.0, 1.0);
-        //gl.enable(gl.BLEND);
-        //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        //gl.blendEquation(gl.FUNC_ADD);
-        if (this._enableCullFace) {
-            gl.enable(gl.CULL_FACE);
-            gl.cullFace(this._culledFace);
-        } else gl.disable(gl.CULL_FACE);
-
         this._drawBuffers && gl.drawBuffers(this._drawBuffers);
 
         this._arrSubPipeline.forEach(subp => {
-            subp.bind(gl);
+            subp.bind(renderState);
             this.program.updateUniforms(subp.uniformUpdater);
             subp.draw(gl);
         });
 
         if (this._arrOneTimeSubPipeline.length <= 0) return this;
         this._arrOneTimeSubPipeline.forEach(subp => {
-            subp.bind(gl);
+            subp.bind(renderState);
             this.program.updateUniforms(subp.uniformUpdater);
             subp.draw(gl);
         });
@@ -426,7 +433,7 @@ export class Pipeline {
 }
 
 export class SubPipeline {
-    VAO: WebGLVertexArrayObject;
+    geometry: IGeometry;
     arrTextures: Array<Texture | SkyboxTexture> = [];
     uniformUpdater: UniformUpdater;
     private _isVertexMethod = false;// I prefer elements mode;
@@ -438,8 +445,8 @@ export class SubPipeline {
         return this;
     }
 
-    setVAO(vao: WebGLVertexArrayObject): SubPipeline {
-        this.VAO = vao;
+    setGeometry(geo: IGeometry): SubPipeline {
+        this.geometry = geo;
         return this;
     }
     setTextures(...tex: Array<Texture | SkyboxTexture>): SubPipeline {
@@ -458,24 +465,26 @@ export class SubPipeline {
     }
 
     validate(): SubPipeline {
+        //TODO: fix this, recusive referrencing.;
+        if (!(this.geometry instanceof Object))
+            log.vital('[SubPipeline] geometry is not a instance of Geometry.');
         this.arrTextures.forEach((tex) => {
             if (!(tex instanceof Texture))
                 log.vital('[SubPipeline] arrTextures has null-Texture object.');
         });
-        if (!this.uniformUpdater) log.vital('[Pipeline] uniform updater is not exist.');
+        if (!this.uniformUpdater) log.vital('[SubPipeline] uniform updater is not exist.');
         return this;
     }
 
-    bind(gl: WebGL2RenderingContext): SubPipeline {
-        gl.bindVertexArray(this.VAO);
+    bind(renderState: RenderState): void {
+        renderState.bind(this.geometry);
         //TODO: further improvments.
         for (let i = 0, N = this.arrTextures.length; i < N; ++i) {
             this.arrTextures[i].bind(i);
         };
-        return this;
     }
 
-    draw(gl: WebGL2RenderingContext): SubPipeline {
+    draw(gl: WebGL2RenderingContext): void {
         if (this._isVertexMethod) {
             gl.drawArrays(
                 (this._drawParameter as DrawArraysParameter).mode,
@@ -490,12 +499,11 @@ export class SubPipeline {
                 (this._drawParameter as DrawElementsParameter).offset
             );
         }
-        return this;
     }
 
     clone(): SubPipeline {
         const sub = new SubPipeline();
-        sub.VAO = this.VAO;
+        sub.geometry = this.geometry;
         sub.arrTextures.push(...this.arrTextures);
         sub.uniformUpdater = this.uniformUpdater;
         sub._drawParameter = this._drawParameter;
@@ -505,10 +513,80 @@ export class SubPipeline {
 }
 
 export type PipelineOption = SubPipelineOption;
+
+export interface IBindableObject {
+    bind(): void;
+};
+
+class RenderState {
+    private _state: Map<GLenum, boolean | GLenum> = new Map();
+    private _wm_glObject = new WeakMap();
+    private _gl: WebGL2RenderingContext;
+    constructor(gl: WebGL2RenderingContext) { this._gl = gl; }
+    bind(obj: IBindableObject) {
+        if (this._wm_glObject.get(obj.constructor) === obj) return this;
+        else {
+            this._wm_glObject.set(obj.constructor, obj);
+            obj.bind();
+            return this;
+        }
+    }
+
+    setDepthTest(enable: boolean, func: GLenum) {
+        const gl = this._gl;
+        const _state = this._state;
+        if (_state.get(gl.DEPTH_TEST) != enable) {
+            enable ? gl.enable(gl.DEPTH_TEST) : gl.disable(gl.DEPTH_TEST);
+            _state.set(gl.DEPTH_TEST, enable);
+        }
+        if (enable) {
+            if (_state.get(gl.DEPTH_FUNC) != func) {
+                gl.depthFunc(func);
+                _state.set(gl.DEPTH_FUNC, func);
+            }
+        }
+    }
+    setBlend(enable: boolean, funcSF: GLenum, funcDF: GLenum, equation: GLenum) {
+        const gl = this._gl;
+        const _state = this._state;
+        if (_state.get(gl.BLEND) != enable) {
+            enable ? gl.enable(gl.BLEND) : gl.disable(gl.BLEND);
+            _state.set(gl.BLEND, enable);
+        }
+        if (enable) {
+            if (_state.get(gl.BLEND_EQUATION) != equation) {
+                gl.blendEquation(equation);
+                _state.set(gl.BLEND_EQUATION, equation);
+            }
+            if (_state.get(28286888) != funcSF || _state.get(2866258925) != funcDF) {
+                gl.blendFunc(funcSF, funcDF);
+                _state.set(28286888, funcSF);
+                _state.set(2866258925, funcDF);
+            }
+        }
+    }
+    setCullFace(enable: boolean, faceToCull: GLenum) {
+        const gl = this._gl;
+        const _state = this._state;
+        if (_state.get(gl.CULL_FACE) != enable) {
+            enable ? gl.enable(gl.CULL_FACE) : gl.disable(gl.CULL_FACE);
+            _state.set(gl.CULL_FACE, enable);
+        }
+        if (enable) {
+            if (_state.get(gl.CULL_FACE_MODE) != faceToCull) {
+                gl.cullFace(faceToCull);
+                _state.set(gl.CULL_FACE_MODE, faceToCull);
+            }
+        }
+    }
+}
+
 export class Renderer {
     private _maxTextureUnits: number;
-    //private _renderState;
-    private _arrPipeline: Pipeline[] = [];
+    private _renderState: RenderState;
+    private _arrPipeline: Pipeline[];
+    private _arrPipeline_1: Pipeline[] = [];
+    private _arrPipeline_2: Pipeline[] = [];
     private _arrOneTimePipeline: Pipeline[] = [];
     private _arrTransparentPipeline: Pipeline[] = [];
 
@@ -516,23 +594,22 @@ export class Renderer {
     constructor(gl: WebGL2RenderingContext) {
         this._gl = gl;
         this._maxTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+        this._arrPipeline = this._arrPipeline_1;
+        this._renderState = new RenderState(gl);
     }
 
     render(): Renderer {
         const gl = this._gl;
-        gl.enable(gl.DEPTH_TEST);
-        //gl.clearDepth(0.5);
-        gl.depthFunc(gl.LESS);
         this._arrPipeline.forEach((p) => {
-            p.execute();
+            p.execute(this._renderState);
         });
         this._arrOneTimePipeline.forEach((p) => {
-            p.execute();
+            p.execute(this._renderState);
         });
         this._arrOneTimePipeline.length = 0;
         //gl.disable(gl.DEPTH_TEST);
         this._arrTransparentPipeline.forEach((p) => {
-            p.execute();
+            p.execute(this._renderState);
         });
         return this;
     }
@@ -540,6 +617,7 @@ export class Renderer {
     addPipeline(p: Pipeline, option?: PipelineOption): Renderer {
         let _onlyOnce = (option?.onlyOnce) ? true : false;
         _onlyOnce ? this._arrOneTimePipeline.push(p) : this._arrPipeline.push(p);
+        this._sortPipline();
         return this;
     }
     addTransparentPipeline(p: Pipeline): Renderer {
@@ -555,10 +633,10 @@ export class Renderer {
             }
         }
     }
-    /*
-    #sortPipline() {
-        //TODO:
+    private _sortPipline() {
+        const _arrCurrentP = this._arrPipeline;
+        //const _arrFutureP = _arrCurrentP === this._arrPipeline_1 ? this._arrPipeline_2 : this._arrPipeline_1;
+        _arrCurrentP.sort((a, b) => b.priority - a.priority);
     }
-    */
 }
 
