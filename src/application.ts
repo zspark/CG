@@ -25,8 +25,9 @@ export default class Application {
     private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
     private _axis: CG.Axes;
     private _gridFloor: CG.GridFloor;
-    private _frontFBOQuad: CG.IGeometry;
     private _backFBOPipeline: CG.Pipeline;
+    private _outline: CG.Outline;
+    private _cubeSubPipes: CG.SubPipeline[] = [];
 
     constructor() {
         this.createGUI();
@@ -37,13 +38,14 @@ export default class Application {
         this._axis = new CG.Axes(gl, this._renderer);//, this._backFBO);
         this._gridFloor = new CG.GridFloor(gl, this._renderer);//, this._backFBO);
         this._light.setDirection(-1, -1, 1);
-        this._geometryCube = CG.geometry.createCube(2).init(gl);
-
         this.createBackFBO();
-        this.createFront();
+        this._outline = new CG.Outline(gl, this._renderer).setDepthTexture(this._colorTexture);
+        this._outline.enable();
+        //this.createFront();
 
 
         //--------------------------------------------------------------------------------
+        this._geometryCube = CG.geometry.createCube(2).init(gl);
         const _meshCube = this._meshCube = new CG.Mesh(this._geometryCube);
         const _meshCube2 = new CG.Mesh(this._geometryCube);
         const _meshCube3 = new CG.Mesh(this._geometryCube);
@@ -60,11 +62,10 @@ export default class Application {
                 offset: 0
             })
         const _subPipeCube2 = _subPipeCube.clone()
-            .setGeometry(_meshCube2.geometry)
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
         const _subPipeCube3 = _subPipeCube.clone()
-            .setGeometry(_meshCube3.geometry)
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
+        this._cubeSubPipes.push(_subPipeCube, _subPipeCube2, _subPipeCube3);
 
         this._loader.loadShader("./glsl/vertexColor").then((sources) => {
             //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
@@ -85,7 +86,6 @@ export default class Application {
                 .cullFace(true, gl.BACK)
                 .depthTest(true, gl.LESS)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
-                .appendSubPipeline(_subPipeCube)
             this._renderer.addPipeline(this._backFBOPipeline);
         });
 
@@ -158,6 +158,9 @@ export default class Application {
         const obj = {
             rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0,
             rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0,
+            selectCubeA: false,
+            selectCubeB: false,
+            selectCubeC: false,
         };
         this._gui.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
             //console.log(v);
@@ -184,50 +187,30 @@ export default class Application {
             this._ctrl.setSpace(this._meshCube).rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
             _data[5] = v;
         });
+        this._gui.add(obj, "selectCubeA").onChange((v: boolean) => {
+            v ? this._backFBOPipeline.appendSubPipeline(this._cubeSubPipes[0]) : this._backFBOPipeline.removeSubPipeline(this._cubeSubPipes[0]);
+        });
+        this._gui.add(obj, "selectCubeB").onChange((v: boolean) => {
+            v ? this._backFBOPipeline.appendSubPipeline(this._cubeSubPipes[1]) : this._backFBOPipeline.removeSubPipeline(this._cubeSubPipes[1]);
+        });
+        this._gui.add(obj, "selectCubeC").onChange((v: boolean) => {
+            v ? this._backFBOPipeline.appendSubPipeline(this._cubeSubPipes[2]) : this._backFBOPipeline.removeSubPipeline(this._cubeSubPipes[2]);
+        });
     }
 
     createFront() {
         const gl = this._gl;
-        this._frontFBOQuad = CG.geometry.createFrontQuad().init(gl);
-        this._loader.loadShader_separate("./glsl/one-texture-front-quad", "./glsl/sobel-silhouette").then((sources) => {
-            const _pipeline = new CG.Pipeline(gl, -200000)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
-                .depthTest(false/*, glC.LESS*/)
-                .cullFace(false)
-                .appendSubPipeline(
-                    new CG.SubPipeline()
-                        .setTextures(this._colorTexture)
-                        .setGeometry(this._frontFBOQuad)
-                        .setDrawArraysParameters({
-                            mode: gl.TRIANGLES,
-                            first: 0,
-                            count: 6,
-                        })
-                        .setUniformUpdater({
-                            updateu_texture: (uLoc: WebGLUniformLocation) => {
-                                gl.uniform1i(uLoc, 0);
-                            },
-                            updateu_edgeThrottle: (uLoc: WebGLUniformLocation) => {
-                                gl.uniform1f(uLoc, 2);
-                            },
-                            updateu_depthTexture_r32f: (uLoc: WebGLUniformLocation) => {
-                                gl.uniform1i(uLoc, 0);
-
-                            },
-                        })
-                )
-            this._renderer.addPipeline(_pipeline);
-        });
     }
 
     createBackFBO() {
         const gl = this._gl;
         const width: number = gl.drawingBufferWidth;
         const height: number = gl.drawingBufferHeight;
-        this._backFBO = new CG.Framebuffer(gl, width, height, true);
+        this._backFBO = new CG.Framebuffer(gl, width, height);
         //this._depthTexture = new CG.Texture(gl).createGLTextureWithSize(width, height, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT);
+        //this._backFBO.attachDepthTexture(this._depthTexture);
         this._colorTexture = new CG.Texture(gl).createGLTextureWithSize(width, height, gl.R32F, gl.RED, gl.FLOAT);
-        this._backFBO.attachDepthTexture(this._depthTexture).attachColorTexture(this._colorTexture, 0).validate();
+        this._backFBO.attachColorTexture(this._colorTexture, 0).validate();
     }
 }
 

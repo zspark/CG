@@ -292,21 +292,21 @@ export class SkyboxTexture {
 
 const _wm_framebuffer = new WeakMap();
 export class Framebuffer implements IBindableObject {
-    private _glFramebuffer: WebGLFramebuffer = null;
+    private _glFramebuffer: WebGLFramebuffer;
     private _gl: WebGL2RenderingContext;
-    private _width;
-    private _height;
-    constructor(gl: WebGL2RenderingContext, width?: number, height?: number, isBackFBO = true) {
+    private _width: number;
+    private _height: number;
+    constructor(gl: WebGL2RenderingContext, width: number, height: number) {
         this._gl = gl;
-        this._width = width ?? gl.drawingBufferWidth;
-        this._height = height ?? gl.drawingBufferHeight;
-        if (isBackFBO) {
+        this._width = width;
+        this._height = height;
+        if (width * height != 0) {
             this._glFramebuffer = gl.createFramebuffer();
         }
         _wm_framebuffer.set(this, this._glFramebuffer);
     }
 
-    attachColorTexture(texture: Texture, attachment = 0, target?: number): Framebuffer {
+    attachColorTexture(texture: Texture, attachment: number = 0, target?: GLenum): Framebuffer {
         if (!this._glFramebuffer) return this;
         const gl = this._gl;
         target ??= gl.TEXTURE_2D;
@@ -333,20 +333,41 @@ export class Framebuffer implements IBindableObject {
     }
 
     validate(): Framebuffer {
+        const gl = this._gl;
         if (this._glFramebuffer) {
-            this._gl.bindFramebuffer(glC.FRAMEBUFFER, this._glFramebuffer);
-            if (this._gl.checkFramebufferStatus(glC.FRAMEBUFFER) !== glC.FRAMEBUFFER_COMPLETE) log.vital("[Framebuffer] framebuffer is't setup correctly.");
-            this._gl.bindFramebuffer(glC.FRAMEBUFFER, null);
+            gl.bindFramebuffer(glC.FRAMEBUFFER, this._glFramebuffer);
+            const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+
+            if (status != gl.FRAMEBUFFER_COMPLETE) {
+                switch (status) {
+                    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+                        log.vital("[Framebuffer] attachment is incomplete.");
+                        break;
+                    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+                        log.vital("[Framebuffer] missing attachment.");
+                        break;
+                    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+                        log.vital("[Framebuffer] attachments have different dimensions.");
+                        break;
+                    case gl.FRAMEBUFFER_UNSUPPORTED:
+                        log.vital("[Framebuffer] unsupported combination of attachments.");
+                        break;
+                    default:
+                        log.vital("[Framebuffer] Unknown error.");
+                        break;
+                }
+            }
+            gl.bindFramebuffer(glC.FRAMEBUFFER, null);
         }
         return this;
     }
 
-    bind() {
+    bind(): Framebuffer {
         const gl = this._gl;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
-        gl.viewport(0, 0, this._width, this._height);
-        //gl.clearColor(0.15, 0.15, 0.15, 1.0);
-        //gl.clearDepth(1.0);
+        if (this._glFramebuffer) {
+            gl.viewport(0, 0, this._width, this._height);
+        }
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         return this;
     }
@@ -396,6 +417,15 @@ export class Pipeline {
         _onlyOnce ? this._arrOneTimeSubPipeline.push(subp) : this._arrSubPipeline.push(subp);
         return this;
     }
+    removeSubPipeline(subp: SubPipeline): Pipeline {
+        for (let i = 0; i < this._arrSubPipeline.length; ++i) {
+            if (this._arrSubPipeline[i] === subp) {
+                this._arrSubPipeline.splice(i, 1);
+                break;
+            }
+        }
+        return this;
+    }
     depthTest(enable: boolean, func?: GLenum): Pipeline {
         this._enableDepthTest = enable;
         this._depthTestFunc = func;
@@ -429,8 +459,8 @@ export class Pipeline {
     }
 
     execute(renderState: RenderState): Pipeline {
-        if (this._arrSubPipeline.length <= 0) return this;
         renderState.bind(this.FBO);
+        if (this._arrSubPipeline.length <= 0) return this;
         renderState.bind(this.program);
 
         renderState.setCullFace(this._enableCullFace, this._culledFace);
@@ -465,7 +495,7 @@ export class SubPipeline {
     static DRAW_ELEMENT_INSTANCED: drawType = 4;
 
     geometry: IGeometry;
-    arrTextures: Array<Texture | SkyboxTexture> = [];
+    textureSet: Set<Texture | SkyboxTexture> = new Set();
     uniformUpdater: UniformUpdater;
     private _drawMethod: drawType = 0;
     private _drawParameter: DrawArraysParameter | DrawElementsParameter;
@@ -481,7 +511,17 @@ export class SubPipeline {
         return this;
     }
     setTextures(...tex: Array<Texture | SkyboxTexture>): SubPipeline {
-        this.arrTextures.push(...tex);
+        tex.forEach(t => {
+            this.textureSet.add(t);
+        });
+        return this;
+    }
+    setTexture(texture: Texture | SkyboxTexture): SubPipeline {
+        this.textureSet.add(texture);
+        return this;
+    }
+    clearTextures(): SubPipeline {
+        this.textureSet.clear();
         return this;
     }
     setDrawArraysParameters(args: DrawArraysParameter): SubPipeline {
@@ -504,9 +544,9 @@ export class SubPipeline {
         //TODO: fix this, recusive referrencing.;
         if (!(this.geometry instanceof Object))
             log.vital('[SubPipeline] geometry is not a instance of Geometry.');
-        this.arrTextures.forEach((tex) => {
+        this.textureSet.forEach((tex) => {
             if (!(tex instanceof Texture))
-                log.vital('[SubPipeline] arrTextures has null-Texture object.');
+                log.vital('[SubPipeline] textureSet has null-Texture object.');
         });
         if (!this.uniformUpdater) log.vital('[SubPipeline] uniform updater is not exist.');
         return this;
@@ -515,9 +555,11 @@ export class SubPipeline {
     bind(renderState: RenderState): void {
         renderState.bind(this.geometry);
         //TODO: further improvments.
-        for (let i = 0, N = this.arrTextures.length; i < N; ++i) {
-            this.arrTextures[i].bind(i);
-        };
+        let i = 0;
+        this.textureSet.forEach(t => {
+            t.bind(i);
+            ++i;
+        });
     }
 
     draw(gl: WebGL2RenderingContext): void {
@@ -549,7 +591,9 @@ export class SubPipeline {
     clone(): SubPipeline {
         const sub = new SubPipeline();
         sub.geometry = this.geometry;
-        sub.arrTextures.push(...this.arrTextures);
+        this.textureSet.forEach(t => {
+            sub.textureSet.add(t);
+        });
         sub.uniformUpdater = this.uniformUpdater;
         sub._drawParameter = this._drawParameter;
         sub._drawMethod = this._drawMethod;
@@ -653,7 +697,7 @@ export class Renderer {
 
     constructor(gl: WebGL2RenderingContext) {
         this._gl = gl;
-        this._defaultFBO = new Framebuffer(gl, null, null, false);
+        this._defaultFBO = new Framebuffer(gl, 0, 0);
         this._maxTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
         this._arrPipeline = this._arrPipeline_1;
         this._renderState = new RenderState(gl);

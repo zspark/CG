@@ -35,7 +35,7 @@ export default class GridFloor extends Mesh {
             this._pipeline
                 .setFBO(fbo)
                 .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-                .depthTest(true)
+                .depthTest(true, gl.LESS)
                 .setProgram(new Program(gl, sources[0], sources[1]))
                 .appendSubPipeline(_subP)
                 .validate()
