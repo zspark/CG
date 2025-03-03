@@ -27,13 +27,19 @@ export type BufferDescriptor = {
     offset: GLintptr
 };
 
-export function createGlContext(canvasElementId: string): WebGL2RenderingContext {
+export function createGLContext(canvasElementId: string): WebGL2RenderingContext {
     const canvas: HTMLCanvasElement = document.getElementById(canvasElementId) as HTMLCanvasElement;
     const gl = canvas.getContext('webgl2', { stencil: true });
     if (!gl) {
-        log.vital("[gl] WebGL 2.0 not supported!");
+        log.vital("[createGLContent] WebGL 2.0 not supported!");
     }
     initGLConstant(gl);
+    const ext = gl.getExtension('EXT_color_buffer_float');
+    if (ext) {
+        log.info("[createGLContent] Extension enabled: EXT_color_buffer_float\n", ext);
+    } else {
+        log.warn("[createGLContent] Extension not supported.");
+    }
     //@ts-ignore
     window.gl = gl;// debug use;
     return gl;
