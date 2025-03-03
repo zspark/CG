@@ -4,7 +4,7 @@ import OrthogonalSpace from "./orthogonal-space.js"
 import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { roMat44, Mat44 } from "./math.js";
-import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer } from "./gl.js";
+import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
 import createLoader from "./assets-loader.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
@@ -22,8 +22,8 @@ export default class Axes extends Mesh implements IEventReceiver {
         instanceCount: 1
     }
 
-    constructor(gl: WebGL2RenderingContext, renderer: Renderer) {
-        super(geometry.createAxes(5));
+    constructor(gl: WebGL2RenderingContext, renderer: Renderer, fbo?: Framebuffer) {
+        super(geometry.createAxes(2));
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
         this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);
         this._ref_geo.appendInstancedData(this._instanceMatrices, 1, glC.DYNAMIC_DRAW).init(gl);
@@ -38,7 +38,8 @@ export default class Axes extends Mesh implements IEventReceiver {
             })
 
         createLoader("./").loadShader_separate("./glsl/axes", "./glsl/vertexColor").then((sources) => {
-            const _pipeline = new Pipeline(gl, -100000)
+            const _pipeline = new Pipeline(gl, -1000)
+                .setFBO(fbo)
                 .setProgram(new Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipe)
                 .depthTest(false/*, glC.LESS*/)

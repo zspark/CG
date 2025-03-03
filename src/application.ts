@@ -15,30 +15,32 @@ export default class Application {
     private _ctrl = new CG.SpaceController();
     private _geometryCube: CG.IGeometry;
     private _gl: WebGL2RenderingContext;
-    private _backFBO: CG.Framebuffer;
     private _renderer: CG.Renderer;
+    private _backFBO: CG.Framebuffer;
     private _depthTexture: CG.Texture;
+    private _colorTexture: CG.Texture;
     private _meshGrid: CG.Mesh;
     private _meshCube: CG.Mesh;
     //private _light: CG.ILight = new CG.light.ParallelLight(10, 20, -10);
     private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
     private _axis: CG.Axes;
     private _gridFloor: CG.GridFloor;
+    private _frontFBOQuad: CG.IGeometry;
+    private _backFBOPipeline: CG.Pipeline;
 
     constructor() {
         this.createGUI();
 
-        const _shadowMapSize = 1024;
         const gl = this._gl = CG.createGlContext('glcanvas');
         this._camera = new CG.Camera(-10, 15, 8).lookAt(CG.Vec4.VEC4_0001).setMouseEvents(CG.registMouseEvents(gl.canvas as HTMLCanvasElement)).setFrustum(this._frustum)//.setPosition(10, 20, -10)
-        this._backFBO = new CG.Framebuffer(gl, _shadowMapSize, _shadowMapSize, true);
-        this._depthTexture = new CG.Texture(gl).createGLTextureWithSize(_shadowMapSize, _shadowMapSize, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT);
-        this._backFBO.attachDepthTexture(this._depthTexture).validate();
         this._renderer = new CG.Renderer(gl);
-        this._axis = new CG.Axes(gl, this._renderer);
-        this._gridFloor = new CG.GridFloor(gl, this._renderer);
+        this._axis = new CG.Axes(gl, this._renderer);//, this._backFBO);
+        this._gridFloor = new CG.GridFloor(gl, this._renderer);//, this._backFBO);
         this._light.setDirection(-1, -1, 1);
         this._geometryCube = CG.geometry.createCube(2).init(gl);
+
+        this.createBackFBO();
+        this.createFront();
 
 
         //--------------------------------------------------------------------------------
@@ -66,7 +68,7 @@ export default class Application {
 
         this._loader.loadShader("./glsl/vertexColor").then((sources) => {
             //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
-            const _p = new CG.Pipeline(gl, 10000)
+            const _p = new CG.Pipeline(gl, 0)
                 .cullFace(true, gl.BACK)
                 .depthTest(true, gl.LESS)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
@@ -74,9 +76,17 @@ export default class Application {
                 .appendSubPipeline(_subPipeCube2)
                 .appendSubPipeline(_subPipeCube3)
             this._axis.addTarget(_meshCube)
-                .addTarget(_meshCube2)
-                .addTarget(_meshCube3);
             this._renderer.addPipeline(_p);
+        });
+
+        this._loader.loadShader_separate("./glsl/pureRed", "./glsl/depth-to-color-attachment-r32f").then((sources) => {
+            this._backFBOPipeline = new CG.Pipeline(gl, 100)
+                .setFBO(this._backFBO)
+                .cullFace(true, gl.BACK)
+                .depthTest(true, gl.LESS)
+                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .appendSubPipeline(_subPipeCube)
+            this._renderer.addPipeline(this._backFBOPipeline);
         });
 
         //--------------------------------------------------------------------------------
@@ -174,6 +184,50 @@ export default class Application {
             this._ctrl.setSpace(this._meshCube).rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
             _data[5] = v;
         });
+    }
+
+    createFront() {
+        const gl = this._gl;
+        this._frontFBOQuad = CG.geometry.createFrontQuad().init(gl);
+        this._loader.loadShader_separate("./glsl/one-texture-front-quad", "./glsl/sobel-silhouette").then((sources) => {
+            const _pipeline = new CG.Pipeline(gl, -200000)
+                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .depthTest(false/*, glC.LESS*/)
+                .cullFace(false)
+                .appendSubPipeline(
+                    new CG.SubPipeline()
+                        .setTextures(this._colorTexture)
+                        .setGeometry(this._frontFBOQuad)
+                        .setDrawArraysParameters({
+                            mode: gl.TRIANGLES,
+                            first: 0,
+                            count: 6,
+                        })
+                        .setUniformUpdater({
+                            updateu_texture: (uLoc: WebGLUniformLocation) => {
+                                gl.uniform1i(uLoc, 0);
+                            },
+                            updateu_edgeThrottle: (uLoc: WebGLUniformLocation) => {
+                                gl.uniform1f(uLoc, 2);
+                            },
+                            updateu_depthTexture_r32f: (uLoc: WebGLUniformLocation) => {
+                                gl.uniform1i(uLoc, 0);
+
+                            },
+                        })
+                )
+            this._renderer.addPipeline(_pipeline);
+        });
+    }
+
+    createBackFBO() {
+        const gl = this._gl;
+        const width: number = gl.drawingBufferWidth;
+        const height: number = gl.drawingBufferHeight;
+        this._backFBO = new CG.Framebuffer(gl, width, height, true);
+        //this._depthTexture = new CG.Texture(gl).createGLTextureWithSize(width, height, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT);
+        this._colorTexture = new CG.Texture(gl).createGLTextureWithSize(width, height, gl.R32F, gl.RED, gl.FLOAT);
+        this._backFBO.attachDepthTexture(this._depthTexture).attachColorTexture(this._colorTexture, 0).validate();
     }
 }
 

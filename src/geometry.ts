@@ -21,6 +21,7 @@ export const geometry: {
     createCube: (length: number) => IGeometry,
     createPlane: (width: number, height: number) => IGeometry,
     createGridPlane: (length: number) => IGeometry,
+    createFrontQuad: () => IGeometry,
     createTriangle: (scale: number) => IGeometry,
 } = {
     createAxes: (length: number = 1): IGeometry => {
@@ -142,6 +143,19 @@ export const geometry: {
             .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 32, 0)
             .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, glC.FLOAT, false, 32, 12)
             .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 32, 20);
+    },
+
+    createFrontQuad: (): IGeometry => {
+        const vertices = new Float32Array([
+            1, 1, 0,
+            -1, 1, 0,
+            -1, -1, 0,
+            //
+            -1, -1, 0,
+            1, -1, 0,
+            1, 1, 0,
+        ]);
+        return new Geometry(vertices).setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0);
     }
 }
 
