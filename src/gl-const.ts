@@ -1,4 +1,7 @@
 type _glConst = {
+    STATIC_DRAW:GLenum,
+    DYNAMIC_DRAW:GLenum,
+
     ARRAY_BUFFER: GLenum,
     ELEMENT_ARRAY_BUFFER: GLenum,
     FLOAT: GLenum,
@@ -48,6 +51,8 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.UNSIGNED_SHORT = gl.UNSIGNED_SHORT;
     glConst.ARRAY_BUFFER = gl.ARRAY_BUFFER;
     glConst.ELEMENT_ARRAY_BUFFER = gl.ELEMENT_ARRAY_BUFFER;
+    glConst.STATIC_DRAW = gl.STATIC_DRAW;
+    glConst.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
 
 }
 

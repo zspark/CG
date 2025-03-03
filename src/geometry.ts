@@ -10,6 +10,8 @@ export interface IGeometry extends IBindableObject {
     * create gl buffers and record to VAO.
     */
     init(gl: WebGL2RenderingContext, usage?: number): IGeometry;
+    appendInstancedData(data: Float32Array, divisor: number, usage: GLenum): IGeometry;
+    updateInstancedData(): void;
     setAttributeLayout(attributeName: number, size: number, type: number, normalized: boolean, stride: number, offset: number): IGeometry;
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
 }
@@ -164,11 +166,19 @@ export default class Geometry implements IGeometry {
     static ATTRIB_TEXTURE_UV = 1;
     static ATTRIB_NORMAL = 2;
     static ATTRIB_COLOR = 3;
+    static ATTRIB_INSTANCED_MATRIX_COL_1 = 4;
+    static ATTRIB_INSTANCED_MATRIX_COL_2 = 5;
+    static ATTRIB_INSTANCED_MATRIX_COL_3 = 6;
+    static ATTRIB_INSTANCED_MATRIX_COL_4 = 7;
 
     private _inited = false;
     private _vertices: Float32Array;
     private _indices: Uint16Array;
+    private _instancedMatrices: Float32Array;
+    private _instancedMatricesUsage: GLenum;
+    private _divisor: number = 1;
     private _glVAO: WebGLVertexArrayObject;
+    private _glInstancedVertexBuffer: WebGLBuffer;
     private _glVertexBuffer: WebGLBuffer;
     private _glIndexBuffer: WebGLBuffer;
     private _attributeLayouts: Array<BufferDescriptor> = [];
@@ -193,10 +203,24 @@ export default class Geometry implements IGeometry {
         this._gl.bindVertexArray(this._glVAO);
     }
 
+    updateInstancedData(): void {
+        const gl = this._gl;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this._glInstancedVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this._instancedMatrices, this._instancedMatricesUsage);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    }
+
+    appendInstancedData(data: Float32Array, divisor: number, usage: GLenum = glC.STATIC_DRAW): IGeometry {
+        this._instancedMatrices = data;
+        this._divisor = divisor;
+        this._instancedMatricesUsage = usage;
+        return this;
+    }
+
     /**
     * create gl buffers and record to VAO.
     */
-    init(gl: WebGL2RenderingContext, usage?: number): IGeometry {
+    init(gl: WebGL2RenderingContext, usage: GLenum = glC.STATIC_DRAW): IGeometry {
         if (this._inited) {
             log.warn("[geometry] this instance have already been initiated.");
             return this;
@@ -206,7 +230,6 @@ export default class Geometry implements IGeometry {
         this._glVAO = gl.createVertexArray();
         gl.bindVertexArray(this._glVAO);
 
-        usage ??= gl.STATIC_DRAW;
         if (this._vertices && !this._glVertexBuffer) {
             this._glVertexBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, this._glVertexBuffer);
@@ -227,6 +250,18 @@ export default class Geometry implements IGeometry {
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this._indices, usage);
             this._indexBufferLength = this._indices.length;
         }
+
+        if (this._instancedMatrices && !this._glInstancedVertexBuffer) {
+            this._glInstancedVertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, this._glInstancedVertexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this._instancedMatrices, this._instancedMatricesUsage);
+            for (let i = 0; i < 4; ++i) {
+                gl.enableVertexAttribArray(Geometry.ATTRIB_INSTANCED_MATRIX_COL_1 + i);
+                gl.vertexAttribPointer(Geometry.ATTRIB_INSTANCED_MATRIX_COL_1 + i, 4, glC.FLOAT, false, 64, 16 * i);
+                gl.vertexAttribDivisor(Geometry.ATTRIB_INSTANCED_MATRIX_COL_1 + i, this._divisor); // Advance per instance
+            }
+        }
+
         gl.bindVertexArray(null);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
@@ -245,8 +280,9 @@ export default class Geometry implements IGeometry {
         if (this._inited) {
             if (!!this._glVertexBuffer) gl.deleteBuffer(this._glVertexBuffer);
             if (!!this._glIndexBuffer) gl.deleteBuffer(this._glIndexBuffer);
+            if (!!this._glInstancedVertexBuffer) gl.deleteBuffer(this._glInstancedVertexBuffer);
             if (!!this._glVAO) gl.deleteVertexArray(this._glVAO);
-            this._glIndexBuffer = this._glIndexBuffer = this._glVAO = undefined;
+            this._glIndexBuffer = this._glIndexBuffer = this._glInstancedVertexBuffer = this._glVAO = undefined;
             this._attributeLayouts.length = 0;
         }
         this._inited = false;

@@ -43,7 +43,11 @@ export default class Application {
 
         //--------------------------------------------------------------------------------
         const _meshCube = this._meshCube = new CG.Mesh(this._geometryCube);
-        this._ctrl.setSpace(_meshCube).setPosition(1, 1, 1);
+        const _meshCube2 = new CG.Mesh(this._geometryCube);
+        const _meshCube3 = new CG.Mesh(this._geometryCube);
+        this._ctrl.setSpace(_meshCube).setPosition(2, 2, 2)
+            .setSpace(_meshCube2).setPosition(-4, -4, 3).rotateAroundSelfX(Math.PI / 3)
+            .setSpace(_meshCube3).setPosition(0.5, 6, -8).rotateAroundSelfY(1.7).rotateAroundSelfZ(0.33);
         const _subPipeCube = new CG.SubPipeline()
             .setGeometry(_meshCube.geometry)
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube, new CG.Vec4(1, 0, 0, 1)))
@@ -53,14 +57,25 @@ export default class Application {
                 type: gl.UNSIGNED_SHORT,
                 offset: 0
             })
+        const _subPipeCube2 = _subPipeCube.clone()
+            .setGeometry(_meshCube2.geometry)
+            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
+        const _subPipeCube3 = _subPipeCube.clone()
+            .setGeometry(_meshCube3.geometry)
+            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
 
         this._loader.loadShader("./glsl/vertexColor").then((sources) => {
             //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
             const _p = new CG.Pipeline(gl, 10000)
                 .cullFace(true, gl.BACK)
+                .depthTest(true, gl.LESS)
                 .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
                 .appendSubPipeline(_subPipeCube)
-            this._axis.attachTo(_meshCube);
+                .appendSubPipeline(_subPipeCube2)
+                .appendSubPipeline(_subPipeCube3)
+            this._axis.addTarget(_meshCube)
+                .addTarget(_meshCube2)
+                .addTarget(_meshCube3);
             this._renderer.addPipeline(_p);
         });
 
@@ -133,12 +148,6 @@ export default class Application {
         const obj = {
             rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0,
             rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0,
-            attachToCube: () => {
-                this._axis.attachTo(this._meshCube);
-            },
-            attachToParent: () => {
-                this._axis.attachTo(null);
-            },
         };
         this._gui.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
             //console.log(v);
@@ -165,8 +174,6 @@ export default class Application {
             this._ctrl.setSpace(this._meshCube).rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
             _data[5] = v;
         });
-        this._gui.add(obj, 'attachToCube');
-        this._gui.add(obj, 'attachToParent');
     }
 }
 

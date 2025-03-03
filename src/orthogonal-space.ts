@@ -5,8 +5,8 @@ import { roMat44, xyzw, Mat44, Vec4 } from "./math.js"
 */
 export default class OrthogonalSpace {
     private _invMatDirty: boolean = false;
-    private _transformInv: Mat44 = new Mat44();
-    private _transform: Mat44 = new Mat44();
+    protected _transformInv: Mat44 = new Mat44();
+    protected _transform: Mat44 = new Mat44();
     private _axisX: Vec4;
     private _axisY: Vec4;
     private _axisZ: Vec4;

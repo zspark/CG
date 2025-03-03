@@ -2,6 +2,12 @@ import log from "./log.js"
 import { default as glC, initGLConstant } from "./gl-const.js"
 import { IGeometry } from "./geometry.js";
 
+export type DrawArraysInstancedParameter = {
+    mode: GLenum,
+    first: GLint,
+    count: GLsizei,
+    instanceCount: GLsizei,
+};
 export type DrawArraysParameter = {
     mode: GLenum,
     first: GLint,
@@ -451,11 +457,17 @@ export class Pipeline {
     }
 }
 
+type drawType = 0 | 1 | 2 | 3 | 4;
 export class SubPipeline {
+    static DRAW_VERTEX: drawType = 1;
+    static DRAW_VERTEX_INSTANCED: drawType = 2;
+    static DRAW_ELEMENT: drawType = 3;
+    static DRAW_ELEMENT_INSTANCED: drawType = 4;
+
     geometry: IGeometry;
     arrTextures: Array<Texture | SkyboxTexture> = [];
     uniformUpdater: UniformUpdater;
-    private _isVertexMethod = false;// I prefer elements mode;
+    private _drawMethod: drawType = 0;
     private _drawParameter: DrawArraysParameter | DrawElementsParameter;
     constructor() { }
 
@@ -474,12 +486,17 @@ export class SubPipeline {
     }
     setDrawArraysParameters(args: DrawArraysParameter): SubPipeline {
         this._drawParameter = args;
-        this._isVertexMethod = true;
+        this._drawMethod = SubPipeline.DRAW_VERTEX;
+        return this;
+    }
+    setDrawArraysInstancedParameters(args: DrawArraysInstancedParameter): SubPipeline {
+        this._drawParameter = args;
+        this._drawMethod = SubPipeline.DRAW_VERTEX_INSTANCED;
         return this;
     }
     setDrawElementsParameters(args: DrawElementsParameter): SubPipeline {
         this._drawParameter = args;
-        this._isVertexMethod = false;
+        this._drawMethod = SubPipeline.DRAW_ELEMENT;
         return this;
     }
 
@@ -504,19 +521,28 @@ export class SubPipeline {
     }
 
     draw(gl: WebGL2RenderingContext): void {
-        if (this._isVertexMethod) {
+        if (this._drawMethod === SubPipeline.DRAW_VERTEX) {
             gl.drawArrays(
                 (this._drawParameter as DrawArraysParameter).mode,
                 (this._drawParameter as DrawArraysParameter).first,
                 (this._drawParameter as DrawArraysParameter).count
             );
-        } else {
+        } else if (this._drawMethod === SubPipeline.DRAW_ELEMENT) {
             gl.drawElements(
                 (this._drawParameter as DrawElementsParameter).mode,
                 (this._drawParameter as DrawElementsParameter).count,
                 (this._drawParameter as DrawElementsParameter).type,
                 (this._drawParameter as DrawElementsParameter).offset
             );
+        } else if (this._drawMethod === SubPipeline.DRAW_VERTEX_INSTANCED) {
+            gl.drawArraysInstanced(
+                (this._drawParameter as DrawArraysInstancedParameter).mode,
+                (this._drawParameter as DrawArraysInstancedParameter).first,
+                (this._drawParameter as DrawArraysInstancedParameter).count,
+                (this._drawParameter as DrawArraysInstancedParameter).instanceCount
+            );
+        } else if (this._drawMethod === SubPipeline.DRAW_ELEMENT_INSTANCED) {
+            //todo:
         }
     }
 
@@ -526,7 +552,7 @@ export class SubPipeline {
         sub.arrTextures.push(...this.arrTextures);
         sub.uniformUpdater = this.uniformUpdater;
         sub._drawParameter = this._drawParameter;
-        sub._isVertexMethod = this._isVertexMethod;
+        sub._drawMethod = this._drawMethod;
         return sub;
     }
 }

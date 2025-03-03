@@ -173,8 +173,14 @@ const _identityMat44Data = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 */
 export class Mat44 {
     static IdentityMat44 = Object.freeze(new Mat44().reset(_identityMat44Data, 0, 16));
-    data = new Float32Array(16);
-    constructor() { }
+    data: Float32Array<ArrayBufferLike>;
+    constructor(storage?: Float32Array, startIndex: number = 0) {
+        if (storage) {
+            this.remap(storage, startIndex);
+        } else {
+            this.data = new Float32Array(16);
+        }
+    }
 
     static createRotateAroundX(theta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
@@ -200,7 +206,6 @@ export class Mat44 {
         outMat.data[5] = Math.cos(theta);
         return outMat;
     }
-
     static createTranslateX(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
         outMat.data[12] = delta;
@@ -283,6 +288,11 @@ export class Mat44 {
 
     setIdentity(): Mat44 {
         this.data.set(_identityMat44Data, 0);
+        return this;
+    }
+
+    remap(storage: Float32Array<ArrayBufferLike>, startIndex: number): Mat44 {
+        this.data = storage.subarray(startIndex, startIndex + 16);
         return this;
     }
 

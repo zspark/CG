@@ -4,6 +4,7 @@ import log from "./log.js"
 type TextLoader = (url: string) => Promise<string>;
 
 export type ILoader = {
+    loadShader_separate: (urlVert: string, urlFrag: string) => Promise<[string, string]>,
     loadShader: (url: string) => Promise<[string, string]>,
     loadTexture: (url: string) => Promise<HTMLImageElement>,
     loadSkyboxTextures: (url_1: string, url_2: string, url_3: string, url_4: string, url_5: string, url_6: string) => Promise<[HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement]>,
@@ -47,6 +48,9 @@ export default function createLoader(baseURL: string): ILoader {
 
 
     return {
+        loadShader_separate: (vertName: string, fragName: string) => {
+            return Promise.all([_loadFile(`${baseURL}${vertName}-vert.glsl`), _loadFile(`${baseURL}${fragName}-frag.glsl`)]);
+        },
         loadShader: (sourceName: string) => {
             return Promise.all([_loadFile(`${baseURL}${sourceName}-vert.glsl`), _loadFile(`${baseURL}${sourceName}-frag.glsl`)]);
         },

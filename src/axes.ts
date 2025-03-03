@@ -1,48 +1,64 @@
 import glC from "./gl-const.js";
+import engineC from "./engine-const.js";
 import OrthogonalSpace from "./orthogonal-space.js"
 import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { roMat44, Mat44 } from "./math.js";
-import { Program, Pipeline, SubPipeline, Renderer } from "./gl.js";
+import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer } from "./gl.js";
 import createLoader from "./assets-loader.js";
 
 export default class Axes extends Mesh {
 
-    private _ref_target: OrthogonalSpace;
     private _tempMat44: Mat44 = new Mat44().setIdentity();
-    private _pipeline: Pipeline;
+    private _arrRefTarget: OrthogonalSpace[] = [];
+    private _instanceMatrices: Float32Array<ArrayBufferLike>;
+    private _instanceMatricesHandler: Mat44;
+    private _drawCmd: DrawArraysInstancedParameter = {
+        mode: glC.LINES,
+        first: 0,
+        count: 30,
+        instanceCount: 1
+    }
 
     constructor(gl: WebGL2RenderingContext, renderer: Renderer) {
-        super(geometry.createAxes(5).init(gl));
-        this._pipeline = new Pipeline(gl, -100000);
-        this._ref_target = this;
-        const _subPipeAxes = new SubPipeline().setGeometry(this.geometry)
-            .setDrawArraysParameters({
-                mode: glC.LINES,
-                first: 0,
-                count: 30,
-            }).setUniformUpdater({
-                updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.multiply(this._ref_target.transform, this._tempMat44);
+        super(geometry.createAxes(5));
+        this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
+        this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);
+        this._ref_geo.appendInstancedData(this._instanceMatrices, 1, glC.DYNAMIC_DRAW).init(gl);
+        this._arrRefTarget[0] = this;
+        const _subPipe = new SubPipeline()
+            .setGeometry(this._ref_geo)
+            .setDrawArraysInstancedParameters(this._drawCmd)
+            .setUniformUpdater({
+                updateu_vpMatrix: (uLoc: WebGLUniformLocation) => {
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
                 },
             })
 
-        createLoader("./").loadShader("./glsl/vertexColor").then((sources) => {
-            this._pipeline
+        createLoader("./").loadShader_separate("./glsl/axes", "./glsl/vertexColor").then((sources) => {
+            const _pipeline = new Pipeline(gl, -100000)
                 .setProgram(new Program(gl, sources[0], sources[1])).validate()
-                .appendSubPipeline(_subPipeAxes)
+                .appendSubPipeline(_subPipe)
                 .depthTest(false/*, glC.LESS*/)
-            renderer.addPipeline(this._pipeline);
+            renderer.addPipeline(_pipeline);
         });
+
     }
 
     update(dt: number, vpMatrix: roMat44): void {
         this._tempMat44.copyFrom(vpMatrix);
+        const _m = this._instanceMatricesHandler;
+        const N = this._arrRefTarget.length;
+        for (let i = 0; i < N; ++i) {
+            _m.remap(this._instanceMatrices, 16 * i);
+            _m.copyFrom(this._arrRefTarget[i].transform);
+        }
+        this._ref_geo.updateInstancedData();
+        this._drawCmd.instanceCount = N;
     }
-    attachTo(target?: OrthogonalSpace) {
-        if (target) this._ref_target = target;
-        else this._ref_target = this;
+    addTarget(target: OrthogonalSpace): Axes {
+        this._arrRefTarget.push(target);
+        return this;
     }
 }
 

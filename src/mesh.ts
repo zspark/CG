@@ -9,7 +9,7 @@ import { IGeometry } from "./geometry.js"
 * the major purpose of Mesh is to transform position and orientation of a geometry;
 */
 export default class Mesh extends OrthogonalSpace {
-    private _ref_geo: IGeometry;
+    protected _ref_geo: IGeometry;
     constructor(geo: IGeometry) {
         super();
         this._ref_geo = geo;
