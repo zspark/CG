@@ -6,9 +6,11 @@ import { geometry } from "./geometry.js"
 import { roMat44, Mat44 } from "./math.js";
 import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer } from "./gl.js";
 import createLoader from "./assets-loader.js";
+import { IEventReceiver, Event_t } from "./event.js";
 
-export default class Axes extends Mesh {
+export default class Axes extends Mesh implements IEventReceiver {
 
+    private _targetMatricesDirty = false;
     private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _arrRefTarget: OrthogonalSpace[] = [];
     private _instanceMatrices: Float32Array<ArrayBufferLike>;
@@ -47,18 +49,28 @@ export default class Axes extends Mesh {
 
     update(dt: number, vpMatrix: roMat44): void {
         this._tempMat44.copyFrom(vpMatrix);
-        const _m = this._instanceMatricesHandler;
-        const N = this._arrRefTarget.length;
-        for (let i = 0; i < N; ++i) {
-            _m.remap(this._instanceMatrices, 16 * i);
-            _m.copyFrom(this._arrRefTarget[i].transform);
+        if (this._targetMatricesDirty) {
+            const _m = this._instanceMatricesHandler;
+            const N = this._arrRefTarget.length;
+            for (let i = 0; i < N; ++i) {
+                _m.remap(this._instanceMatrices, 16 * i);
+                _m.copyFrom(this._arrRefTarget[i].transform);
+            }
+            this._ref_geo.updateInstancedData();
+            this._drawCmd.instanceCount = N;
+            this._targetMatricesDirty = false;
         }
-        this._ref_geo.updateInstancedData();
-        this._drawCmd.instanceCount = N;
     }
     addTarget(target: OrthogonalSpace): Axes {
         this._arrRefTarget.push(target);
+        target.addReceiver(this, OrthogonalSpace.TRANSFORM_CHANGED);
+        this._targetMatricesDirty = true;
         return this;
+    }
+
+    notify(event: Event_t): boolean {
+        this._targetMatricesDirty = true;
+        return false;
     }
 }
 
