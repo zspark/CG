@@ -21,12 +21,17 @@
     <script type="text/javascript" src="./third/stats.min.js"></script>
     <script type="module">
         import Application from "./dist/application.js";
+        import {ShaderAssembler} from "./dist/api.js";
 
         const _stats = new Stats();
         _stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
         document.body.appendChild(_stats.dom);
 
-        const _app = new Application();
+        let _app;
+        ShaderAssembler.loadShaderSource("./").then(_ => {
+            _app = new Application();
+            render();
+        });
 
         function render() {
             _stats.begin();
@@ -34,7 +39,6 @@
             _stats.end();
             requestAnimationFrame(render);
         }
-        render();
 
     </script>
 </body>

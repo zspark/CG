@@ -55,28 +55,32 @@ export class Program implements IBindableObject {
     private _gl: WebGL2RenderingContext;
     private _mapUniform = new Map();
 
-    constructor(gl: WebGL2RenderingContext, vsSource: string, fsSource: string) {
+    static compile(gl: WebGL2RenderingContext, vsSource: string, type: GLenum): WebGLShader | undefined {
+        const _shader = gl.createShader(type);
+        gl.shaderSource(_shader, vsSource);
+        gl.compileShader(_shader);
+
+        if (!gl.getShaderParameter(_shader, gl.COMPILE_STATUS)) {
+            log.vital("[Program::compile] shader compilation failed:", gl.getShaderInfoLog(_shader));
+            gl.deleteShader(_shader);
+            return undefined;
+        }
+        return _shader;
+    }
+
+    constructor(gl: WebGL2RenderingContext, vsSource?: string, fsSource?: string) {
         this._gl = gl;
-        const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, vsSource);
-        gl.compileShader(vertexShader);
-
-        if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-            log.vital("Vertex shader compilation failed:", gl.getShaderInfoLog(vertexShader));
-            gl.deleteShader(vertexShader);
-            return;
+        if (vsSource && fsSource) {
+            const _vertShader = Program.compile(gl, vsSource, gl.VERTEX_SHADER);
+            const _fragShader = Program.compile(gl, fsSource, gl.FRAGMENT_SHADER);
+            this.link(_vertShader, _fragShader);
+            gl.deleteShader(_vertShader);
+            gl.deleteShader(_fragShader);
         }
+    }
 
-        const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, fsSource);
-        gl.compileShader(fragmentShader);
-
-        if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-            log.vital("Fragment shader compilation failed:", gl.getShaderInfoLog(fragmentShader));
-            gl.deleteShader(fragmentShader);
-            return;
-        }
-
+    link(vertexShader: WebGLShader, fragmentShader: WebGLShader): Program {
+        const gl = this._gl;
         const shaderProgram = gl.createProgram();
         gl.attachShader(shaderProgram, vertexShader);
         gl.attachShader(shaderProgram, fragmentShader);
@@ -89,9 +93,6 @@ export class Program implements IBindableObject {
             gl.deleteShader(fragmentShader);
             return;
         }
-
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
 
         const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
         for (let i = 0; i < uniformCount; i++) {
@@ -106,6 +107,7 @@ export class Program implements IBindableObject {
 
         this._glProgram = shaderProgram;
         _wm_program.set(this, shaderProgram);
+        return this;
     }
     getAttribLocation(name: string) {
         return this._gl.getAttribLocation(this._glProgram, name);

@@ -3,9 +3,9 @@ import engineC from "./engine-const.js";
 import OrthogonalSpace from "./orthogonal-space.js"
 import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
+import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
 import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
-import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
 export default class Axes extends Mesh implements IEventReceiver {
@@ -37,20 +37,14 @@ export default class Axes extends Mesh implements IEventReceiver {
                 },
             })
 
-        ShaderAssembler.loadShaderSource().then(_ => {
-            const id: ShaderID_t = {
-                instanced_matrix: true,
-                color_vertex_attrib: true,
-            }
-            let _out = ShaderAssembler.assembleVertexSource(id);
-            let _out2 = ShaderAssembler.assembleFragmentSource(id);
-            const _pipeline = new Pipeline(gl, -1000)
-                .setFBO(fbo)
-                .setProgram(new Program(gl, _out.source, _out2.source)).validate()
-                .appendSubPipeline(_subPipe)
-                .depthTest(false/*, glC.LESS*/)
-            renderer.addPipeline(_pipeline);
-        });
+        const _pipeline = new Pipeline(gl, -1000)
+            .setFBO(fbo)
+            .setProgram(getProgram(gl, { instanced_matrix: true, color_vertex_attrib: true, }))
+            .appendSubPipeline(_subPipe)
+            .depthTest(false/*, glC.LESS*/)
+            .validate();
+
+        renderer.addPipeline(_pipeline);
     }
 
     update(dt: number, vpMatrix: roMat44): void {

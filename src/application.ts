@@ -31,7 +31,7 @@ export default class Application {
 
     constructor() {
         this.createGUI();
-
+        CG.programManagerHint(true, true);
         const gl = this._gl = CG.createGLContext('glcanvas');
         this._camera = new CG.Camera(-10, 15, 8).lookAt(CG.Vec4.VEC4_0001).setMouseEvents(CG.registMouseEvents(gl.canvas as HTMLCanvasElement)).setFrustum(this._frustum)//.setPosition(10, 20, -10)
         this._renderer = new CG.Renderer(gl);
@@ -89,12 +89,11 @@ export default class Application {
                 .setFBO(this._backFBO)
                 .cullFace(true, gl.BACK)
                 .depthTest(true, gl.LESS)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate();
             this._renderer.addPipeline(this._backFBOPipeline);
         });
 
         //--------------------------------------------------------------------------------
-
     }
 
     run(dt: number) {

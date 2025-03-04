@@ -13,7 +13,7 @@ function _separateShader(source: string, out: string[]): void {
     out[1] = _arr[1].trim();
 }
 
-function _getShaderSource(id: ShaderID_t, source: string[]): SourceContent_t {
+function _getShaderSource(id: ShaderID_t, source: string[], prefix: string): SourceContent_t {
     let _macroString: string = '';
     const _arrMacros = Object.getOwnPropertyNames(id);
     _arrMacros.sort();// to alphabet order;
@@ -21,7 +21,7 @@ function _getShaderSource(id: ShaderID_t, source: string[]): SourceContent_t {
         _macroString += `#define ${_arrMacros[i].toUpperCase()}\n`;
     }
     return {
-        id: _macroString,
+        id: prefix + _macroString,
         source: `${source[0]}\n${_macroString}\n${source[1]}`,
     };
 }
@@ -61,11 +61,11 @@ const ShaderAssembler: {
     },
 
     assembleVertexSource: (id: ShaderID_t): SourceContent_t => {
-        return _getShaderSource(id, VERTEX_SHADER);
+        return _getShaderSource(id, VERTEX_SHADER, 'vert-');
     },
 
     assembleFragmentSource: (id: ShaderID_t): SourceContent_t => {
-        return _getShaderSource(id, FRAGMENT_SHADER);
+        return _getShaderSource(id, FRAGMENT_SHADER, 'frag-');
     },
 
 };
