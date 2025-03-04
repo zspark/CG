@@ -67,12 +67,16 @@ export default class Application {
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
         this._cubeSubPipes.push(_subPipeCube, _subPipeCube2, _subPipeCube3);
 
-        this._loader.loadShader("./glsl/vertexColor").then((sources) => {
-            //this._loader.loadShader("./glsl/debug-normal").then((sources) => {
+        CG.ShaderAssembler.loadShaderSource().then(_ => {
+            const id: CG.ShaderID_t = {
+                color_vertex_attrib: true,
+            }
+            let _out = CG.ShaderAssembler.assembleVertexSource(id);
+            let _out2 = CG.ShaderAssembler.assembleFragmentSource(id);
             const _p = new CG.Pipeline(gl, 0)
                 .cullFace(true, gl.BACK)
                 .depthTest(true, gl.LESS)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
+                .setProgram(new CG.Program(gl, _out.source, _out2.source)).validate()
                 .appendSubPipeline(_subPipeCube)
                 .appendSubPipeline(_subPipeCube2)
                 .appendSubPipeline(_subPipeCube3)

@@ -5,7 +5,7 @@ import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { roMat44, Mat44 } from "./math.js";
 import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
-import createLoader from "./assets-loader.js";
+import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
 export default class Axes extends Mesh implements IEventReceiver {
@@ -37,15 +37,20 @@ export default class Axes extends Mesh implements IEventReceiver {
                 },
             })
 
-        createLoader("./").loadShader_separate("./glsl/axes", "./glsl/vertexColor").then((sources) => {
+        ShaderAssembler.loadShaderSource().then(_ => {
+            const id: ShaderID_t = {
+                instanced_matrix: true,
+                color_vertex_attrib: true,
+            }
+            let _out = ShaderAssembler.assembleVertexSource(id);
+            let _out2 = ShaderAssembler.assembleFragmentSource(id);
             const _pipeline = new Pipeline(gl, -1000)
                 .setFBO(fbo)
-                .setProgram(new Program(gl, sources[0], sources[1])).validate()
+                .setProgram(new Program(gl, _out.source, _out2.source)).validate()
                 .appendSubPipeline(_subPipe)
                 .depthTest(false/*, glC.LESS*/)
             renderer.addPipeline(_pipeline);
         });
-
     }
 
     update(dt: number, vpMatrix: roMat44): void {

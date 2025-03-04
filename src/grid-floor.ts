@@ -3,8 +3,8 @@ import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { Mat44 } from "./math.js";
 import { Program, Pipeline, Framebuffer, SubPipeline, Renderer } from "./gl.js";
-import createLoader from "./assets-loader.js";
 import { ICamera } from "./camera.js";
+import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
 
 export default class GridFloor extends Mesh {
 
@@ -26,17 +26,22 @@ export default class GridFloor extends Mesh {
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
                 },
                 updateu_mvMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44b.multiply(this.transform, this._tempMat44);
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
+                    this._tempMat44b.multiply(this.transform, this._tempMat44b);
+                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44b.data);
                 },
             })
 
-        createLoader("./").loadShader("./glsl/fade-away-from-camera").then((sources) => {
+        ShaderAssembler.loadShaderSource().then(_ => {
+            const id: ShaderID_t = {
+                fade_away_from_camera: true,
+            }
+            let _out = ShaderAssembler.assembleVertexSource(id);
+            let _out2 = ShaderAssembler.assembleFragmentSource(id);
             this._pipeline
                 .setFBO(fbo)
                 .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
                 .depthTest(true, gl.LESS)
-                .setProgram(new Program(gl, sources[0], sources[1]))
+                .setProgram(new Program(gl, _out.source, _out2.source)).validate()
                 .appendSubPipeline(_subP)
                 .validate()
             renderer.addPipeline(this._pipeline);
