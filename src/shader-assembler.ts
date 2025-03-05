@@ -30,6 +30,7 @@ export type ShaderID_t = {
     fade_away_from_camera?: boolean,
     instanced_matrix?: boolean,
     position_pass_through?: boolean,
+    skybox_latlon?: boolean,
 
     color_default?: boolean,
     color_uniform?: boolean,

@@ -20,6 +20,7 @@ export default class Application {
     private _backFBO: CG.Framebuffer;
     private _depthTexture: CG.Texture;
     private _colorTexture: CG.Texture;
+    private _latlonTexture: CG.Texture;
     private _meshCube: CG.Mesh;
     private _meshCube1: CG.Mesh;
     private _meshCube2: CG.Mesh;
@@ -37,7 +38,8 @@ export default class Application {
         CG.programManagerHint(true, true);
         const gl = this._gl = CG.createGLContext('glcanvas');
         const _evts = CG.registMouseEvents(gl.canvas as HTMLCanvasElement);
-        this._camera = new CG.Camera(-10, 15, 8).lookAt(CG.Vec4.VEC4_0001).setMouseEvents(_evts).setFrustum(this._frustum)//.setPosition(10, 20, -10)
+        this._camera = new CG.Camera(-10, 4, 8).setMouseEvents(_evts).setFrustum(this._frustum)//.setPosition(-4, 0, 0)
+            .lookAt(CG.Vec4.VEC4_0001)
         this._renderer = new CG.Renderer(gl);
         this._axis = new CG.Axes(gl, this._renderer);//, this._backFBO);
         this._gridFloor = new CG.GridFloor(gl, this._renderer);//, this._backFBO);
@@ -48,6 +50,35 @@ export default class Application {
         this._picker = new CG.Picker(gl, this._renderer).setMouseEvents(_evts);
         //this.createFront();
 
+        //--------------------------------------------------------------------------------
+        this._loader.loadTexture("./assets/skybox/latlon.jpg").then((v) => {
+            this._latlonTexture.updateData(v, 0, 0, 4096, 2048);
+        });
+        this._latlonTexture = new CG.Texture(gl, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE).createGLTextureWithSize(4096, 2048);
+        const _plane = CG.geometry.createPlane(2, 2).init(gl);
+        const _subPipeCubeLatlon = new CG.SubPipeline()
+            .setGeometry(_plane)
+            .setTexture(this._latlonTexture)
+            .setUniformUpdater({
+                updateu_skybox_latlon: (uLoc: WebGLUniformLocation) => {
+                    gl.uniform1i(uLoc, this._latlonTexture.textureUnit);
+                },
+                updateu_pInvMatrix: (uLoc: WebGLUniformLocation) => {
+                    this._tempMat44.copyFrom(this._frustum.projectionMatrix).invert();
+                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
+                },
+                updateu_vInvMatrix: (uLoc: WebGLUniformLocation) => {
+                    this._tempMat44.copyFrom(this._camera.viewMatrix).invert();
+                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
+                },
+            });
+        const _p2 = new CG.Pipeline(gl, 10)
+            .cullFace(false, gl.BACK)
+            .depthTest(false, gl.LESS)
+            .setProgram(CG.getProgram(gl, { position_pass_through: true, skybox_latlon: true }))
+            .appendSubPipeline(_subPipeCubeLatlon)
+            .validate()
+        this._renderer.addPipeline(_p2);
 
         //--------------------------------------------------------------------------------
         this._geometryCube = CG.geometry.createCube(2).init(gl);
@@ -67,7 +98,6 @@ export default class Application {
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
         const _subPipeCube3 = _subPipeCube.clone()
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
-
 
         const _p = new CG.Pipeline(gl, 0)
             .cullFace(true, gl.BACK)

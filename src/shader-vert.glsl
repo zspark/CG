@@ -3,8 +3,14 @@ precision mediump float;
 
 //%%
 
-#ifndef POSITION_PASS_THROUGH
+#ifdef POSITION_PASS_THROUGH
+    #ifdef SKYBOX_LATLON
+uniform mat4 u_pInvMatrix;
+uniform mat4 u_vInvMatrix;
+out vec3 v_rayDirection;
+    #endif
 
+#else
     #ifdef INSTANCED_MATRIX
 uniform mat4 u_vpMatrix;
 layout(location = 4) in vec4 a_instanceMatrix_col0;
@@ -24,7 +30,6 @@ out float v_distanceToCamera;
 layout(location = 3) in vec3 a_color;
 out vec3 v_color;
     #endif
-
 #endif
 
 layout(location = 0) in vec3 a_position;
@@ -34,6 +39,14 @@ void main() {
 
 #ifdef POSITION_PASS_THROUGH
     gl_Position = pos;
+
+    #ifdef SKYBOX_LATLON
+    vec4 viewPos = u_pInvMatrix * pos;
+    viewPos /= viewPos.w;
+    viewPos.w = 0.f;// be careful direction transformation.
+    vec4 worldPos = u_vInvMatrix * viewPos;
+    v_rayDirection = worldPos.xyz;
+    #endif
 #else
 
     #ifdef FADE_AWAY_FROM_CAMERA

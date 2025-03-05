@@ -92,7 +92,7 @@ export default class Picker extends EventSender<PickResult_t> {
             this._renderer.addPipeline(this._pipeline, { onlyOnce: true });
         });
         events.onClick((evt) => {
-            log.info(evt.x, evt.y);
+            //log.info(evt.x, evt.y);
             let _value = this._backFBO.readPixel(evt.x, evt.y);
             if (_value <= 0) return;
             //log.info('picked id is', _value);
