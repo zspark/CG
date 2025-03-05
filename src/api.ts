@@ -14,5 +14,7 @@ export { default as SpaceController } from "./space-controller.js";
 export { default as Axes } from "./axes.js";
 export { default as GridFloor } from "./grid-floor.js";
 export { default as Outline } from "./outline.js";
+export { default as Picker, PickResult_t, IPickable } from "./picker.js";
 export { default as getProgram, programManagerHint } from "./program-manager.js";
 export { default as ShaderAssembler, SourceContent_t, ShaderID_t } from "./shader-assembler.js";
+export { default as EventSender, Event_t, IEventSender, IEventReceiver } from "./event.js";

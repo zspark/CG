@@ -12,47 +12,50 @@ export type mouseEvents = {
     offMove: (cb: mouseEventCallback) => void;
     onDBClick: (cb: mouseEventCallback) => void;
     offDBClick: (cb: mouseEventCallback) => void;
+    onClick: (cb: mouseEventCallback) => void;
+    offClick: (cb: mouseEventCallback) => void;
 }
 
 
 export default function registMouseEvents(canvas: HTMLCanvasElement) {
     if (!(canvas instanceof HTMLCanvasElement)) log.vital("[registMouseEvents] canvas is NOT a instance of HTMLCanvasElement!");
 
-    canvas.addEventListener('mousemove', (event: MouseEvent) => {
-        //eventInfo.textContent = `Mouse Move: X=${event.clientX}, Y=${event.clientY}`;
+    const _mouseMove = (event: MouseEvent) => {
         _mapMoveCallbackFun.forEach((value, key) => {
             key(event);
         });
-    });
+    };
+
+    const _mouseClick = (event: MouseEvent) => {
+        _mapClickCallbackFun.forEach((value, key) => {
+            key(event);
+        });
+    };
+
+    let _downTime: number = 0;
     canvas.addEventListener('mousedown', (event: MouseEvent) => {
-        //eventInfo.textContent = `Mouse Down: Button=${event.button}`;
-        //window.style.backgroundColor = 'yellow';
+        _downTime = Date.now();
         _mapDownCallbackFun.forEach((value, key) => {
             key(event);
         });
+        canvas.addEventListener('mousemove', _mouseMove);
     });
     canvas.addEventListener('mouseup', (event: MouseEvent) => {
-        //eventInfo.textContent = `Mouse Up: Button=${event.button}`;
-        //window.style.backgroundColor = 'lightblue';
+        canvas.removeEventListener('mousemove', _mouseMove);
         _mapUpCallbackFun.forEach((value, key) => {
             key(event);
         });
-    });
-    canvas.addEventListener('click', (event: MouseEvent) => {
-        //eventInfo.textContent = `Click: X=${event.clientX}, Y=${event.clientY}`;
+        if (Date.now() - _downTime < 200) {
+            _mouseClick(event);
+        }
     });
     canvas.addEventListener('dblclick', (event: MouseEvent) => {
-        //eventInfo.textContent = `Double Click: X=${event.clientX}, Y=${event.clientY}`;
         _mapDBClickCallbackFun.forEach((value, key) => {
             key(event);
         });
     });
-    canvas.addEventListener('contextmenu', (event: MouseEvent) => {
-        //event.preventDefault(); // Prevents the default context menu
-        //eventInfo.textContent = "Right Click (Context Menu)";
-    });
+    //canvas.addEventListener('contextmenu', (event: MouseEvent) => { });
     canvas.addEventListener('wheel', (event: WheelEvent) => {
-        //event.preventDefault(); // Prevent default sc
         _mapWheelCallbackFun.forEach((value, key) => {
             key(event);
         });
@@ -63,6 +66,7 @@ export default function registMouseEvents(canvas: HTMLCanvasElement) {
     const _mapUpCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
     const _mapMoveCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
     const _mapDBClickCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
+    const _mapClickCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
     const _mouseEvents: mouseEvents = {
         onDown: (cb: mouseEventCallback) => {
             _mapDownCallbackFun.set(cb, true);
@@ -93,6 +97,12 @@ export default function registMouseEvents(canvas: HTMLCanvasElement) {
         },
         offDBClick: (cb: mouseEventCallback) => {
             _mapDBClickCallbackFun.delete(cb);
+        },
+        onClick: (cb: mouseEventCallback) => {
+            _mapClickCallbackFun.set(cb, true);
+        },
+        offClick: (cb: mouseEventCallback) => {
+            _mapClickCallbackFun.delete(cb);
         },
     }
     return Object.freeze(_mouseEvents);

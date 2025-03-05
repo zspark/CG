@@ -2,13 +2,13 @@ import glC from "./gl-const.js";
 import engineC from "./engine-const.js";
 import OrthogonalSpace from "./orthogonal-space.js"
 import Mesh from "./mesh.js"
-import { geometry } from "./geometry.js"
+import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
-import { DrawArraysInstancedParameter, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
+import { Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
-export default class Axes extends Mesh implements IEventReceiver {
+export default class Axes extends Mesh implements IEventReceiver<number> {
 
     private _targetMatricesDirty = false;
     private _tempMat44: Mat44 = new Mat44().setIdentity();
@@ -26,11 +26,13 @@ export default class Axes extends Mesh implements IEventReceiver {
         super(geometry.createAxes(2));
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
         this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);
-        this._ref_geo.appendInstancedData(this._instanceMatrices, 1, glC.DYNAMIC_DRAW).init(gl);
-        this._arrRefTarget[0] = this;
+        this._ref_geo.appendInstancedData(this._instanceMatrices, 1, glC.DYNAMIC_DRAW)
+            .setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
+            .init(gl);
+
+
         const _subPipe = new SubPipeline()
             .setGeometry(this._ref_geo)
-            .setDrawArraysInstancedParameters(this._drawCmd)
             .setUniformUpdater({
                 updateu_vpMatrix: (uLoc: WebGLUniformLocation) => {
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
@@ -53,11 +55,13 @@ export default class Axes extends Mesh implements IEventReceiver {
             const _m = this._instanceMatricesHandler;
             const N = this._arrRefTarget.length;
             for (let i = 0; i < N; ++i) {
-                _m.remap(this._instanceMatrices, 16 * i);
+                _m.remap(this._instanceMatrices, 16 * (i + 1));
                 _m.copyFrom(this._arrRefTarget[i].transform);
             }
-            this._ref_geo.updateInstancedData();
-            this._drawCmd.instanceCount = N;
+            this._drawCmd.instanceCount = N + 1;
+            this._ref_geo.updateInstancedData()
+                .setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
+                .bindDrawCMD();
             this._targetMatricesDirty = false;
         }
     }
@@ -67,8 +71,19 @@ export default class Axes extends Mesh implements IEventReceiver {
         this._targetMatricesDirty = true;
         return this;
     }
+    setTarget(target: OrthogonalSpace): Axes {
+        this.removeAllTargets();
+        return this.addTarget(target);
+    }
+    removeAllTargets(): Axes {
+        this._arrRefTarget.forEach((t) => {
+            t.removeReceiver(this, OrthogonalSpace.TRANSFORM_CHANGED);
+        });
+        this._arrRefTarget.length = 0;
+        return this;
+    }
 
-    notify(event: Event_t): boolean {
+    notify(event: Event_t<number>): boolean {
         this._targetMatricesDirty = true;
         return false;
     }

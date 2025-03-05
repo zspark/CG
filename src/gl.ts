@@ -2,30 +2,6 @@ import log from "./log.js"
 import { default as glC, initGLConstant } from "./gl-const.js"
 import { IGeometry } from "./geometry.js";
 
-export type DrawArraysInstancedParameter = {
-    mode: GLenum,
-    first: GLint,
-    count: GLsizei,
-    instanceCount: GLsizei,
-};
-export type DrawArraysParameter = {
-    mode: GLenum,
-    first: GLint,
-    count: GLsizei
-};
-export type DrawElementsParameter = {
-    mode: GLenum,
-    count: GLsizei,
-    type: GLenum,
-    offset: GLintptr
-};
-export type BufferDescriptor = {
-    size: GLint,
-    type: GLenum,
-    normalized: GLboolean,
-    stride: GLsizei,
-    offset: GLintptr
-};
 
 export function createGLContext(canvasElementId: string): WebGL2RenderingContext {
     const canvas: HTMLCanvasElement = document.getElementById(canvasElementId) as HTMLCanvasElement;
@@ -79,6 +55,7 @@ export class Program implements IBindableObject {
         }
     }
 
+    get criticalKey(): object { return Program; }
     link(vertexShader: WebGLShader, fragmentShader: WebGLShader): Program {
         const gl = this._gl;
         const shaderProgram = gl.createProgram();
@@ -130,12 +107,26 @@ export class Program implements IBindableObject {
 }
 
 const _wm_texture = new WeakMap();
+
 export class Texture {
+
     private _glTexture: WebGLTexture;
     private _gl: WebGL2RenderingContext;
     private _texUnit: GLint = -1;
-    constructor(gl: WebGL2RenderingContext) {
+    private _internalFormat: GLint;
+    private _format: GLenum;
+    private _type: GLenum;
+
+    /**
+    * internalFormat defaults to gl.RGBA
+    * format defaults to gl.RGBA
+    * type defaults to gl.UNSIGNED_BYTE
+    */
+    constructor(gl: WebGL2RenderingContext, internalFormat?: GLint, format?: GLenum, type?: GLenum) {
         this._gl = gl;
+        this._internalFormat = internalFormat ?? gl.RGBA;
+        this._format = format ?? gl.RGBA;
+        this._type = type ?? gl.UNSIGNED_BYTE;
     }
 
     get textureUnit(): GLint { return this._texUnit; }
@@ -144,7 +135,7 @@ export class Texture {
         if (!!this._glTexture) return this;
         const gl = this._gl;
         this._createTexture(gl);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        gl.texImage2D(gl.TEXTURE_2D, 0, this._internalFormat, this._format, this._type, data);
         return this;
     }
 
@@ -152,24 +143,15 @@ export class Texture {
         if (!this._glTexture) return this;
         const gl = this._gl;
         gl.bindTexture(gl.TEXTURE_2D, this._glTexture);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset, yoffset, width, height, this._format, this._type, data);
         return this;
     }
 
-    /**
-    * defaults to gl.drawingBufferWidth and ...height
-    * internalFormat defaults to gl.RGBA
-    * format defaults to gl.RGBA
-    * type defaults to gl.UNSIGNED_BYTE
-    */
-    createGLTextureWithSize(width: number, height: number, internalFormat?: GLint, format?: GLint, type?: GLenum): Texture {
+    createGLTextureWithSize(width: number, height: number): Texture {
         if (!!this._glTexture) return this;
         const gl = this._gl;
         this._createTexture(gl);
-        internalFormat ??= gl.RGBA;
-        format ??= gl.RGBA;
-        type ??= gl.UNSIGNED_BYTE;
-        gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width ?? gl.drawingBufferWidth, height ?? gl.drawingBufferHeight, 0, format, type, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, this._internalFormat, width, height, 0, this._format, this._type, null);
         return this;
     }
 
@@ -299,11 +281,14 @@ export class SkyboxTexture {
 }
 
 const _wm_framebuffer = new WeakMap();
+
 export class Framebuffer implements IBindableObject {
-    private _glFramebuffer: WebGLFramebuffer;
-    private _gl: WebGL2RenderingContext;
-    private _width: number;
-    private _height: number;
+
+    protected _glFramebuffer: WebGLFramebuffer;
+    protected _gl: WebGL2RenderingContext;
+    protected _width: number;
+    protected _height: number;
+
     constructor(gl: WebGL2RenderingContext, width: number, height: number) {
         this._gl = gl;
         this._width = width;
@@ -314,21 +299,22 @@ export class Framebuffer implements IBindableObject {
         _wm_framebuffer.set(this, this._glFramebuffer);
     }
 
-    attachColorTexture(texture: Texture, attachment: number = 0, target?: GLenum): Framebuffer {
-        if (!this._glFramebuffer) return this;
+    get criticalKey(): object { return Framebuffer; }
+
+    attachColorTexture(texture: Texture, attachment: number, target?: GLenum): void {
+        if (!this._glFramebuffer) return;
         const gl = this._gl;
         target ??= gl.TEXTURE_2D;
         const _glTex = _wm_texture.get(texture);
         gl.bindTexture(target, _glTex);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + attachment, target, _glTex, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + (attachment ?? 0), target, _glTex, 0);
         gl.bindTexture(target, null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        return this;
     }
 
-    attachDepthTexture(texture: Texture, target?: number): Framebuffer {
-        if (!this._glFramebuffer) return this;
+    attachDepthTexture(texture: Texture, target?: number): void {
+        if (!this._glFramebuffer) return;
         const gl = this._gl;
         target ??= gl.TEXTURE_2D;
         const _glTex = _wm_texture.get(texture);
@@ -337,10 +323,9 @@ export class Framebuffer implements IBindableObject {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, target, _glTex, 0);
         gl.bindTexture(target, null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        return this;
     }
 
-    validate(): Framebuffer {
+    validate(): void {
         const gl = this._gl;
         if (this._glFramebuffer) {
             gl.bindFramebuffer(glC.FRAMEBUFFER, this._glFramebuffer);
@@ -367,17 +352,20 @@ export class Framebuffer implements IBindableObject {
             }
             gl.bindFramebuffer(glC.FRAMEBUFFER, null);
         }
-        return this;
     }
 
-    bind(): Framebuffer {
+    clear(): void {
+        const gl = this._gl;
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
+
+    bind(): void {
         const gl = this._gl;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
         if (this._glFramebuffer) {
             gl.viewport(0, 0, this._width, this._height);
         }
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        return this;
+        this.clear();
     }
 
     destroy() {
@@ -434,6 +422,10 @@ export class Pipeline {
         }
         return this;
     }
+    removeSubPipelines(): Pipeline {
+        this._arrSubPipeline.length = 0;
+        return this;
+    }
     depthTest(enable: boolean, func?: GLenum): Pipeline {
         this._enableDepthTest = enable;
         this._depthTestFunc = func;
@@ -455,8 +447,6 @@ export class Pipeline {
         this._drawBuffers = buffers;
         return this;
     }
-
-
     validate(): Pipeline {
         if (this.FBO && !(this.FBO instanceof Framebuffer))
             log.vital('[Pipeline] FBO is not a valid Framebuffer instance.');
@@ -481,32 +471,26 @@ export class Pipeline {
         this._arrSubPipeline.forEach(subp => {
             subp.bind(renderState);
             this.program.updateUniforms(subp.uniformUpdater);
-            subp.draw(gl);
+            subp.draw();
         });
 
         if (this._arrOneTimeSubPipeline.length <= 0) return this;
         this._arrOneTimeSubPipeline.forEach(subp => {
             subp.bind(renderState);
             this.program.updateUniforms(subp.uniformUpdater);
-            subp.draw(gl);
+            subp.draw();
         });
         this._arrOneTimeSubPipeline.length = 0;
         return this;
     }
 }
 
-type drawType = 0 | 1 | 2 | 3 | 4;
 export class SubPipeline {
-    static DRAW_VERTEX: drawType = 1;
-    static DRAW_VERTEX_INSTANCED: drawType = 2;
-    static DRAW_ELEMENT: drawType = 3;
-    static DRAW_ELEMENT_INSTANCED: drawType = 4;
 
     geometry: IGeometry;
     textureSet: Set<Texture | SkyboxTexture> = new Set();
     uniformUpdater: UniformUpdater;
-    private _drawMethod: drawType = 0;
-    private _drawParameter: DrawArraysParameter | DrawElementsParameter;
+
     constructor() { }
 
     setUniformUpdater(updater: UniformUpdater): SubPipeline {
@@ -532,21 +516,6 @@ export class SubPipeline {
         this.textureSet.clear();
         return this;
     }
-    setDrawArraysParameters(args: DrawArraysParameter): SubPipeline {
-        this._drawParameter = args;
-        this._drawMethod = SubPipeline.DRAW_VERTEX;
-        return this;
-    }
-    setDrawArraysInstancedParameters(args: DrawArraysInstancedParameter): SubPipeline {
-        this._drawParameter = args;
-        this._drawMethod = SubPipeline.DRAW_VERTEX_INSTANCED;
-        return this;
-    }
-    setDrawElementsParameters(args: DrawElementsParameter): SubPipeline {
-        this._drawParameter = args;
-        this._drawMethod = SubPipeline.DRAW_ELEMENT;
-        return this;
-    }
 
     validate(): SubPipeline {
         //TODO: fix this, recusive referrencing.;
@@ -570,30 +539,8 @@ export class SubPipeline {
         });
     }
 
-    draw(gl: WebGL2RenderingContext): void {
-        if (this._drawMethod === SubPipeline.DRAW_VERTEX) {
-            gl.drawArrays(
-                (this._drawParameter as DrawArraysParameter).mode,
-                (this._drawParameter as DrawArraysParameter).first,
-                (this._drawParameter as DrawArraysParameter).count
-            );
-        } else if (this._drawMethod === SubPipeline.DRAW_ELEMENT) {
-            gl.drawElements(
-                (this._drawParameter as DrawElementsParameter).mode,
-                (this._drawParameter as DrawElementsParameter).count,
-                (this._drawParameter as DrawElementsParameter).type,
-                (this._drawParameter as DrawElementsParameter).offset
-            );
-        } else if (this._drawMethod === SubPipeline.DRAW_VERTEX_INSTANCED) {
-            gl.drawArraysInstanced(
-                (this._drawParameter as DrawArraysInstancedParameter).mode,
-                (this._drawParameter as DrawArraysInstancedParameter).first,
-                (this._drawParameter as DrawArraysInstancedParameter).count,
-                (this._drawParameter as DrawArraysInstancedParameter).instanceCount
-            );
-        } else if (this._drawMethod === SubPipeline.DRAW_ELEMENT_INSTANCED) {
-            //todo:
-        }
+    draw(): void {
+        this.geometry.drawCMD();
     }
 
     clone(): SubPipeline {
@@ -603,8 +550,6 @@ export class SubPipeline {
             sub.textureSet.add(t);
         });
         sub.uniformUpdater = this.uniformUpdater;
-        sub._drawParameter = this._drawParameter;
-        sub._drawMethod = this._drawMethod;
         return sub;
     }
 }
@@ -612,6 +557,7 @@ export class SubPipeline {
 export type PipelineOption = SubPipelineOption;
 
 export interface IBindableObject {
+    readonly criticalKey: object;
     bind(): void;
 };
 
@@ -635,9 +581,9 @@ class RenderState {
     }
 
     bind(obj: IBindableObject) {
-        if (this._wm_glObject.get(obj.constructor) === obj) return this;
+        if (this._wm_glObject.get(obj.criticalKey) === obj) return this;
         else {
-            this._wm_glObject.set(obj.constructor, obj);
+            this._wm_glObject.set(obj.criticalKey, obj);
             obj.bind();
             return this;
         }

@@ -11,6 +11,11 @@ function numberSame(a: number, b: number, epsilon: number = 0.00001): boolean {
     return Math.abs(a - b) < epsilon;
 };
 
+let _uuid = 1;
+function uuid(): number {
+    return ++_uuid;
+};
+
 function displayTexture(gl: WebGL2RenderingContext, texture: WebGLTexture, width: number, height: number, depthValue: boolean = false): void {
     // Create a framebuffer and attach the texture
     const framebuffer = gl.createFramebuffer();
@@ -60,4 +65,4 @@ function displayTexture(gl: WebGL2RenderingContext, texture: WebGLTexture, width
 //@ts-ignore
 window.displayTexture = displayTexture;
 
-export default { deg2Rad, rad2Deg, numberSame, displayTexture };
+export default { uuid, deg2Rad, rad2Deg, numberSame, displayTexture };

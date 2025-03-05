@@ -8,21 +8,24 @@ import { mouseEvents, mouseEventCallback } from "./mouse-events.js"
 export interface ICamera {
     position: xyzw;
 
-    setMouseEvents(events: mouseEvents): Camera;
+    setMouseEvents(events: mouseEvents): ICamera;
     viewMatrix: roMat44;
     viewProjectionMatrix: roMat44;
     update(dt: number): void;
 
-    setFrustum(frustum: Frustum): Camera
-    moveHorizontally(deltaX: number, delta: number): Camera
-    moveAround(pos: xyzw, dir_normalized: xyzw, theta: number): Camera;
+    setFrustum(frustum: Frustum): ICamera
+    moveHorizontally(deltaX: number, delta: number): ICamera
+    moveAround(pos: xyzw, dir_normalized: xyzw, theta: number): ICamera;
     /**
     * pos must be defined under world coordinate
     */
-    lookAt(pos: xyzw): Camera
+    lookAt(pos: xyzw): ICamera
+    setRotateCenter(posX: number, posY: number, posZ: number): ICamera;
 };
 
 export default class Camera implements ICamera {
+
+    private _rotateCenterPosition = new Vec4();
     private _helperMat44 = new Mat44();
     private _helperVec4_x = new Vec4();
     private _helperVec4_y = new Vec4();
@@ -72,14 +75,14 @@ export default class Camera implements ICamera {
                 let _dir = this._helperVec4_x.reset(-_dY, _dX, 0, 0);// perpedicular to {_dX,_dY};
                 let _theta = _dir.magnitude();
                 this._space.transformVec4(_dir, _dir).normalize();
-                this.moveAround(Vec4.VEC4_0000, _dir, _theta);
+                this.moveAround(this._rotateCenterPosition, _dir, _theta);
             } else if (evt.ctrlKey) {
                 let _dir = this._helperVec4_x.reset(-_dY, 0, 0, 0);
                 let _theta = _dir.magnitude();
                 this._space.transformVec4(_dir, _dir).normalize();
-                this.moveAround(Vec4.VEC4_0000, _dir, _theta);
+                this.moveAround(this._rotateCenterPosition, _dir, _theta);
             } else {
-                this.moveAround(Vec4.VEC4_0000, Vec4.VEC4_0100, _dX);
+                this.moveAround(this._rotateCenterPosition, Vec4.VEC4_0100, _dX);
             }
         }
         const _onMoveLeft: mouseEventCallback = (evt) => {
@@ -93,9 +96,11 @@ export default class Camera implements ICamera {
             this._helperMat44.setColumns(this._helperVec4_x, Vec4.VEC4_0100, this._helperVec4_z, Vec4.VEC4_0001).multiplyVec4(this._helperVec4_y, this._helperVec4_y);
             this.moveHorizontally(this._helperVec4_y.x, this._helperVec4_y.z);
         }
+        /*
         events.onDBClick((evt) => {
             this.lookAt(Vec4.VEC4_0001);
         });
+        */
         events.onWheel((evt) => {
             let delta = 0.5 * Math.sign((evt as WheelEvent).deltaY);
             this._spaceCtrl.moveForward(delta);
@@ -118,6 +123,11 @@ export default class Camera implements ICamera {
 
     update(dt: number): void {
         this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+    }
+
+    setRotateCenter(posX: number, posY: number, posZ: number): Camera {
+        this._rotateCenterPosition.reset(posX, posY, posZ, 1.0);
+        return this;
     }
 
     setPosition(posX: number, posY: number, posZ: number): Camera {

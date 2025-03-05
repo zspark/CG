@@ -16,11 +16,6 @@ export default class Outline {
         this._frontFBOQuad = geometry.createFrontQuad().init(gl);
         this._subPipeline = new SubPipeline()
             .setGeometry(this._frontFBOQuad)
-            .setDrawArraysParameters({
-                mode: gl.TRIANGLES,
-                first: 0,
-                count: 6,
-            })
             .setUniformUpdater({
                 updateu_edgeThrottle: (uLoc: WebGLUniformLocation) => {
                     gl.uniform1f(uLoc, 2);

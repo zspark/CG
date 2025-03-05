@@ -17,7 +17,6 @@ export default class GridFloor extends Mesh {
         super(geometry.createGridPlane(100).init(gl));
         const _subP = new SubPipeline()
             .setGeometry(this.geometry)
-            .setDrawArraysParameters({ mode: glC.LINES, first: 0, count: 3000, })
             .setUniformUpdater({
                 updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
                     this._tempMat44.multiply(this.transform, this._tempMat44);

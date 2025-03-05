@@ -1,19 +1,56 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
-import { BufferDescriptor, IBindableObject } from "./gl.js";
+import { IBindableObject } from "./gl.js";
+
+type drawType = 0 | 1 | 2 | 3 | 4;
+export type DrawArraysInstancedParameter = {
+    method?: drawType;
+    mode: GLenum,
+    first: GLint,
+    count: GLsizei,
+    instanceCount: GLsizei,
+};
+export type DrawArraysParameter = {
+    method?: drawType;
+    mode: GLenum,
+    first: GLint,
+    count: GLsizei
+};
+export type DrawElementsParameter = {
+    method?: drawType;
+    mode: GLenum,
+    count: GLsizei,
+    type: GLenum,
+    offset: GLintptr
+};
+
+type BufferDescriptor = {
+    size: GLint,
+    type: GLenum,
+    normalized: GLboolean,
+    stride: GLsizei,
+    offset: GLintptr
+};
+
 
 export interface IGeometry extends IBindableObject {
-    vertexBufferLength: number;
-    indexBufferLength: number;
+    readonly vertexBufferLength: number;
+    readonly indexBufferLength: number;
+    readonly drawCMD: () => void;
 
     /**
     * create gl buffers and record to VAO.
     */
     init(gl: WebGL2RenderingContext, usage?: number): IGeometry;
     appendInstancedData(data: Float32Array, divisor: number, usage: GLenum): IGeometry;
-    updateInstancedData(): void;
+    updateInstancedData(): IGeometry;
     setAttributeLayout(attributeName: number, size: number, type: number, normalized: boolean, stride: number, offset: number): IGeometry;
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
+
+    bindDrawCMD(): IGeometry;
+    setDrawArraysParameters(mode: GLenum, first: GLint, count: GLsizei): IGeometry;
+    setDrawArraysInstancedParameters(mode: GLenum, first: GLint, count: GLsizei, instanceCount: GLsizei): IGeometry;
+    setDrawElementsParameters(mode: GLenum, count: GLsizei, type: GLenum, offset: GLintptr): IGeometry
 }
 
 export const geometry: {
@@ -24,6 +61,13 @@ export const geometry: {
     createFrontQuad: () => IGeometry,
     createTriangle: (scale: number) => IGeometry,
 } = {
+    /*
+    assembleFromGLTF(glftContent) :Geometry{
+        CG.info("[geometry.js] need implementation.");
+        //TODO:
+    }
+    */
+
     createAxes: (length: number = 1): IGeometry => {
         const vertices = new Float32Array([
             0, 0, 0,/*color*/ 1, 0.2, 0.2,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
@@ -32,7 +76,9 @@ export const geometry: {
         ]);
         return new Geometry(vertices)
             .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 24, 0)
-            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 24, 12);
+            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 24, 12)
+            .setDrawArraysParameters(glC.LINES, 0, vertices.length)
+
     },
 
     createCube: (edgeLength: number): IGeometry => {
@@ -89,16 +135,20 @@ export const geometry: {
         return new Geometry(vertices, indices)
             .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 36, 0)
             .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 36, 12)
-            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 36, 24);
+            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 36, 24)
+            .setDrawElementsParameters(glC.TRIANGLES, indices.length, glC.UNSIGNED_SHORT, 0)
 
     },
 
     createTriangle: (scale: number = 1): IGeometry => {
-        const vertices = [0, 0.7 * scale, 0, -0.7 * scale, -0.3 * scale, 0, 0.7 * scale, -0.3 * scale, 0];
-        const indices = [0, 1, 2];
+        const vertices = [
+            0, 0.7 * scale, 0, -0.7 * scale,
+            -0.3 * scale, 0, 0.7 * scale,
+            -0.3 * scale, 0];
 
-        return new Geometry(new Float32Array(vertices), new Uint16Array(indices))
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0);
+        return new Geometry(new Float32Array(vertices))
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0)
+            .setDrawArraysParameters(glC.TRIANGLES, 0, vertices.length);
     },
 
     createGridPlane: (quaterSize: number, step = 1): IGeometry => {
@@ -115,7 +165,8 @@ export const geometry: {
         }
 
         return new Geometry(new Float32Array(vertices))
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0);
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0)
+            .setDrawArraysParameters(glC.LINES, 0, vertices.length);
     },
 
     createPlane: (width: number, height: number): IGeometry => {
@@ -142,7 +193,8 @@ export const geometry: {
         return new Geometry(vertices, indices)
             .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 32, 0)
             .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, glC.FLOAT, false, 32, 12)
-            .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 32, 20);
+            .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 32, 20)
+            .setDrawElementsParameters(glC.TRIANGLES, indices.length, glC.UNSIGNED_SHORT, 0)
     },
 
     createFrontQuad: (): IGeometry => {
@@ -155,7 +207,9 @@ export const geometry: {
             1, -1, 0,
             1, 1, 0,
         ]);
-        return new Geometry(vertices).setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0);
+        return new Geometry(vertices)
+            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0)
+            .setDrawArraysParameters(glC.TRIANGLES, 0, vertices.length);
     }
 }
 
@@ -169,13 +223,6 @@ export const geometry: {
 *
 */
 export default class Geometry implements IGeometry {
-    /*
-    static assembleFromGLTF(glftContent) :Geometry{
-        CG.info("[geometry.js] need implementation.");
-        //TODO:
-    }
-    */
-
     static ATTRIB_POSITION = 0;
     static ATTRIB_TEXTURE_UV = 1;
     static ATTRIB_NORMAL = 2;
@@ -184,6 +231,11 @@ export default class Geometry implements IGeometry {
     static ATTRIB_INSTANCED_MATRIX_COL_2 = 5;
     static ATTRIB_INSTANCED_MATRIX_COL_3 = 6;
     static ATTRIB_INSTANCED_MATRIX_COL_4 = 7;
+
+    static DRAW_VERTEX: drawType = 1;
+    static DRAW_VERTEX_INSTANCED: drawType = 2;
+    static DRAW_ELEMENT: drawType = 3;
+    static DRAW_ELEMENT_INSTANCED: drawType = 4;
 
     private _inited = false;
     private _vertices: Float32Array;
@@ -199,11 +251,14 @@ export default class Geometry implements IGeometry {
     private _vertexBufferLength = -1;
     private _indexBufferLength = -1;
     private _gl: WebGL2RenderingContext;
+    private _drawCMD: () => void;
+    private _drawParameter: DrawArraysParameter | DrawElementsParameter | DrawArraysInstancedParameter;
 
     constructor(vertices: Float32Array, indices?: Uint16Array) {
         this._vertices = vertices;
         this._indices = indices;
     }
+    get criticalKey(): object { return Geometry; }
 
     get vertexBufferLength(): number {
         return this._vertexBufferLength;
@@ -213,15 +268,20 @@ export default class Geometry implements IGeometry {
         return this._indexBufferLength;
     }
 
+    get drawCMD(): () => void {
+        return this._drawCMD;
+    }
+
     bind(): void {
         this._gl.bindVertexArray(this._glVAO);
     }
 
-    updateInstancedData(): void {
+    updateInstancedData(): IGeometry {
         const gl = this._gl;
         gl.bindBuffer(gl.ARRAY_BUFFER, this._glInstancedVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, this._instancedMatrices, this._instancedMatricesUsage);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        return this;
     }
 
     appendInstancedData(data: Float32Array, divisor: number, usage: GLenum = glC.STATIC_DRAW): IGeometry {
@@ -279,14 +339,61 @@ export default class Geometry implements IGeometry {
         gl.bindVertexArray(null);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-
         this._indices = this._vertices = undefined;
+
+        this.bindDrawCMD();
+
         this._inited = true;
         return this;
     }
 
     setAttributeLayout(attributeName: number, size: GLint, type: GLenum, normalized: GLboolean, stride: GLsizei, offset: GLintptr): IGeometry {
         this._attributeLayouts[attributeName] = { size, type, normalized, stride, offset };
+        return this;
+    }
+
+    setDrawArraysParameters(mode: GLenum, first: GLint, count: GLsizei): IGeometry {
+        this._drawParameter = { method: Geometry.DRAW_VERTEX, mode, first, count };
+        return this;
+    }
+    setDrawArraysInstancedParameters(mode: GLenum, first: GLint, count: GLsizei, instanceCount: GLsizei): IGeometry {
+        this._drawParameter = { method: Geometry.DRAW_VERTEX_INSTANCED, mode, first, count, instanceCount };
+        return this;
+    }
+    setDrawElementsParameters(mode: GLenum, count: GLsizei, type: GLenum, offset: GLintptr): IGeometry {
+        this._drawParameter = { method: Geometry.DRAW_ELEMENT, mode, count, type, offset };
+        return this;
+    }
+    bindDrawCMD(): IGeometry {
+        const gl = this._gl;
+        if (!gl) {
+            log.warn("[Geometry] call ::init() before this.");
+            return this;
+        }
+        if (this._drawParameter.method === Geometry.DRAW_VERTEX) {
+            this._drawCMD = gl.drawArrays.bind(gl,
+                (this._drawParameter as DrawArraysParameter).mode,
+                (this._drawParameter as DrawArraysParameter).first,
+                (this._drawParameter as DrawArraysParameter).count
+            );
+        } else if (this._drawParameter.method === Geometry.DRAW_ELEMENT) {
+            this._drawCMD = gl.drawElements.bind(gl,
+                (this._drawParameter as DrawElementsParameter).mode,
+                (this._drawParameter as DrawElementsParameter).count,
+                (this._drawParameter as DrawElementsParameter).type,
+                (this._drawParameter as DrawElementsParameter).offset
+            );
+        } else if (this._drawParameter.method === Geometry.DRAW_VERTEX_INSTANCED) {
+            this._drawCMD = gl.drawArraysInstanced.bind(gl,
+                (this._drawParameter as DrawArraysInstancedParameter).mode,
+                (this._drawParameter as DrawArraysInstancedParameter).first,
+                (this._drawParameter as DrawArraysInstancedParameter).count,
+                (this._drawParameter as DrawArraysInstancedParameter).instanceCount
+            );
+        } else if (this._drawParameter.method === Geometry.DRAW_ELEMENT_INSTANCED) {
+            //todo:
+        }
+
         return this;
     }
 

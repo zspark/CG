@@ -4,7 +4,7 @@ import { default as EventSender, Event_t } from "./event.js"
 /**
 * we use right handed system.
 */
-export default class OrthogonalSpace extends EventSender {
+export default class OrthogonalSpace extends EventSender<number> {
     static TRANSFORM_CHANGED: number = 1;
 
     private _invMatDirty: boolean = false;
@@ -15,7 +15,7 @@ export default class OrthogonalSpace extends EventSender {
 
     protected _transformInv: Mat44 = new Mat44();
     protected _transform: Mat44 = new Mat44();
-    protected _event: Event_t;
+    protected _event: Event_t<number>;
 
     constructor() {
         super();
