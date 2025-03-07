@@ -32,6 +32,7 @@ export default class Application {
     private _backFBOPipeline: CG.Pipeline;
     private _outline: CG.Outline;
     private _picker: CG.Picker;
+    private _deltaTimeInMS: number = 0;
 
     constructor() {
         this.createGUI();
@@ -55,7 +56,7 @@ export default class Application {
             this._latlonTexture.updateData(v, 0, 0, 4096, 2048);
         });
         this._latlonTexture = new CG.Texture(gl, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE).createGLTextureWithSize(4096, 2048);
-        const _plane = CG.geometry.createPlane(2, 2).init(gl);
+        const _plane = CG.geometry.createPlane(2, 2).createGPUResource(gl, true);
         const _subPipeCubeLatlon = new CG.SubPipeline()
             .setGeometry(_plane)
             .setTexture(this._latlonTexture)
@@ -81,7 +82,7 @@ export default class Application {
         this._renderer.addPipeline(_p2);
 
         //--------------------------------------------------------------------------------
-        this._geometryCube = CG.geometry.createCube(2).init(gl);
+        this._geometryCube = CG.geometry.createCube(2).createGPUResource(gl, true);
         const _meshCube1 = this._meshCube1 = new CG.Mesh(this._geometryCube);
         const _meshCube2 = this._meshCube2 = new CG.Mesh(this._geometryCube);
         const _meshCube3 = this._meshCube3 = new CG.Mesh(this._geometryCube);
@@ -141,6 +142,7 @@ export default class Application {
     }
 
     run(dt: number) {
+        this._deltaTimeInMS = dt;
         this._light.update(dt);
         this._camera.update(dt);
         this._gridFloor.update(dt, this._camera);

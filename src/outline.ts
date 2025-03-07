@@ -13,7 +13,7 @@ export default class Outline {
 
     constructor(gl: WebGL2RenderingContext, renderer: Renderer) {
         this._ref_renderer = renderer;
-        this._frontFBOQuad = geometry.createFrontQuad().init(gl);
+        this._frontFBOQuad = geometry.createFrontQuad().createGPUResource(gl, true);
         this._subPipeline = new SubPipeline()
             .setGeometry(this._frontFBOQuad)
             .setUniformUpdater({

@@ -21,6 +21,141 @@ export function createGLContext(canvasElementId: string): WebGL2RenderingContext
     return gl;
 }
 
+type BufferData_t = AllowSharedBufferSource & {
+    length: number;
+};
+
+type AttributeLayout_t = {
+    shaderLocation: ShaderLocation_e,
+    //format: VertexFormat_e;
+    size: number,
+    type: number,
+    normalized: boolean,
+    offset: number,
+};
+type BufferLayout_t = {
+    attributes: AttributeLayout_t[],
+    stride: GLsizei,
+    stepMode: StepMode_e,
+};
+
+/*
+enum VertexFormat_e {
+    //https://gpuweb.github.io/gpuweb/#enumdef-gpuvertexformat
+    float32x4 = "float32x4",
+    float32x3 = "float32x3",
+    float32x2 = "float32x2",
+};
+
+enum IndexFormat_e {
+    uint16 = "uint16",
+    uint32 = "uint32",
+};
+*/
+
+export enum StepMode_e {
+    vertex = "vertex",
+    instance = "instance",
+};
+
+export enum ShaderLocation_e {
+    ATTRIB_POSITION = 0,
+    ATTRIB_TEXTURE_UV = 1,
+    ATTRIB_NORMAL = 2,
+    ATTRIB_COLOR = 3,
+    ATTRIB_INSTANCED_MATRIX_COL_1 = 4,
+    ATTRIB_INSTANCED_MATRIX_COL_2 = 5,
+    ATTRIB_INSTANCED_MATRIX_COL_3 = 6,
+    ATTRIB_INSTANCED_MATRIX_COL_4 = 7,
+};
+
+export class Buffer {
+
+    private _gl: WebGL2RenderingContext;
+    private _layout: BufferLayout_t;
+    private _byteLength: number = -1;
+    private _length: number = -1;
+    private _glBuffer: WebGLBuffer;
+    private _target: GLenum;
+    private _data: BufferData_t;
+    private _usage: GLenum;
+
+    constructor(target?: number) {
+        this._target = target ?? glC.ARRAY_BUFFER;
+        this._layout = {
+            attributes: [],
+            stride: 0,
+            stepMode: StepMode_e.vertex,
+        };
+    }
+
+    get length(): number { return this._length; }
+    get byteLength(): number { return this._byteLength; }
+
+    setData(data: BufferData_t, usage?: GLenum): Buffer {
+        this._length = data.length;
+        this._byteLength = data.byteLength;
+        this._data = data;
+        this._usage = usage ?? glC.STATIC_DRAW;
+        return this;
+    }
+
+    updateData(data: BufferData_t): Buffer {
+        const gl = this._gl;
+        if (!gl) log.warn("[Buffer] you should call 'createGPUResource' before this.");
+        //  device.queue.writeBuffer(vertexBuffer, 0, vertices, 0, vertices.length);
+        gl.bindBuffer(this._target, this._glBuffer);
+        gl.bufferData(this._target, data, this._usage);
+        gl.bindBuffer(this._target, null);
+        return this;
+    }
+
+    createGPUResource(gl: WebGL2RenderingContext): Buffer {
+        this._gl = gl;
+        this._glBuffer ??= gl.createBuffer();
+        this.updateData(this._data);
+        this._data = undefined;
+
+        /**
+          device.createBuffer({
+            size: BUFFER_SIZE,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+        });
+        */
+        return this;
+    }
+
+    setAttribute(shaderLocation: ShaderLocation_e, size: number, type: number, normalized: boolean, offset: GLintptr): Buffer {
+        this._layout.attributes.push({ shaderLocation, size, type, normalized, offset });
+        return this;
+    }
+
+    setStrideAndStepMode(stride: number, stepMode?: StepMode_e): Buffer {
+        this._layout.stride = stride;
+        this._layout.stepMode = stepMode ?? StepMode_e.vertex;
+        return this;
+    }
+
+    bind(): void {
+        const gl = this._gl;
+
+        gl.bindBuffer(this._target, this._glBuffer);
+        this._layout.attributes.forEach(a => {
+            gl.enableVertexAttribArray(a.shaderLocation);
+            gl.vertexAttribPointer(a.shaderLocation, a.size, a.type, a.normalized, this._layout.stride, a.offset);
+            if (this._layout.stepMode === StepMode_e.instance) {
+                gl.vertexAttribDivisor(a.shaderLocation, 1); // Advance per instance
+            }
+        });
+
+    }
+
+    destroyGPUResource(): void {
+        if (!!this._glBuffer) this._gl.deleteBuffer(this._glBuffer);
+        this._glBuffer = undefined;
+    }
+}
+
 export type UniformUpdater = {
     [key: string]: (u: WebGLUniformLocation) => void;
 }

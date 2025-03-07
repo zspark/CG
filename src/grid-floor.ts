@@ -14,7 +14,7 @@ export default class GridFloor extends Mesh {
     private _pipeline: Pipeline;
 
     constructor(gl: WebGL2RenderingContext, renderer: Renderer, fbo?: Framebuffer) {
-        super(geometry.createGridPlane(100).init(gl));
+        super(geometry.createGridPlane(100).createGPUResource(gl, true));
         const _subP = new SubPipeline()
             .setGeometry(this.geometry)
             .setUniformUpdater({

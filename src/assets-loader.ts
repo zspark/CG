@@ -8,7 +8,21 @@ export type ILoader = {
     loadShader: (url: string) => Promise<[string, string]>,
     loadTexture: (url: string) => Promise<HTMLImageElement>,
     loadSkyboxTextures: (url_1: string, url_2: string, url_3: string, url_4: string, url_5: string, url_6: string) => Promise<[HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement]>,
+    loadBinary: (url: string) => Promise<void | ArrayBuffer>,
 }
+
+function _loadBinary(combinedURL: string): Promise<void | ArrayBuffer> {
+    return fetch(combinedURL).then(response => {
+        if (!response.ok) {
+            log.vital(`[assets-loader] HTTP error! status: ${response.status}
+url: ${combinedURL}`);
+        }
+        return response.arrayBuffer();
+    }, (error) => {
+        log.vital(`[assets - loader] resource load error.url: ${combinedURL}
+error: ${error}`);
+    });
+};
 
 function _loadFile(combinedURL: string): Promise<string> {
     return fetch(combinedURL).then(response => {
@@ -60,6 +74,9 @@ export default function createLoader(baseURL: string): ILoader {
         loadTexture: (url: string) => {
             return _loadTexture(`${baseURL}${url}`);
         },
+        loadBinary: (url: string) => {
+            return _loadBinary(`${baseURL}${url}`);
+        }
     }
 }
 

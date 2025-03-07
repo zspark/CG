@@ -5,7 +5,7 @@ import Mesh from "./mesh.js"
 import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
-import { Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
+import { Buffer, ShaderLocation_e, StepMode_e, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
 export default class Axes extends Mesh implements IEventReceiver<number> {
@@ -22,14 +22,23 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
         instanceCount: 1
     }
 
+    private _instanceMatricesBuffer = new Buffer();
+
     constructor(gl: WebGL2RenderingContext, renderer: Renderer, fbo?: Framebuffer) {
         super(geometry.createAxes(2));
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
         this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);
-        this._ref_geo.appendInstancedData(this._instanceMatrices, 1, glC.DYNAMIC_DRAW)
-            .setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
-            .init(gl);
+        this._instanceMatricesBuffer
+            .setData(this._instanceMatrices, gl.DYNAMIC_DRAW)
+            .setStrideAndStepMode(64, StepMode_e.instance)
+            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_1, 4, glC.FLOAT, false, 0)
+            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_2, 4, glC.FLOAT, false, 16)
+            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_3, 4, glC.FLOAT, false, 32)
+            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_4, 4, glC.FLOAT, false, 48)
 
+        this._ref_geo.addVertexBuffer(this._instanceMatricesBuffer)
+            .createGPUResource(gl, true)
+            .setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
 
         const _subPipe = new SubPipeline()
             .setGeometry(this._ref_geo)
@@ -59,8 +68,8 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
                 _m.copyFrom(this._arrRefTarget[i].transform);
             }
             this._drawCmd.instanceCount = N + 1;
-            this._ref_geo.updateInstancedData()
-                .setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
+            this._instanceMatricesBuffer.updateData(this._instanceMatrices);
+            this._ref_geo.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
                 .bindDrawCMD();
             this._targetMatricesDirty = false;
         }

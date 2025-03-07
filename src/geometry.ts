@@ -1,6 +1,6 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
-import { IBindableObject } from "./gl.js";
+import { ShaderLocation_e, StepMode_e, Buffer, IBindableObject } from "./gl.js";
 
 type drawType = 0 | 1 | 2 | 3 | 4;
 export type DrawArraysInstancedParameter = {
@@ -24,14 +24,6 @@ export type DrawElementsParameter = {
     offset: GLintptr
 };
 
-type BufferDescriptor = {
-    size: GLint,
-    type: GLenum,
-    normalized: GLboolean,
-    stride: GLsizei,
-    offset: GLintptr
-};
-
 
 export interface IGeometry extends IBindableObject {
     readonly vertexBufferLength: number;
@@ -41,16 +33,15 @@ export interface IGeometry extends IBindableObject {
     /**
     * create gl buffers and record to VAO.
     */
-    init(gl: WebGL2RenderingContext, usage?: number): IGeometry;
-    appendInstancedData(data: Float32Array, divisor: number, usage: GLenum): IGeometry;
-    updateInstancedData(): IGeometry;
-    setAttributeLayout(attributeName: number, size: number, type: number, normalized: boolean, stride: number, offset: number): IGeometry;
+    createGPUResource(gl: WebGL2RenderingContext, createBufferGPUResourceAsWell?: boolean): IGeometry;
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
 
     bindDrawCMD(): IGeometry;
     setDrawArraysParameters(mode: GLenum, first: GLint, count: GLsizei): IGeometry;
     setDrawArraysInstancedParameters(mode: GLenum, first: GLint, count: GLsizei, instanceCount: GLsizei): IGeometry;
     setDrawElementsParameters(mode: GLenum, count: GLsizei, type: GLenum, offset: GLintptr): IGeometry
+    addVertexBuffer(buffer: Buffer): IGeometry;
+    setIndexBuffer(buffer: Buffer): IGeometry;
 }
 
 export const geometry: {
@@ -61,22 +52,19 @@ export const geometry: {
     createFrontQuad: () => IGeometry,
     createTriangle: (scale: number) => IGeometry,
 } = {
-    /*
-    assembleFromGLTF(glftContent) :Geometry{
-        CG.info("[geometry.js] need implementation.");
-        //TODO:
-    }
-    */
-
     createAxes: (length: number = 1): IGeometry => {
         const vertices = new Float32Array([
             0, 0, 0,/*color*/ 1, 0.2, 0.2,/**/ length, 0, 0,/*color*/ 1, 0, 0, // x;
             0, 0, 0,/*color*/ 0.2, 1, 0.2,/**/ 0, length, 0,/*color*/ 0, 1, 0, // x;
             0, 0, 0,/*color*/ 0.2, 0.2, 1,/**/ 0, 0, length,/*color*/ 0, 0, 1, // x;
         ]);
-        return new Geometry(vertices)
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 24, 0)
-            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 24, 12)
+        return new Geometry()
+            .addVertexBuffer(new Buffer()
+                .setData(vertices)
+                .setStrideAndStepMode(24, StepMode_e.vertex)
+                .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
+                .setAttribute(ShaderLocation_e.ATTRIB_COLOR, 3, glC.FLOAT, false, 12)
+            )
             .setDrawArraysParameters(glC.LINES, 0, vertices.length)
 
     },
@@ -132,10 +120,17 @@ export const geometry: {
             20, 21, 22, 20, 22, 23, // Left
         ]);
 
-        return new Geometry(vertices, indices)
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 36, 0)
-            .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 36, 12)
-            .setAttributeLayout(Geometry.ATTRIB_COLOR, 3, glC.FLOAT, false, 36, 24)
+        return new Geometry()
+            .addVertexBuffer(new Buffer()
+                .setData(vertices)
+                .setStrideAndStepMode(36, StepMode_e.vertex)
+                .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
+                .setAttribute(ShaderLocation_e.ATTRIB_NORMAL, 3, glC.FLOAT, false, 12)
+                .setAttribute(ShaderLocation_e.ATTRIB_COLOR, 3, glC.FLOAT, false, 24)
+            )
+            .setIndexBuffer(new Buffer(glC.ELEMENT_ARRAY_BUFFER)
+                .setData(indices)
+            )
             .setDrawElementsParameters(glC.TRIANGLES, indices.length, glC.UNSIGNED_SHORT, 0)
 
     },
@@ -146,8 +141,12 @@ export const geometry: {
             -0.3 * scale, 0, 0.7 * scale,
             -0.3 * scale, 0];
 
-        return new Geometry(new Float32Array(vertices))
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0)
+        return new Geometry()
+            .addVertexBuffer(new Buffer()
+                .setData(new Float32Array(vertices))
+                .setStrideAndStepMode(0, StepMode_e.vertex)
+                .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
+            )
             .setDrawArraysParameters(glC.TRIANGLES, 0, vertices.length);
     },
 
@@ -164,8 +163,12 @@ export const geometry: {
             );
         }
 
-        return new Geometry(new Float32Array(vertices))
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0)
+        return new Geometry()
+            .addVertexBuffer(new Buffer()
+                .setData(new Float32Array(vertices))
+                .setStrideAndStepMode(0, StepMode_e.vertex)
+                .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
+            )
             .setDrawArraysParameters(glC.LINES, 0, vertices.length);
     },
 
@@ -190,10 +193,17 @@ export const geometry: {
             0, 1, 2,
             2, 3, 0
         ]);
-        return new Geometry(vertices, indices)
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 32, 0)
-            .setAttributeLayout(Geometry.ATTRIB_TEXTURE_UV, 2, glC.FLOAT, false, 32, 12)
-            .setAttributeLayout(Geometry.ATTRIB_NORMAL, 3, glC.FLOAT, false, 32, 20)
+        return new Geometry()
+            .addVertexBuffer(new Buffer()
+                .setData(vertices)
+                .setStrideAndStepMode(32, StepMode_e.vertex)
+                .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
+                .setAttribute(ShaderLocation_e.ATTRIB_TEXTURE_UV, 2, glC.FLOAT, false, 12)
+                .setAttribute(ShaderLocation_e.ATTRIB_NORMAL, 3, glC.FLOAT, false, 20)
+            )
+            .setIndexBuffer(new Buffer(glC.ELEMENT_ARRAY_BUFFER)
+                .setData(indices)
+            )
             .setDrawElementsParameters(glC.TRIANGLES, indices.length, glC.UNSIGNED_SHORT, 0)
     },
 
@@ -207,9 +217,13 @@ export const geometry: {
             1, -1, 0,
             1, 1, 0,
         ]);
-        return new Geometry(vertices)
-            .setAttributeLayout(Geometry.ATTRIB_POSITION, 3, glC.FLOAT, false, 0, 0)
-            .setDrawArraysParameters(glC.TRIANGLES, 0, vertices.length);
+        return new Geometry()
+            .addVertexBuffer(new Buffer()
+                .setData(vertices)
+                .setStrideAndStepMode(0, StepMode_e.vertex)
+                .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
+            )
+            .setDrawArraysParameters(glC.TRIANGLES, 0, vertices.length)
     }
 }
 
@@ -223,132 +237,62 @@ export const geometry: {
 *
 */
 export default class Geometry implements IGeometry {
-    static ATTRIB_POSITION = 0;
-    static ATTRIB_TEXTURE_UV = 1;
-    static ATTRIB_NORMAL = 2;
-    static ATTRIB_COLOR = 3;
-    static ATTRIB_INSTANCED_MATRIX_COL_1 = 4;
-    static ATTRIB_INSTANCED_MATRIX_COL_2 = 5;
-    static ATTRIB_INSTANCED_MATRIX_COL_3 = 6;
-    static ATTRIB_INSTANCED_MATRIX_COL_4 = 7;
-
     static DRAW_VERTEX: drawType = 1;
     static DRAW_VERTEX_INSTANCED: drawType = 2;
     static DRAW_ELEMENT: drawType = 3;
     static DRAW_ELEMENT_INSTANCED: drawType = 4;
 
     private _inited = false;
-    private _vertices: Float32Array;
-    private _indices: Uint16Array;
-    private _instancedMatrices: Float32Array;
-    private _instancedMatricesUsage: GLenum;
-    private _divisor: number = 1;
     private _glVAO: WebGLVertexArrayObject;
-    private _glInstancedVertexBuffer: WebGLBuffer;
-    private _glVertexBuffer: WebGLBuffer;
-    private _glIndexBuffer: WebGLBuffer;
-    private _attributeLayouts: Array<BufferDescriptor> = [];
-    private _vertexBufferLength = -1;
-    private _indexBufferLength = -1;
+    private _arrBuffer: Buffer[] = [];
     private _gl: WebGL2RenderingContext;
     private _drawCMD: () => void;
     private _drawParameter: DrawArraysParameter | DrawElementsParameter | DrawArraysInstancedParameter;
+    private _vertexBufferLength = -1;
+    private _indexBufferLength = -1;
+    private _indexBuffer: Buffer;
 
-    constructor(vertices: Float32Array, indices?: Uint16Array) {
-        this._vertices = vertices;
-        this._indices = indices;
-    }
+    constructor() { }
+
     get criticalKey(): object { return Geometry; }
-
-    get vertexBufferLength(): number {
-        return this._vertexBufferLength;
-    }
-
-    get indexBufferLength(): number {
-        return this._indexBufferLength;
-    }
-
-    get drawCMD(): () => void {
-        return this._drawCMD;
-    }
+    get vertexBufferLength(): number { return this._vertexBufferLength; }
+    get indexBufferLength(): number { return this._indexBufferLength; }
+    get drawCMD(): () => void { return this._drawCMD; }
 
     bind(): void {
         this._gl.bindVertexArray(this._glVAO);
     }
 
-    updateInstancedData(): IGeometry {
-        const gl = this._gl;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this._glInstancedVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, this._instancedMatrices, this._instancedMatricesUsage);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    addVertexBuffer(buffer: Buffer): IGeometry {
+        this._vertexBufferLength = buffer.length;
+        this._arrBuffer.push(buffer);
         return this;
     }
 
-    appendInstancedData(data: Float32Array, divisor: number, usage: GLenum = glC.STATIC_DRAW): IGeometry {
-        this._instancedMatrices = data;
-        this._divisor = divisor;
-        this._instancedMatricesUsage = usage;
+    setIndexBuffer(buffer: Buffer): IGeometry {
+        this._indexBufferLength = buffer.length;
+        this._indexBuffer = buffer;
         return this;
     }
 
-    /**
-    * create gl buffers and record to VAO.
-    */
-    init(gl: WebGL2RenderingContext, usage: GLenum = glC.STATIC_DRAW): IGeometry {
+    createGPUResource(gl: WebGL2RenderingContext, createBufferGPUResourceAsWell: boolean = false): IGeometry {
         if (this._inited) {
-            log.warn("[geometry] this instance have already been initiated.");
+            log.warn("[geometry] this instance has already been initiated.");
             return this;
         }
         this._gl = gl;
 
         this._glVAO = gl.createVertexArray();
         gl.bindVertexArray(this._glVAO);
-
-        if (this._vertices && !this._glVertexBuffer) {
-            this._glVertexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, this._glVertexBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this._vertices, usage);
-            this._vertexBufferLength = this._vertices.length;
-
-            this._attributeLayouts.forEach((v, i) => {
-                if (v) {
-                    gl.enableVertexAttribArray(i);
-                    gl.vertexAttribPointer(i, v.size, v.type, v.normalized, v.stride, v.offset);
-                }
-            });
+        this._arrBuffer.forEach(b => { (createBufferGPUResourceAsWell ? b.createGPUResource(gl) : b).bind(); });
+        if (this._indexBuffer) {
+            (createBufferGPUResourceAsWell ? this._indexBuffer.createGPUResource(gl) : this._indexBuffer).bind();
         }
-
-        if (this._indices && !this._glIndexBuffer) {
-            this._glIndexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this._glIndexBuffer);
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this._indices, usage);
-            this._indexBufferLength = this._indices.length;
-        }
-
-        if (this._instancedMatrices && !this._glInstancedVertexBuffer) {
-            this._glInstancedVertexBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, this._glInstancedVertexBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this._instancedMatrices, this._instancedMatricesUsage);
-            for (let i = 0; i < 4; ++i) {
-                gl.enableVertexAttribArray(Geometry.ATTRIB_INSTANCED_MATRIX_COL_1 + i);
-                gl.vertexAttribPointer(Geometry.ATTRIB_INSTANCED_MATRIX_COL_1 + i, 4, glC.FLOAT, false, 64, 16 * i);
-                gl.vertexAttribDivisor(Geometry.ATTRIB_INSTANCED_MATRIX_COL_1 + i, this._divisor); // Advance per instance
-            }
-        }
-
         gl.bindVertexArray(null);
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-        this._indices = this._vertices = undefined;
 
         this.bindDrawCMD();
 
         this._inited = true;
-        return this;
-    }
-
-    setAttributeLayout(attributeName: number, size: GLint, type: GLenum, normalized: GLboolean, stride: GLsizei, offset: GLintptr): IGeometry {
-        this._attributeLayouts[attributeName] = { size, type, normalized, stride, offset };
         return this;
     }
 
@@ -399,12 +343,10 @@ export default class Geometry implements IGeometry {
 
     destroyGLObjects(gl: any) {
         if (this._inited) {
-            if (!!this._glVertexBuffer) gl.deleteBuffer(this._glVertexBuffer);
-            if (!!this._glIndexBuffer) gl.deleteBuffer(this._glIndexBuffer);
-            if (!!this._glInstancedVertexBuffer) gl.deleteBuffer(this._glInstancedVertexBuffer);
+            this._indexBuffer?.destroyGPUResource();
+            this._arrBuffer.forEach(b => { b.destroyGPUResource(); });
+            this._arrBuffer.length = 0;
             if (!!this._glVAO) gl.deleteVertexArray(this._glVAO);
-            this._glIndexBuffer = this._glIndexBuffer = this._glInstancedVertexBuffer = this._glVAO = undefined;
-            this._attributeLayouts.length = 0;
         }
         this._inited = false;
         return this;

@@ -26,6 +26,9 @@
         const _stats = new Stats();
         _stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
         document.body.appendChild(_stats.dom);
+        const _appStartTime = Date.now();
+        let _lastRenderTime = _appStartTime;
+        let _currentTime;
 
         let _app;
         ShaderAssembler.loadShaderSource("./").then(_ => {
@@ -35,7 +38,9 @@
 
         function render() {
             _stats.begin();
-            _app.run();
+            _currentTime = Date.now();
+            _app.run(_currentTime - _lastRenderTime);
+            _lastRenderTime = _currentTime;
             _stats.end();
             requestAnimationFrame(render);
         }
