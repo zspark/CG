@@ -140,6 +140,25 @@ export default class Application {
                 return false;
             },
         }, CG.Picker.PICKED);
+        //
+        //--------------------------------------------------------------------------------
+        new CG.GLTFParser().load("./assets/gltf/cube/scene.gltf").then((data: CG.GLTFParserOutput_t) => {
+            const _geo: CG.IGeometry = data.geometrys[0];
+            _geo.setDrawElementsParameters(gl.TRIANGLES, 36, gl.UNSIGNED_INT, 0).createGPUResource(gl, true)
+            const _meshCube1 = new CG.Mesh(_geo);
+            const _subPipeCube = new CG.SubPipeline()
+                .setGeometry(_geo)
+                .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube1, new CG.Vec4(1, 0, 0, 1)))
+            const _p = new CG.Pipeline(gl, 0)
+                .cullFace(true, gl.BACK)
+                .depthTest(true, gl.LESS)
+                .setProgram(CG.getProgram(gl, { normal: true, }))
+                .appendSubPipeline(_subPipeCube)
+                .validate()
+            this._renderer.addPipeline(_p);
+            this._picker.addPickableTarget(_meshCube1);
+
+        });
     }
 
     run(dt: number) {
@@ -199,7 +218,7 @@ export default class Application {
                 gl.uniformMatrix4fv(uLoc, false, camera.viewMatrix.data);
             },
             updateu_debugNormalSpace: (uLoc: WebGL2RenderingContext) => { // 0:model space; 1:world space; 2:view space;
-                gl.uniform1i(uLoc, 2);
+                gl.uniform1i(uLoc, 1);
             },
             /// --------------------------------------------------------------------------------
         }

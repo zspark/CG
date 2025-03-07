@@ -7,6 +7,10 @@ precision mediump float;
 #define PI 3.14159265359
 #define PI_2 1.5707963267948966
 
+#ifdef NORMAL
+in vec3 v_normal;
+#endif
+
 #ifdef to_linear
 uniform vec2 u_nearFarPlane;
 /**
@@ -57,6 +61,11 @@ out vec4 fragColor;
 void main() {
 #ifdef COLOR_DEFAULT
     fragColor = vec4(0.0, 1.0, 1.0, 1.0);
+#endif
+
+#ifdef NORMAL
+    vec3 normal = normalize(v_normal) * .5 + .5;
+    fragColor = vec4(normal, 1.0);
 #endif
 
 #ifdef COLOR_UNIFORM

@@ -32,6 +32,8 @@ export type ShaderID_t = {
     position_pass_through?: boolean,
     skybox_latlon?: boolean,
 
+    normal?:boolean,
+
     color_default?: boolean,
     color_uniform?: boolean,
     color_vertex_attrib?: boolean,

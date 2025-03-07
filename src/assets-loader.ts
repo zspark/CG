@@ -4,6 +4,7 @@ import log from "./log.js"
 type TextLoader = (url: string) => Promise<string>;
 
 export type ILoader = {
+    loadText: (sourceName: string) => Promise<string>;
     loadShader_separate: (urlVert: string, urlFrag: string) => Promise<[string, string]>,
     loadShader: (url: string) => Promise<[string, string]>,
     loadTexture: (url: string) => Promise<HTMLImageElement>,
@@ -14,13 +15,15 @@ export type ILoader = {
 function _loadBinary(combinedURL: string): Promise<void | ArrayBuffer> {
     return fetch(combinedURL).then(response => {
         if (!response.ok) {
-            log.vital(`[assets-loader] HTTP error! status: ${response.status}
+            log.warn(`[assets-loader] HTTP error! status: ${response.status}
 url: ${combinedURL}`);
+            return;
         }
         return response.arrayBuffer();
     }, (error) => {
         log.vital(`[assets - loader] resource load error.url: ${combinedURL}
 error: ${error}`);
+        return;
     });
 };
 
@@ -67,6 +70,9 @@ export default function createLoader(baseURL: string): ILoader {
         },
         loadShader: (sourceName: string) => {
             return Promise.all([_loadFile(`${baseURL}${sourceName}-vert.glsl`), _loadFile(`${baseURL}${sourceName}-frag.glsl`)]);
+        },
+        loadText: (sourceName: string) => {
+            return _loadFile(`${baseURL}${sourceName}`);
         },
         loadSkyboxTextures: (url_1: string, url_2: string, url_3: string, url_4: string, url_5: string, url_6: string) => {
             return Promise.all([_loadTexture(`${baseURL}${url_1}`), _loadTexture(`${baseURL}${url_2}`), _loadTexture(`${baseURL}${url_3}`), _loadTexture(`${baseURL}${url_4}`), _loadTexture(`${baseURL}${url_5}`), _loadTexture(`${baseURL}${url_6}`)]);
