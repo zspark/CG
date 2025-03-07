@@ -2,7 +2,7 @@ import glC from "./gl-const.js";
 import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { Mat44 } from "./math.js";
-import { Pipeline, Framebuffer, SubPipeline, Renderer } from "./gl.js";
+import { Pipeline, Framebuffer, SubPipeline, Renderer } from "./webgl.js";
 import { ICamera } from "./camera.js";
 import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
 import getProgram from "./program-manager.js"

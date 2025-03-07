@@ -1,6 +1,6 @@
 import log from "./log.js"
 import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
-import { Program } from "./gl.js";
+import { Program } from "./webgl.js";
 
 const _mapShader: Map<string, WebGLShader> = new Map();
 const _mapProgram: Map<string, Program> = new Map();

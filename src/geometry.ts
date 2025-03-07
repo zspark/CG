@@ -1,6 +1,6 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
-import { ShaderLocation_e, StepMode_e, Buffer, IBindableObject } from "./gl.js";
+import { ShaderLocation_e, StepMode_e, Buffer, IBindableObject } from "./webgl.js";
 
 type drawType = 0 | 1 | 2 | 3 | 4;
 export type DrawArraysInstancedParameter = {

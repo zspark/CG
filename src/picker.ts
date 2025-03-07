@@ -2,7 +2,7 @@ import log from "./log.js"
 import { Mat44, roMat44 } from "./math.js";
 import { mouseEvents } from "./mouse-events.js"
 import { IGeometry } from "./geometry.js"
-import { Texture, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
+import { Texture, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./webgl.js";
 import createLoader from "./assets-loader.js";
 import { Event_t, default as EventSender } from "./event.js";
 

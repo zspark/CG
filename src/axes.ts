@@ -5,7 +5,7 @@ import Mesh from "./mesh.js"
 import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
-import { Buffer, ShaderLocation_e, StepMode_e, Pipeline, SubPipeline, Renderer, Framebuffer } from "./gl.js";
+import { Buffer, ShaderLocation_e, StepMode_e, Pipeline, SubPipeline, Renderer, Framebuffer } from "./webgl.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
 export default class Axes extends Mesh implements IEventReceiver<number> {

@@ -1,5 +1,5 @@
 import { geometry, IGeometry } from "./geometry.js"
-import { Texture, Program, Pipeline, SubPipeline, Renderer } from "./gl.js";
+import { Texture, Program, Pipeline, SubPipeline, Renderer } from "./webgl.js";
 import createLoader from "./assets-loader.js";
 
 export default class Outline {
