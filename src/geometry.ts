@@ -1,6 +1,7 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
-import { ShaderLocation_e, StepMode_e, Buffer, IBindableObject } from "./webgl.js";
+import { ShaderLocation_e, IGeometry, StepMode_e, IBuffer, IBindableObject } from "./types-interfaces.js";
+import { Buffer } from "./device-resource.js";
 
 type drawType = 0 | 1 | 2 | 3 | 4;
 export type DrawArraysInstancedParameter = {
@@ -24,25 +25,6 @@ export type DrawElementsParameter = {
     offset: GLintptr
 };
 
-
-export interface IGeometry extends IBindableObject {
-    readonly vertexBufferLength: number;
-    readonly indexBufferLength: number;
-    readonly drawCMD: () => void;
-
-    /**
-    * create gl buffers and record to VAO.
-    */
-    createGPUResource(gl: WebGL2RenderingContext, createBufferGPUResourceAsWell?: boolean): IGeometry;
-    destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
-
-    bindDrawCMD(): IGeometry;
-    setDrawArraysParameters(mode: GLenum, first: GLint, count: GLsizei): IGeometry;
-    setDrawArraysInstancedParameters(mode: GLenum, first: GLint, count: GLsizei, instanceCount: GLsizei): IGeometry;
-    setDrawElementsParameters(mode: GLenum, count: GLsizei, type: GLenum, offset: GLintptr): IGeometry
-    addVertexBuffer(buffer: Buffer): IGeometry;
-    setIndexBuffer(buffer: Buffer): IGeometry;
-}
 
 export const geometry: {
     createAxes: (length: number) => IGeometry,
@@ -244,13 +226,13 @@ export default class Geometry implements IGeometry {
 
     private _inited = false;
     private _glVAO: WebGLVertexArrayObject;
-    private _arrBuffer: Buffer[] = [];
+    private _arrBuffer: IBuffer[] = [];
     private _gl: WebGL2RenderingContext;
     private _drawCMD: () => void;
     private _drawParameter: DrawArraysParameter | DrawElementsParameter | DrawArraysInstancedParameter;
     private _vertexBufferLength = -1;
     private _indexBufferLength = -1;
-    private _indexBuffer: Buffer;
+    private _indexBuffer: IBuffer;
 
     constructor() { }
 
@@ -263,13 +245,13 @@ export default class Geometry implements IGeometry {
         this._gl.bindVertexArray(this._glVAO);
     }
 
-    addVertexBuffer(buffer: Buffer): IGeometry {
+    addVertexBuffer(buffer: IBuffer): IGeometry {
         this._vertexBufferLength = buffer.length;
         this._arrBuffer.push(buffer);
         return this;
     }
 
-    setIndexBuffer(buffer: Buffer): IGeometry {
+    setIndexBuffer(buffer: IBuffer): IGeometry {
         this._indexBufferLength = buffer.length;
         this._indexBuffer = buffer;
         return this;

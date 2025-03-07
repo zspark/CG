@@ -5,7 +5,8 @@ import Mesh from "./mesh.js"
 import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
-import { Buffer, ShaderLocation_e, StepMode_e, Pipeline, SubPipeline, Renderer, Framebuffer } from "./webgl.js";
+import { Buffer, Pipeline, SubPipeline, Renderer, Framebuffer } from "./device-resource.js";
+import { IPipeline, IFramebuffer, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
 export default class Axes extends Mesh implements IEventReceiver<number> {
@@ -24,7 +25,7 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
 
     private _instanceMatricesBuffer = new Buffer();
 
-    constructor(gl: WebGL2RenderingContext, renderer: Renderer, fbo?: Framebuffer) {
+    constructor(gl: WebGL2RenderingContext, renderer: IRenderer, fbo?: IFramebuffer) {
         super(geometry.createAxes(2));
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
         this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);

@@ -16,11 +16,11 @@ export default class Application {
     private _ctrl = new CG.SpaceController();
     private _geometryCube: CG.IGeometry;
     private _gl: WebGL2RenderingContext;
-    private _renderer: CG.Renderer;
-    private _backFBO: CG.Framebuffer;
-    private _depthTexture: CG.Texture;
-    private _colorTexture: CG.Texture;
-    private _latlonTexture: CG.Texture;
+    private _renderer: CG.IRenderer;
+    private _backFBO: CG.IFramebuffer;
+    private _depthTexture: CG.ITexture;
+    private _colorTexture: CG.ITexture;
+    private _latlonTexture: CG.ITexture;
     private _meshCube: CG.Mesh;
     private _meshCube1: CG.Mesh;
     private _meshCube2: CG.Mesh;
@@ -29,15 +29,16 @@ export default class Application {
     private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
     private _axis: CG.Axes;
     private _gridFloor: CG.GridFloor;
-    private _backFBOPipeline: CG.Pipeline;
+    private _backFBOPipeline: CG.IPipeline;
     private _outline: CG.Outline;
     private _picker: CG.Picker;
     private _deltaTimeInMS: number = 0;
 
     constructor() {
         this.createGUI();
+        CG.registWebGL();
         CG.programManagerHint(true, true);
-        const gl = this._gl = CG.createGLContext('glcanvas');
+        const gl = this._gl = CG.createContext('glcanvas');
         const _evts = CG.registMouseEvents(gl.canvas as HTMLCanvasElement);
         this._camera = new CG.Camera(-10, 4, 8).setMouseEvents(_evts).setFrustum(this._frustum)//.setPosition(-4, 0, 0)
             .lookAt(CG.Vec4.VEC4_0001)

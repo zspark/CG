@@ -1,8 +1,9 @@
 import log from "./log.js"
 import { Mat44, roMat44 } from "./math.js";
 import { mouseEvents } from "./mouse-events.js"
-import { IGeometry } from "./geometry.js"
-import { Texture, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./webgl.js";
+import { GLFramebuffer_C0_r32i } from "./webgl.js"
+import { ISubPipeline, IPipeline, IRenderer, ITexture, IGeometry } from "./types-interfaces.js";
+import { Texture, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./device-resource.js";
 import createLoader from "./assets-loader.js";
 import { Event_t, default as EventSender } from "./event.js";
 
@@ -16,52 +17,20 @@ export interface IPickable {
     readonly transform: roMat44;
 };
 
-class Framebuffer_C0_r32i extends Framebuffer {
-
-    private _ref_texture_r32i: Texture;
-    private _depthTexture: Texture;
-    private _clearColor: Int32Array = new Int32Array(4).fill(0);
-    private _pixel = new Int32Array(1);
-
-    constructor(gl: WebGL2RenderingContext, width: number, height: number) {
-        super(gl, width, height);
-        this._ref_texture_r32i = new Texture(gl, gl.R32I, gl.RED_INTEGER, gl.INT).createGLTextureWithSize(width, height);
-        this.attachColorTexture(this._ref_texture_r32i, 0);
-        //
-        // todo: change to render buffer depth .
-        this._depthTexture = new Texture(gl, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT).createGLTextureWithSize(width, height);
-        this.attachDepthTexture(this._depthTexture);
-    }
-    get criticalKey(): object { return Framebuffer; }
-    clear(): void {
-        const gl = this._gl;
-        gl.clearBufferiv(gl.COLOR, 0, this._clearColor);
-        gl.clear(gl.DEPTH_BUFFER_BIT);
-    }
-
-    readPixel(x: number, y: number): number {
-        const gl = this._gl;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
-        gl.readBuffer(gl.COLOR_ATTACHMENT0);
-        gl.readPixels(x, this._height - y, 1, 1, gl.RED_INTEGER, gl.INT, this._pixel);
-        return this._pixel[0];
-    }
-}
-
 
 export default class Picker extends EventSender<PickResult_t> {
     static PICKED: number = 1;
 
-    private _backFBO: Framebuffer_C0_r32i;
+    private _backFBO: GLFramebuffer_C0_r32i;
     private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _tempMat44b: Mat44 = new Mat44().setIdentity();
-    private _uuidToPickables: Map<number, { t: IPickable, p: SubPipeline }> = new Map();
-    private _pipeline: Pipeline;
+    private _uuidToPickables: Map<number, { t: IPickable, p: ISubPipeline }> = new Map();
+    private _pipeline: IPipeline;
     private _gl: WebGL2RenderingContext;
     private _event: Event_t<PickResult_t>;
-    private _renderer: Renderer;
+    private _renderer: IRenderer;
 
-    constructor(gl: WebGL2RenderingContext, renderer: Renderer) {
+    constructor(gl: WebGL2RenderingContext, renderer: IRenderer) {
         super();
         this._gl = gl;
         this._renderer = renderer;
@@ -75,7 +44,7 @@ export default class Picker extends EventSender<PickResult_t> {
 
         const width: number = gl.drawingBufferWidth;
         const height: number = gl.drawingBufferHeight;
-        this._backFBO = new Framebuffer_C0_r32i(gl, width, height);
+        this._backFBO = new GLFramebuffer_C0_r32i(gl, width, height);
 
         createLoader("./").loadShader_separate("./glsl/pureRed", "./glsl/attachment-r32i").then((sources) => {
             this._pipeline
@@ -130,7 +99,7 @@ export default class Picker extends EventSender<PickResult_t> {
         this._tempMat44.copyFrom(vpMatrix);
     }
 
-    private _createSubPipeline(target: IPickable): SubPipeline {
+    private _createSubPipeline(target: IPickable): ISubPipeline {
         const gl = this._gl;
         return new SubPipeline()
             .setGeometry(target.geometry)

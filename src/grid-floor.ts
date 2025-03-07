@@ -2,7 +2,8 @@ import glC from "./gl-const.js";
 import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { Mat44 } from "./math.js";
-import { Pipeline, Framebuffer, SubPipeline, Renderer } from "./webgl.js";
+import { Pipeline, SubPipeline } from "./device-resource.js";
+import { IPipeline, IFramebuffer, IRenderer } from "./types-interfaces.js";
 import { ICamera } from "./camera.js";
 import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
 import getProgram from "./program-manager.js"
@@ -11,9 +12,9 @@ export default class GridFloor extends Mesh {
 
     private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _tempMat44b: Mat44 = new Mat44().setIdentity();
-    private _pipeline: Pipeline;
+    private _pipeline: IPipeline;
 
-    constructor(gl: WebGL2RenderingContext, renderer: Renderer, fbo?: Framebuffer) {
+    constructor(gl: WebGL2RenderingContext, renderer: IRenderer, fbo?: IFramebuffer) {
         super(geometry.createGridPlane(100).createGPUResource(gl, true));
         const _subP = new SubPipeline()
             .setGeometry(this.geometry)

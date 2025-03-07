@@ -1,9 +1,10 @@
 import log from "./log.js"
 import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
-import { Program } from "./webgl.js";
+import { Program } from "./device-resource.js";
+import { IProgram } from "./types-interfaces.js";
 
 const _mapShader: Map<string, WebGLShader> = new Map();
-const _mapProgram: Map<string, Program> = new Map();
+const _mapProgram: Map<string, IProgram> = new Map();
 let _cacheProgram: boolean = true;
 let _cacheShader: boolean = true;
 
@@ -12,11 +13,11 @@ export function programManagerHint(cacheAllPrograms: boolean, cacheAllShaders: b
     _cacheShader = cacheAllShaders;
 }
 
-export default function getProgram(gl: WebGL2RenderingContext, shaderID: ShaderID_t): Program {
+export default function getProgram(gl: WebGL2RenderingContext, shaderID: ShaderID_t): IProgram {
     let _out = ShaderAssembler.assembleVertexSource(shaderID);
     let _out2 = ShaderAssembler.assembleFragmentSource(shaderID);
     const _id = _out.id + _out2.id;
-    let _program: Program = _mapProgram.get(_id);
+    let _program: IProgram = _mapProgram.get(_id);
     if (!_program) {
 
         if (_cacheShader) {

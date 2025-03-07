@@ -1,6 +1,6 @@
 import log from "./log.js"
 import OrthogonalSpace from "./orthogonal-space.js"
-import { IGeometry } from "./geometry.js"
+import { IGeometry } from "./types-interfaces.js"
 import { IPickable } from "./picker.js";
 import utils from "./utils.js";
 

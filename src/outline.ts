@@ -1,17 +1,18 @@
-import { geometry, IGeometry } from "./geometry.js"
-import { Texture, Program, Pipeline, SubPipeline, Renderer } from "./webgl.js";
+import { geometry } from "./geometry.js"
+import { Texture, Program, Pipeline, SubPipeline, Renderer } from "./device-resource.js";
+import { IGeometry, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
 import createLoader from "./assets-loader.js";
 
 export default class Outline {
 
     private _frontFBOQuad: IGeometry;
-    private _pipeline: Pipeline;
-    private _subPipeline: SubPipeline;
-    private _ref_renderer: Renderer;
+    private _pipeline: IPipeline;
+    private _subPipeline: ISubPipeline;
+    private _ref_renderer: IRenderer;
     private _doneFlag: boolean = false;
     private _enabledFlag: boolean = false;
 
-    constructor(gl: WebGL2RenderingContext, renderer: Renderer) {
+    constructor(gl: WebGL2RenderingContext, renderer: IRenderer) {
         this._ref_renderer = renderer;
         this._frontFBOQuad = geometry.createFrontQuad().createGPUResource(gl, true);
         this._subPipeline = new SubPipeline()
@@ -38,7 +39,7 @@ export default class Outline {
         });
     }
 
-    setDepthTexture(texture: Texture): Outline {
+    setDepthTexture(texture: ITexture): Outline {
         this._subPipeline.setTexture(texture);
         return this;
     }

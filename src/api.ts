@@ -1,10 +1,11 @@
 export { default as log } from "./log.js";
 export { default as utils } from "./utils.js";
-export { createGLContext, UniformUpdater, Program, Texture, SkyboxTexture, Framebuffer, Pipeline, PipelineOption, SubPipeline, SubPipelineOption, Renderer } from "./webgl.js";
+export { registWebGL, createContext, Buffer, Program, Texture, SkyboxTexture, Framebuffer, Pipeline, SubPipeline, Renderer } from "./device-resource.js";
+export { IBuffer, IProgram, ITexture, ISkyboxTexture, IFramebuffer, IPipeline, ISubPipeline, IRenderer, IGeometry } from "./types-interfaces.js";
 export { default as createLoader, ILoader } from "./assets-loader.js";
 export { ICamera, default as Camera } from "./camera.js";
 export { default as Frustum } from "./frustum.js";
-export { IGeometry, geometry, default as Geometry } from "./geometry.js";
+export { geometry, default as Geometry } from "./geometry.js";
 export { default as light, ILight } from "./light-source.js";
 export { roMat44, xyzw, rgba, Vec4, Mat44, Quat } from "./math.js";
 export { default as Mesh } from "./mesh.js";
