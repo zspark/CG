@@ -1,4 +1,5 @@
 import log from "./log.js"
+import { initProgram } from "./program-manager.js"
 import { default as glC, initGLConstant } from "./gl-const.js"
 import {
     createContext_fn_t,
@@ -21,6 +22,7 @@ export const createGLContext: createContext_fn_t = (canvasElementId: string): We
         log.vital("[createGLContent] WebGL 2.0 not supported!");
     }
     initGLConstant(gl);
+    initProgram(gl);
     const ext = gl.getExtension('EXT_color_buffer_float');
     if (ext) {
         log.info("[createGLContent] Extension enabled: EXT_color_buffer_float\n", ext);
@@ -475,7 +477,6 @@ export class GLPipeline implements IPipeline {
     FBO: IFramebuffer;
     program: IProgram;
 
-    private _gl: WebGL2RenderingContext;
     private _arrSubPipeline: ISubPipeline[] = [];
     private _arrOneTimeSubPipeline: ISubPipeline[] = [];
     private _enableCullFace = false;
@@ -492,10 +493,9 @@ export class GLPipeline implements IPipeline {
     private _drawBuffers: GLenum[];
     private _priority: number;
 
-    constructor(gl: WebGL2RenderingContext, priority: number = 0) {
-        this._gl = gl;
-        this._culledFace = gl.BACK;
-        this._depthTestFunc = gl.LESS;
+    constructor(priority: number = 0) {
+        this._culledFace = glC.BACK;
+        this._depthTestFunc = glC.LESS;
         this._priority = priority;
     }
 
@@ -557,7 +557,7 @@ export class GLPipeline implements IPipeline {
         return this;
     }
 
-    execute(): IPipeline {
+    execute(gl: WebGL2RenderingContext): IPipeline {
         _renderState.bind(this.FBO);
         if (this._arrSubPipeline.length <= 0) return this;
         _renderState.bind(this.program);
@@ -566,7 +566,6 @@ export class GLPipeline implements IPipeline {
         _renderState.setDepthTest(this._enableDepthTest, this._depthTestFunc);
         _renderState.setBlend(this._enableBlend, this._blendFuncSF, this._blendFuncDF, this._blendEquation);
 
-        const gl = this._gl;
         this._drawBuffers && gl.drawBuffers(this._drawBuffers);
 
         this._arrSubPipeline.forEach(subp => {
@@ -752,15 +751,15 @@ export class GLRenderer implements IRenderer {
     render(): IRenderer {
         const gl = this._gl;
         this._arrPipeline.forEach((p) => {
-            p.execute();
+            p.execute(gl);
         });
         this._arrOneTimePipeline.forEach((p) => {
-            p.execute();
+            p.execute(gl);
         });
         this._arrOneTimePipeline.length = 0;
         //gl.disable(gl.DEPTH_TEST);
         this._arrTransparentPipeline.forEach((p) => {
-            p.execute();
+            p.execute(gl);
         });
         return this;
     }

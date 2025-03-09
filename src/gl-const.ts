@@ -1,6 +1,6 @@
 type _glConst = {
-    STATIC_DRAW:GLenum,
-    DYNAMIC_DRAW:GLenum,
+    STATIC_DRAW: GLenum,
+    DYNAMIC_DRAW: GLenum,
 
     ARRAY_BUFFER: GLenum,
     ELEMENT_ARRAY_BUFFER: GLenum,
@@ -19,6 +19,7 @@ type _glConst = {
     DEPTH_TEST: GLenum,
     DEPTH_FUNC: GLenum,
     DEPTH: GLenum,
+    LESS: GLenum,
 
     BLEND: GLenum,
     SRC_ALPHA: GLenum,
@@ -53,6 +54,7 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.ELEMENT_ARRAY_BUFFER = gl.ELEMENT_ARRAY_BUFFER;
     glConst.STATIC_DRAW = gl.STATIC_DRAW;
     glConst.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
+    glConst.LESS = gl.LESS;
 
 }
 

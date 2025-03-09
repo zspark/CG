@@ -129,7 +129,7 @@ export interface IPipeline {
     cullFace(enable: boolean, culledFace?: GLenum): IPipeline;
     drawBuffers(...buffers: GLenum[]): IPipeline;
     validate(): IPipeline;
-    execute(): IPipeline;
+    execute(gl: WebGL2RenderingContext): IPipeline;
 }
 
 export interface IGeometry extends IBindableObject {

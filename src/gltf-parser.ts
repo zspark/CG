@@ -183,12 +183,12 @@ export default class GLTFParser implements IGLTFParser {
     private _parseMesh(mesh: GLTFMesh_t): IGeometry {
         const _geo: IGeometry = new Geometry();
         for (let i = 0, N = mesh.primitives.length; i < N; ++i) {
-            this._parsePrimitives(_geo, mesh.primitives[i]);
+            this._parsePrimitive(_geo, mesh.primitives[i]);
         }
         return _geo;
     }
 
-    private _parsePrimitives(geo: IGeometry, primitive: GLTFPrimitive_t): void {
+    private _parsePrimitive(geo: IGeometry, primitive: GLTFPrimitive_t): void {
         let _acc;
         /*
         _acc = this._ref_accessors[primitive.indices];

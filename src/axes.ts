@@ -50,9 +50,9 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
                 },
             })
 
-        const _pipeline = new Pipeline(gl, -1000)
+        const _pipeline = new Pipeline(-1000)
             .setFBO(fbo)
-            .setProgram(getProgram(gl, { instanced_matrix: true, color_vertex_attrib: true, }))
+            .setProgram(getProgram({ instanced_matrix: true, color_vertex_attrib: true, }))
             .appendSubPipeline(_subPipe)
             .depthTest(false/*, glC.LESS*/)
             .validate();

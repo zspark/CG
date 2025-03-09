@@ -74,10 +74,10 @@ export default class Application {
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
                 },
             });
-        const _p2 = new CG.Pipeline(gl, 10)
+        const _p2 = new CG.Pipeline(10)
             .cullFace(false, gl.BACK)
             .depthTest(false, gl.LESS)
-            .setProgram(CG.getProgram(gl, { position_pass_through: true, skybox_latlon: true }))
+            .setProgram(CG.getProgram({ position_pass_through: true, skybox_latlon: true }))
             .appendSubPipeline(_subPipeCubeLatlon)
             .validate()
         this._renderer.addPipeline(_p2);
@@ -101,10 +101,10 @@ export default class Application {
         const _subPipeCube3 = _subPipeCube.clone()
             .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
 
-        const _p = new CG.Pipeline(gl, 0)
+        const _p = new CG.Pipeline(0)
             .cullFace(true, gl.BACK)
             .depthTest(true, gl.LESS)
-            .setProgram(CG.getProgram(gl, { color_vertex_attrib: true, }))
+            .setProgram(CG.getProgram({ color_vertex_attrib: true, }))
             .appendSubPipeline(_subPipeCube)
             .appendSubPipeline(_subPipeCube2)
             .appendSubPipeline(_subPipeCube3)
@@ -115,7 +115,7 @@ export default class Application {
             .addPickableTarget(this._meshCube3);
 
         this._loader.loadShader_separate("./glsl/pureRed", "./glsl/depth-to-color-attachment-r32f").then((sources) => {
-            this._backFBOPipeline = new CG.Pipeline(gl, 100)
+            this._backFBOPipeline = new CG.Pipeline(100)
                 .setFBO(this._backFBO)
                 .cullFace(true, gl.BACK)
                 .depthTest(false, gl.LESS)
@@ -152,10 +152,10 @@ export default class Application {
                 const _subPipeCube = new CG.SubPipeline()
                     .setGeometry(data.CGMeshs[i].geometry)
                     .setUniformUpdater(this.createUpdater(this._camera, this._light, data.CGMeshs[i], new CG.Vec4(1, 0, 0, 1)))
-                const _p = new CG.Pipeline(gl, 0)
+                const _p = new CG.Pipeline(0)
                     .cullFace(true, gl.BACK)
                     .depthTest(true, gl.LESS)
-                    .setProgram(CG.getProgram(gl, { normal: true, }))
+                    .setProgram(CG.getProgram({ normal: true, }))
                     .appendSubPipeline(_subPipeCube)
                     .validate()
                 this._renderer.addPipeline(_p);

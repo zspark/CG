@@ -27,7 +27,7 @@ export default class Outline {
                 },
             })
 
-        this._pipeline = new Pipeline(gl, -200000)
+        this._pipeline = new Pipeline(-200000)
             .depthTest(false/*, glC.LESS*/)
             .cullFace(false)
             .appendSubPipeline(this._subPipeline);

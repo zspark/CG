@@ -5,7 +5,6 @@ import { Mat44 } from "./math.js";
 import { Pipeline, SubPipeline } from "./device-resource.js";
 import { IPipeline, IFramebuffer, IRenderer } from "./types-interfaces.js";
 import { ICamera } from "./camera.js";
-import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
 import getProgram from "./program-manager.js"
 
 export default class GridFloor extends Mesh {
@@ -30,11 +29,11 @@ export default class GridFloor extends Mesh {
             })
             .validate();
 
-        this._pipeline = new Pipeline(gl, -999)
+        this._pipeline = new Pipeline(-999)
             .setFBO(fbo)
             .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .depthTest(true, gl.LESS)
-            .setProgram(getProgram(gl, { fade_away_from_camera: true, }))
+            .depthTest(true, glC.LESS)
+            .setProgram(getProgram({ fade_away_from_camera: true, }))
             .appendSubPipeline(_subP)
             .validate();
 

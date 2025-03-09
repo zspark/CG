@@ -13,7 +13,12 @@ export function programManagerHint(cacheAllPrograms: boolean, cacheAllShaders: b
     _cacheShader = cacheAllShaders;
 }
 
-export default function getProgram(gl: WebGL2RenderingContext, shaderID: ShaderID_t): IProgram {
+let _gl: WebGL2RenderingContext;
+export function initProgram(gl: WebGL2RenderingContext): void {
+    _gl = gl;
+}
+
+export default function getProgram(shaderID: ShaderID_t): IProgram {
     let _out = ShaderAssembler.assembleVertexSource(shaderID);
     let _out2 = ShaderAssembler.assembleFragmentSource(shaderID);
     const _id = _out.id + _out2.id;
@@ -23,18 +28,18 @@ export default function getProgram(gl: WebGL2RenderingContext, shaderID: ShaderI
         if (_cacheShader) {
             let _vertShader = _mapShader.get(_out.id);
             if (!_vertShader) {
-                _vertShader = Program.compile(gl, _out.source, gl.VERTEX_SHADER);
+                _vertShader = Program.compile(_gl, _out.source, _gl.VERTEX_SHADER);
                 _mapShader.set(_out.id, _vertShader);
             }
             let _fragShader = _mapShader.get(_out2.id);
             if (!_fragShader) {
-                _fragShader = Program.compile(gl, _out2.source, gl.FRAGMENT_SHADER);
+                _fragShader = Program.compile(_gl, _out2.source, _gl.FRAGMENT_SHADER);
                 _mapShader.set(_out2.id, _fragShader);
             }
 
-            _program = new Program(gl).link(_vertShader, _fragShader);
+            _program = new Program(_gl).link(_vertShader, _fragShader);
         } else {
-            _program = new Program(gl, _out.source, _out2.source);
+            _program = new Program(_gl, _out.source, _out2.source);
         }
         _mapProgram.set(_id, _program);
     }

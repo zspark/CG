@@ -40,7 +40,7 @@ export default class Picker extends EventSender<PickResult_t> {
             sender: this,
             info: { last: undefined, picked: undefined },
         };
-        this._pipeline = new Pipeline(gl, -2000000)
+        this._pipeline = new Pipeline(-2000000)
 
         const width: number = gl.drawingBufferWidth;
         const height: number = gl.drawingBufferHeight;
