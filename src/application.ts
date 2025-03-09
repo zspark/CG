@@ -114,15 +114,13 @@ export default class Application {
             .addPickableTarget(this._meshCube2)
             .addPickableTarget(this._meshCube3);
 
-        this._loader.loadShader_separate("./glsl/pureRed", "./glsl/depth-to-color-attachment-r32f").then((sources) => {
-            this._backFBOPipeline = new CG.Pipeline(100)
-                .setFBO(this._backFBO)
-                .cullFace(true, gl.BACK)
-                .depthTest(false, gl.LESS)
-                //.drawBuffers(gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1)
-                .setProgram(new CG.Program(gl, sources[0], sources[1])).validate()
-            this._renderer.addPipeline(this._backFBOPipeline);
-        });
+        this._backFBOPipeline = new CG.Pipeline(100)
+            .setFBO(this._backFBO)
+            .cullFace(true, gl.BACK)
+            .depthTest(false, gl.LESS)
+            //.drawBuffers(gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1)
+            .setProgram(CG.getProgram({ for_pick: true })).validate()
+        this._renderer.addPipeline(this._backFBOPipeline);
 
         //--------------------------------------------------------------------------------
         this._picker.addReceiver({
@@ -155,7 +153,7 @@ export default class Application {
                 const _p = new CG.Pipeline(0)
                     .cullFace(true, gl.BACK)
                     .depthTest(true, gl.LESS)
-                    .setProgram(CG.getProgram({ normal: true, }))
+                    .setProgram(CG.getProgram({ debug_normal: true, }))
                     .appendSubPipeline(_subPipeCube)
                     .validate()
                 this._renderer.addPipeline(_p);

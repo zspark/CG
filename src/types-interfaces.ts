@@ -68,6 +68,7 @@ export type UniformUpdater_t = {
 export interface IProgram extends IBindableObject {
     link(vertexShader: WebGLShader, fragmentShader: WebGLShader): IProgram;
     getAttribLocation(name: string): void;
+    updateUniformBlock(data: BufferData_t): IProgram;
     updateUniforms(uniformUpdater: UniformUpdater_t): IProgram;
     destroy(): void;
 }

@@ -4,7 +4,7 @@ import { mouseEvents } from "./mouse-events.js"
 import { GLFramebuffer_C0_r32i } from "./webgl.js"
 import { ISubPipeline, IPipeline, IRenderer, ITexture, IGeometry } from "./types-interfaces.js";
 import { Texture, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./device-resource.js";
-import createLoader from "./assets-loader.js";
+import getProgram from "./program-manager.js"
 import { Event_t, default as EventSender } from "./event.js";
 
 export type PickResult_t = {
@@ -46,14 +46,12 @@ export default class Picker extends EventSender<PickResult_t> {
         const height: number = gl.drawingBufferHeight;
         this._backFBO = new GLFramebuffer_C0_r32i(gl, width, height);
 
-        createLoader("./").loadShader_separate("./glsl/pureRed", "./glsl/attachment-r32i").then((sources) => {
-            this._pipeline
-                .setProgram(new Program(gl, sources[0], sources[1]))
-                .setFBO(this._backFBO)
-                .cullFace(true, gl.BACK)
-                .depthTest(true, gl.LESS)
-                .validate()
-        });
+        this._pipeline
+            .setProgram(getProgram({ pick: true, }))
+            .setFBO(this._backFBO)
+            .cullFace(true, gl.BACK)
+            .depthTest(true, gl.LESS)
+            .validate()
     }
 
     setMouseEvents(events: mouseEvents): Picker {

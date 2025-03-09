@@ -15,6 +15,36 @@ import {
 
 let _renderState: RenderState;
 
+class GLUniformBlock {
+
+    private _glBuffer: WebGLBuffer;
+    private _blockSizeInBytes: number = -1;
+
+    constructor() { }
+
+    get blockSizeInBytes(): number {
+        return this._blockSizeInBytes;
+    }
+
+    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram): GLUniformBlock {
+        const blockIndex = gl.getUniformBlockIndex(program, "u_uniforms");
+        if (blockIndex > 128) return;
+        const sizeInBytes = this._blockSizeInBytes = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+        this._glBuffer ??= gl.createBuffer();
+        gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
+        gl.bufferData(gl.UNIFORM_BUFFER, sizeInBytes, gl.DYNAMIC_DRAW); // 3 mat4 (16 floats each, 4 bytes per float)
+        gl.uniformBlockBinding(program, blockIndex, 0);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this._glBuffer);
+        return this;
+    }
+    updateData(gl: WebGL2RenderingContext, data: BufferData_t): GLUniformBlock {
+        gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
+        gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data);
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+        return this;
+    }
+}
+
 export const createGLContext: createContext_fn_t = (canvasElementId: string): WebGL2RenderingContext => {
     const canvas: HTMLCanvasElement = document.getElementById(canvasElementId) as HTMLCanvasElement;
     const gl = canvas.getContext('webgl2', { stencil: true });
@@ -128,6 +158,7 @@ export class GLProgram implements IProgram {
     private _glProgram: WebGLProgram;
     private _gl: WebGL2RenderingContext;
     private _mapUniform = new Map();
+    private _uniformBlock = new GLUniformBlock();
 
     static compile(gl: WebGL2RenderingContext, vsSource: string, type: GLenum): WebGLShader | undefined {
         const _shader = gl.createShader(type);
@@ -183,17 +214,32 @@ export class GLProgram implements IProgram {
 
         this._glProgram = shaderProgram;
         _wm_program.set(this, shaderProgram);
+
+        //this._uniformBlock.createGPUResource(gl, this._glProgram);
         return this;
     }
+
+    updateUniformBlock(data: BufferData_t): IProgram {
+        this._uniformBlock.updateData(this._gl, data);
+        return this;
+    }
+
+    get uniformBlockSizeInBytes(): number {
+        return this._uniformBlock.blockSizeInBytes;
+    }
+
+
     getAttribLocation(name: string) {
         return this._gl.getAttribLocation(this._glProgram, name);
     }
+
     updateUniforms(uniformUpdater: UniformUpdater_t): IProgram {
         this._mapUniform.forEach((v, k) => {
             uniformUpdater[`update${k}`](v);
         });
         return this;
     };
+
     bind(): void {
         this._gl.useProgram(this._glProgram);
     };

@@ -32,11 +32,14 @@ export type ShaderID_t = {
     position_pass_through?: boolean,
     skybox_latlon?: boolean,
 
-    normal?:boolean,
+    debug_normal?: boolean,
 
+    sobel_silhouette?: boolean,
     color_default?: boolean,
     color_uniform?: boolean,
     color_vertex_attrib?: boolean,
+    pick?: boolean,
+    for_pick?: boolean,
 };
 
 export type SourceContent_t = {

@@ -1,7 +1,7 @@
 import { geometry } from "./geometry.js"
-import { Texture, Program, Pipeline, SubPipeline, Renderer } from "./device-resource.js";
+import { Pipeline, SubPipeline } from "./device-resource.js";
+import getProgram from "./program-manager.js"
 import { IGeometry, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
-import createLoader from "./assets-loader.js";
 
 export default class Outline {
 
@@ -28,15 +28,13 @@ export default class Outline {
             })
 
         this._pipeline = new Pipeline(-200000)
+            .setProgram(getProgram({ position_pass_through: true, sobel_silhouette: true, }))
             .depthTest(false/*, glC.LESS*/)
             .cullFace(false)
-            .appendSubPipeline(this._subPipeline);
-
-        createLoader("./").loadShader_separate("./glsl/one-texture-front-quad", "./glsl/sobel-silhouette").then((sources) => {
-            this._pipeline.setProgram(new Program(gl, sources[0], sources[1])).validate()
-            this._doneFlag = true;
-            if (this._enabledFlag) this._ref_renderer.addPipeline(this._pipeline);
-        });
+            .appendSubPipeline(this._subPipeline)
+            .validate()
+        this._doneFlag = true;
+        if (this._enabledFlag) this._ref_renderer.addPipeline(this._pipeline);
     }
 
     setDepthTexture(texture: ITexture): Outline {
