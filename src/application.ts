@@ -84,9 +84,9 @@ export default class Application {
 
         //--------------------------------------------------------------------------------
         this._geometryCube = CG.geometry.createCube(2).createGPUResource(gl, true);
-        const _meshCube1 = this._meshCube1 = new CG.Mesh(this._geometryCube);
-        const _meshCube2 = this._meshCube2 = new CG.Mesh(this._geometryCube);
-        const _meshCube3 = this._meshCube3 = new CG.Mesh(this._geometryCube);
+        const _meshCube1 = this._meshCube1 = new CG.Mesh("cube1", this._geometryCube);
+        const _meshCube2 = this._meshCube2 = new CG.Mesh("cube2", this._geometryCube);
+        const _meshCube3 = this._meshCube3 = new CG.Mesh("cube3", this._geometryCube);
         this._ctrl.setSpace(_meshCube1).setPosition(2, 2, 2)
             .setSpace(_meshCube2).setPosition(-4, -4, 3).rotateAroundSelfX(Math.PI / 3)
             .setSpace(_meshCube3).setPosition(0.5, 6, -8).rotateAroundSelfY(1.7).rotateAroundSelfZ(0.33);
@@ -142,22 +142,25 @@ export default class Application {
         }, CG.Picker.PICKED);
         //
         //--------------------------------------------------------------------------------
-        new CG.GLTFParser().load("./assets/gltf/cube/scene.gltf").then((data: CG.GLTFParserOutput_t) => {
-            const _geo: CG.IGeometry = data.geometrys[0];
-            _geo.setDrawElementsParameters(gl.TRIANGLES, 36, gl.UNSIGNED_INT, 0).createGPUResource(gl, true)
-            const _meshCube1 = new CG.Mesh(_geo);
-            const _subPipeCube = new CG.SubPipeline()
-                .setGeometry(_geo)
-                .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube1, new CG.Vec4(1, 0, 0, 1)))
-            const _p = new CG.Pipeline(gl, 0)
-                .cullFace(true, gl.BACK)
-                .depthTest(true, gl.LESS)
-                .setProgram(CG.getProgram(gl, { normal: true, }))
-                .appendSubPipeline(_subPipeCube)
-                .validate()
-            this._renderer.addPipeline(_p);
-            this._picker.addPickableTarget(_meshCube1);
+        new CG.GLTFParser().load("./assets/gltf/skull/scene.gltf").then((data: CG.GLTFParserOutput_t) => {
+            for (let i = 0, N = data.geometrys.length; i < N; ++i) {
+                data.geometrys[i].createGPUResource(gl, true);
+            }
 
+            for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
+                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(-2, -2, 2)
+                const _subPipeCube = new CG.SubPipeline()
+                    .setGeometry(data.CGMeshs[i].geometry)
+                    .setUniformUpdater(this.createUpdater(this._camera, this._light, data.CGMeshs[i], new CG.Vec4(1, 0, 0, 1)))
+                const _p = new CG.Pipeline(gl, 0)
+                    .cullFace(true, gl.BACK)
+                    .depthTest(true, gl.LESS)
+                    .setProgram(CG.getProgram(gl, { normal: true, }))
+                    .appendSubPipeline(_subPipeCube)
+                    .validate()
+                this._renderer.addPipeline(_p);
+                this._picker.addPickableTarget(data.CGMeshs[i]);
+            }
         });
     }
 
@@ -175,25 +178,25 @@ export default class Application {
         const gl = this._gl;
         return {
             updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                camera.viewProjectionMatrix.multiply(mesh.transform, this._tempMat44);
+                camera.viewProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mvMatrix: (uLoc: WebGLUniformLocation) => {
-                camera.viewMatrix.multiply(mesh.transform, this._tempMat44);
+                camera.viewMatrix.multiply(mesh.modelMatrix, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mlMatrix_normal: (uLoc: WebGLUniformLocation) => {
-                //this._tempMat44.copyFrom(mesh.transform).invert().transpose(); // remember, this's wrong!!!
-                this._tempMat44.copyFrom(mesh.transform).invertTransposeLeftTop33();// this one is right.
+                //this._tempMat44.copyFrom(mesh.modelMatrix).invert().transpose(); // remember, this's wrong!!!
+                this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
                 light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mlpMatrix: (uLoc: WebGLUniformLocation) => {
-                light.lightProjectionMatrix.multiply(mesh.transform, this._tempMat44);
+                light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_mlMatrix: (uLoc: WebGLUniformLocation) => {
-                light.lightMatrix.multiply(mesh.transform, this._tempMat44);
+                light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_shadowMap: (uLoc: WebGLUniformLocation) => {
@@ -211,7 +214,7 @@ export default class Application {
             /// --------------------------------------------------------------------------------
             /// debug normals;
             updateu_debugNormalModelMatrix: (uLoc: WebGL2RenderingContext) => { // model to world
-                this._tempMat44.copyFrom(mesh.transform).invertTransposeLeftTop33();
+                this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();
                 gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
             },
             updateu_debugNormalViewMatrix: (uLoc: WebGL2RenderingContext) => { // world to view;

@@ -4,8 +4,16 @@ import { default as Geometry } from "./geometry.js"
 import { IGeometry, IBuffer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
 import { Buffer } from "./device-resource.js"
 import { GLBuffer } from "./webgl.js"
+import Mesh from "./mesh.js"
+import SpacialNode from "./spacial-node.js"
+import { Mat44, Quat } from "./math.js"
 
+type GLTFScene_t = {
+    name?: string;
+    nodes: number[],
+};
 type GLTFNode_t = {
+    name?: string;
     children?: number[];
     matrix?: number[];
     translation?: number[];
@@ -45,9 +53,6 @@ type GLTFAccessor_t = {
     max?: number[],
 }
 
-type GLTFScene_t = {
-    nodes: number[],
-};
 type GLTFMesh_t = {
     primitives: GLTFPrimitive_t[],
 };
@@ -67,11 +72,15 @@ export interface IGLTFParser {
 
 
 export type GLTFParserOutput_t = {
+    CGMeshs: Mesh[],
     geometrys: IGeometry[],
+    SpacialNodes: SpacialNode[],
 }
 
 export default class GLTFParser implements IGLTFParser {
 
+    private _helperMat4: Mat44 = new Mat44();
+    private _quat_rotate: Quat = new Quat([0, 0, 0, 0]);
     private _arrBuffers: IBuffer[] = [];
     private _arrData: ArrayBuffer[] = [];
     private _ref_gltf: GLTFv2_t;
@@ -82,7 +91,7 @@ export default class GLTFParser implements IGLTFParser {
     private _loader: ILoader;
 
     constructor(deleteAfterParse: boolean = true) {
-        this._output = { geometrys: [], }
+        this._output = { SpacialNodes: [], geometrys: [], CGMeshs: [] }
     }
 
     async load(url: string): Promise<GLTFParserOutput_t> {
@@ -93,6 +102,53 @@ export default class GLTFParser implements IGLTFParser {
         await this._loadData(_gltf.buffers);
         this._parse(_gltf);
         return this._output;
+    }
+
+    private _parseNodes(nodes: GLTFNode_t[]): void {
+        for (let i = 0, N = nodes.length; i < N; ++i) {
+            this._parseNode(i, nodes[i]);
+        }
+
+        const _CGNodes = this._output.SpacialNodes;
+        for (let i = 0, N = nodes.length; i < N; ++i) {
+            let _node = nodes[i];
+            if (_node.children) {
+                let _pNode = _CGNodes[i];
+                for (let j = 0, M = _node.children.length; j < M; ++j) {
+                    _pNode.addChildNode(_CGNodes[_node.children[j]]);
+                }
+            }
+        }
+    }
+
+    private _parseNode(index: number, node: GLTFNode_t): void {
+        let _CGNode: SpacialNode;
+        if (node.mesh != undefined) {
+            _CGNode = new Mesh(node.name);
+            (_CGNode as Mesh).geometry = this._output.geometrys[node.mesh];
+            this._output.CGMeshs.push(_CGNode as Mesh);
+        } else {
+            _CGNode = new SpacialNode(node.name);
+        }
+        this._output.SpacialNodes[index] = _CGNode;
+
+        if (node.matrix) {
+            _CGNode.transform.reset(node.matrix, 0, 16);
+        } else {
+            if (node.translation) {
+                Mat44.createTranslate(node.scale[0], node.scale[1], node.scale[2], this._helperMat4);
+                _CGNode.transformSelf(this._helperMat4);
+            }
+            if (node.rotation) {
+                this._quat_rotate.reset(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]);
+                //TODO:
+                _CGNode.transformSelf(this._helperMat4);
+            }
+            if (node.scale) {
+                Mat44.createScale(node.scale[0], node.scale[1], node.scale[2], this._helperMat4);
+                _CGNode.transformSelf(this._helperMat4);
+            }
+        }
     }
 
     private async _loadGLFT(name: string): Promise<GLTFv2_t> {
@@ -111,7 +167,8 @@ export default class GLTFParser implements IGLTFParser {
         this._ref_gltf = gltf;
         this._ref_accessors = gltf.accessors;
         this._ref_bufferViews = gltf.bufferViews;
-        this._parseMeshes(gltf.meshes);
+        gltf.meshes && this._parseMeshes(gltf.meshes);
+        gltf.nodes && this._parseNodes(gltf.nodes);
     }
 
     private _parseMeshes(meshes: GLTFMesh_t[]): void {

@@ -15,16 +15,16 @@ export default class GridFloor extends Mesh {
     private _pipeline: IPipeline;
 
     constructor(gl: WebGL2RenderingContext, renderer: IRenderer, fbo?: IFramebuffer) {
-        super(geometry.createGridPlane(100).createGPUResource(gl, true));
+        super("internal-grid-floor", geometry.createGridPlane(100).createGPUResource(gl, true));
         const _subP = new SubPipeline()
             .setGeometry(this.geometry)
             .setUniformUpdater({
                 updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.multiply(this.transform, this._tempMat44);
+                    this._tempMat44.multiply(this.modelMatrix, this._tempMat44);
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
                 },
                 updateu_mvMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44b.multiply(this.transform, this._tempMat44b);
+                    this._tempMat44b.multiply(this.modelMatrix, this._tempMat44b);
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44b.data);
                 },
             })

@@ -1,5 +1,6 @@
 import glC from "./gl-const.js";
 import engineC from "./engine-const.js";
+import SpacialNode from "./spacial-node.js"
 import OrthogonalSpace from "./orthogonal-space.js"
 import Mesh from "./mesh.js"
 import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
@@ -13,7 +14,7 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
 
     private _targetMatricesDirty = false;
     private _tempMat44: Mat44 = new Mat44().setIdentity();
-    private _arrRefTarget: OrthogonalSpace[] = [];
+    private _arrRefTarget: SpacialNode[] = [];
     private _instanceMatrices: Float32Array<ArrayBufferLike>;
     private _instanceMatricesHandler: Mat44;
     private _drawCmd: DrawArraysInstancedParameter = {
@@ -26,7 +27,7 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
     private _instanceMatricesBuffer = new Buffer();
 
     constructor(gl: WebGL2RenderingContext, renderer: IRenderer, fbo?: IFramebuffer) {
-        super(geometry.createAxes(2));
+        super("internal-axes", geometry.createAxes(2));
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
         this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);
         this._instanceMatricesBuffer
@@ -66,7 +67,7 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
             const N = this._arrRefTarget.length;
             for (let i = 0; i < N; ++i) {
                 _m.remap(this._instanceMatrices, 16 * (i + 1));
-                _m.copyFrom(this._arrRefTarget[i].transform);
+                _m.copyFrom(this._arrRefTarget[i].modelMatrix);
             }
             this._drawCmd.instanceCount = N + 1;
             this._instanceMatricesBuffer.updateData(this._instanceMatrices);
@@ -75,13 +76,13 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
             this._targetMatricesDirty = false;
         }
     }
-    addTarget(target: OrthogonalSpace): Axes {
+    addTarget(target: SpacialNode): Axes {
         this._arrRefTarget.push(target);
         target.addReceiver(this, OrthogonalSpace.TRANSFORM_CHANGED);
         this._targetMatricesDirty = true;
         return this;
     }
-    setTarget(target: OrthogonalSpace): Axes {
+    setTarget(target: SpacialNode): Axes {
         this.removeAllTargets();
         return this.addTarget(target);
     }

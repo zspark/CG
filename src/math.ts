@@ -206,6 +206,13 @@ export class Mat44 {
         outMat.data[5] = Math.cos(theta);
         return outMat;
     }
+    static createTranslate(transX: number, transY: number, transZ: number, outMat: Mat44): Mat44 {
+        (outMat ??= new Mat44()).setIdentity();
+        outMat.data[12] = transX;
+        outMat.data[13] = transY;
+        outMat.data[14] = transZ;
+        return outMat;
+    }
     static createTranslateX(delta: number, outMat: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
         outMat.data[12] = delta;

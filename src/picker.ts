@@ -14,7 +14,7 @@ export type PickResult_t = {
 export interface IPickable {
     readonly uuid: number;
     readonly geometry: IGeometry;
-    readonly transform: roMat44;
+    readonly modelMatrix: roMat44;
 };
 
 
@@ -105,7 +105,7 @@ export default class Picker extends EventSender<PickResult_t> {
             .setGeometry(target.geometry)
             .setUniformUpdater({
                 updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.multiply(target.transform, this._tempMat44b);
+                    this._tempMat44.multiply(target.modelMatrix, this._tempMat44b);
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44b.data);
                 },
                 updateu_uuid: (uLoc: WebGLUniformLocation) => {
