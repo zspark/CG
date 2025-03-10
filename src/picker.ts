@@ -47,7 +47,7 @@ export default class Picker extends EventSender<PickResult_t> {
         this._backFBO = new GLFramebuffer_C0_r32i(gl, width, height);
 
         this._pipeline
-            .setProgram(getProgram({ pick: true, }))
+            .setProgram(getProgram({ r32i: true, }))
             .setFBO(this._backFBO)
             .cullFace(true, gl.BACK)
             .depthTest(true, gl.LESS)

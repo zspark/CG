@@ -29,17 +29,16 @@ function _getShaderSource(id: ShaderID_t, source: string[], prefix: string): Sou
 export type ShaderID_t = {
     fade_away_from_camera?: boolean,
     instanced_matrix?: boolean,
-    position_pass_through?: boolean,
+    position_in_ndc?: boolean,
     skybox_latlon?: boolean,
 
     debug_normal?: boolean,
 
     sobel_silhouette?: boolean,
-    color_default?: boolean,
-    color_uniform?: boolean,
     color_vertex_attrib?: boolean,
-    pick?: boolean,
-    for_pick?: boolean,
+    color_uniform?: boolean,
+    r32i?: boolean,
+    r32f?: boolean,
 };
 
 export type SourceContent_t = {

@@ -77,7 +77,7 @@ export default class Application {
         const _p2 = new CG.Pipeline(10)
             .cullFace(false, gl.BACK)
             .depthTest(false, gl.LESS)
-            .setProgram(CG.getProgram({ position_pass_through: true, skybox_latlon: true }))
+            .setProgram(CG.getProgram({ position_in_ndc: true, skybox_latlon: true }))
             .appendSubPipeline(_subPipeCubeLatlon)
             .validate()
         this._renderer.addPipeline(_p2);
@@ -119,7 +119,7 @@ export default class Application {
             .cullFace(true, gl.BACK)
             .depthTest(false, gl.LESS)
             //.drawBuffers(gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1)
-            .setProgram(CG.getProgram({ for_pick: true })).validate()
+            .setProgram(CG.getProgram({ r32f: true })).validate()
         this._renderer.addPipeline(this._backFBOPipeline);
 
         //--------------------------------------------------------------------------------

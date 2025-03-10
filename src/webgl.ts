@@ -228,7 +228,6 @@ export class GLProgram implements IProgram {
         return this._uniformBlock.blockSizeInBytes;
     }
 
-
     getAttribLocation(name: string) {
         return this._gl.getAttribLocation(this._glProgram, name);
     }

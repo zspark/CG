@@ -9,6 +9,7 @@ import getProgram from "./program-manager.js"
 
 export default class GridFloor extends Mesh {
 
+    private _color = [0.5, 0.5, 0.5];
     private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _tempMat44b: Mat44 = new Mat44().setIdentity();
     private _pipeline: IPipeline;
@@ -26,6 +27,9 @@ export default class GridFloor extends Mesh {
                     this._tempMat44b.multiply(this.modelMatrix, this._tempMat44b);
                     gl.uniformMatrix4fv(uLoc, false, this._tempMat44b.data);
                 },
+                updateu_color: (uLoc: WebGLUniformLocation) => {
+                    gl.uniform3fv(uLoc, this._color);
+                },
             })
             .validate();
 
@@ -33,7 +37,7 @@ export default class GridFloor extends Mesh {
             .setFBO(fbo)
             .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .depthTest(true, glC.LESS)
-            .setProgram(getProgram({ fade_away_from_camera: true, }))
+            .setProgram(getProgram({ fade_away_from_camera: true, color_uniform: true }))
             .appendSubPipeline(_subP)
             .validate();
 
