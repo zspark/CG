@@ -2,6 +2,7 @@ export type createContext_fn_t = (canvasElementId: string) => WebGL2RenderingCon
 
 export type BufferData_t = AllowSharedBufferSource & {
     length: number;
+    set: (data: any, offset: number) => void;
 };
 
 export type AttributeLayout_t = {
@@ -61,15 +62,13 @@ export interface IBuffer {
     destroyGPUResource(): void;
 }
 
-export type UniformUpdater_t = {
-    [key: string]: (u: WebGLUniformLocation) => void;
-}
+export type UniformUpdaterFn_t = (program: IProgram) => void;
 
 export interface IProgram extends IBindableObject {
     link(vertexShader: WebGLShader, fragmentShader: WebGLShader): IProgram;
-    getAttribLocation(name: string): void;
-    updateUniformBlock(data: BufferData_t): IProgram;
-    updateUniforms(uniformUpdater: UniformUpdater_t): IProgram;
+    updateUniformBlock(name: string, data: BufferData_t): IProgram;
+    uploadUniformBlock(): IProgram;
+    uploadUniform(name: string, value: any): IProgram;
     destroy(): void;
 }
 
@@ -154,9 +153,9 @@ export interface IGeometry extends IBindableObject {
 
 export interface ISubPipeline {
     get geometry(): IGeometry;
-    get uniformUpdater(): UniformUpdater_t;
+    get uniformUpdaterFn(): UniformUpdaterFn_t;
 
-    setUniformUpdater(updater: UniformUpdater_t): ISubPipeline;
+    setUniformUpdaterFn(updater: UniformUpdaterFn_t): ISubPipeline;
     setGeometry(geo: IGeometry): ISubPipeline;
     setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline;
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline;

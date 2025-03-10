@@ -7,7 +7,7 @@ import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
 import { Buffer, Pipeline, SubPipeline, Renderer, Framebuffer } from "./device-resource.js";
-import { IPipeline, IFramebuffer, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
+import { IPipeline, IProgram, IFramebuffer, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
 import { IEventReceiver, Event_t } from "./event.js";
 
 export default class Axes extends Mesh implements IEventReceiver<number> {
@@ -44,11 +44,9 @@ export default class Axes extends Mesh implements IEventReceiver<number> {
 
         const _subPipe = new SubPipeline()
             .setGeometry(this._ref_geo)
-            .setUniformUpdater({
-                updateu_vpMatrix: (uLoc: WebGLUniformLocation) => {
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-                },
-            })
+            .setUniformUpdaterFn((program: IProgram) => {
+                program.uploadUniform("u_vpMatrix", this._tempMat44.data);
+            });
 
         const _pipeline = new Pipeline(-1000)
             .setFBO(fbo)

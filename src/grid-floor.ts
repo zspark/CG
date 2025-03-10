@@ -3,7 +3,7 @@ import Mesh from "./mesh.js"
 import { geometry } from "./geometry.js"
 import { Mat44 } from "./math.js";
 import { Pipeline, SubPipeline } from "./device-resource.js";
-import { IPipeline, IFramebuffer, IRenderer } from "./types-interfaces.js";
+import { IPipeline, IProgram, IFramebuffer, IRenderer } from "./types-interfaces.js";
 import { ICamera } from "./camera.js";
 import getProgram from "./program-manager.js"
 
@@ -18,18 +18,12 @@ export default class GridFloor extends Mesh {
         super("internal-grid-floor", geometry.createGridPlane(100).createGPUResource(gl, true));
         const _subP = new SubPipeline()
             .setGeometry(this.geometry)
-            .setUniformUpdater({
-                updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.multiply(this.modelMatrix, this._tempMat44);
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-                },
-                updateu_mvMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44b.multiply(this.modelMatrix, this._tempMat44b);
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44b.data);
-                },
-                updateu_color: (uLoc: WebGLUniformLocation) => {
-                    gl.uniform3fv(uLoc, this._color);
-                },
+            .setUniformUpdaterFn((program: IProgram) => {
+                this._tempMat44.multiply(this.modelMatrix, this._tempMat44);
+                program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
+                this._tempMat44b.multiply(this.modelMatrix, this._tempMat44b);
+                program.uploadUniform("u_mvMatrix", this._tempMat44.data);
+                program.uploadUniform("u_color", this._color);
             })
             .validate();
 

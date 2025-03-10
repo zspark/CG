@@ -61,18 +61,12 @@ export default class Application {
         const _subPipeCubeLatlon = new CG.SubPipeline()
             .setGeometry(_plane)
             .setTexture(this._latlonTexture)
-            .setUniformUpdater({
-                updateu_skybox_latlon: (uLoc: WebGLUniformLocation) => {
-                    gl.uniform1i(uLoc, this._latlonTexture.textureUnit);
-                },
-                updateu_pInvMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.copyFrom(this._frustum.projectionMatrix).invert();
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-                },
-                updateu_vInvMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.copyFrom(this._camera.viewMatrix).invert();
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-                },
+            .setUniformUpdaterFn((program: CG.IProgram) => {
+                program.uploadUniform("u_skybox_latlon", this._latlonTexture.textureUnit);
+                this._tempMat44.copyFrom(this._frustum.projectionMatrix).invert();
+                program.uploadUniform("u_pInvMatrix", this._tempMat44.data);
+                this._tempMat44.copyFrom(this._camera.viewMatrix).invert();
+                program.uploadUniform("u_vInvMatrix", this._tempMat44.data);
             });
         const _p2 = new CG.Pipeline(10)
             .cullFace(false, gl.BACK)
@@ -95,11 +89,11 @@ export default class Application {
 
         const _subPipeCube = new CG.SubPipeline()
             .setGeometry(_meshCube1.geometry)
-            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube1, new CG.Vec4(1, 0, 0, 1)))
+            .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, _meshCube1, new CG.Vec4(1, 0, 0, 1)))
         const _subPipeCube2 = _subPipeCube.clone()
-            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
+            .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
         const _subPipeCube3 = _subPipeCube.clone()
-            .setUniformUpdater(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
+            .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
 
         const _p = new CG.Pipeline(0)
             .cullFace(true, gl.BACK)
@@ -133,7 +127,7 @@ export default class Application {
                 this._backFBOPipeline.appendSubPipeline(
                     new CG.SubPipeline()
                         .setGeometry(this._meshCube.geometry)
-                        .setUniformUpdater(this.createUpdater(this._camera, this._light, this._meshCube, new CG.Vec4(1, 0, 0, 1)))
+                        .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, this._meshCube, new CG.Vec4(1, 0, 0, 1)))
                 )
                 return false;
             },
@@ -149,7 +143,7 @@ export default class Application {
                 //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(-2, -2, 2)
                 const _subPipeCube = new CG.SubPipeline()
                     .setGeometry(data.CGMeshs[i].geometry)
-                    .setUniformUpdater(this.createUpdater(this._camera, this._light, data.CGMeshs[i], new CG.Vec4(1, 0, 0, 1)))
+                    .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, data.CGMeshs[i], new CG.Vec4(1, 0, 0, 1)))
                 const _p = new CG.Pipeline(0)
                     .cullFace(true, gl.BACK)
                     .depthTest(true, gl.LESS)
@@ -174,55 +168,29 @@ export default class Application {
 
     createUpdater(camera: CG.ICamera, light: CG.ILight, mesh: CG.Mesh, color: CG.rgba) {
         const gl = this._gl;
-        return {
-            updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                camera.viewProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-            },
-            updateu_mvMatrix: (uLoc: WebGLUniformLocation) => {
-                camera.viewMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-            },
-            updateu_mlMatrix_normal: (uLoc: WebGLUniformLocation) => {
-                //this._tempMat44.copyFrom(mesh.modelMatrix).invert().transpose(); // remember, this's wrong!!!
-                this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
-                light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
-                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-            },
-            updateu_mlpMatrix: (uLoc: WebGLUniformLocation) => {
-                light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-            },
-            updateu_mlMatrix: (uLoc: WebGLUniformLocation) => {
-                light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-            },
-            updateu_shadowMap: (uLoc: WebGLUniformLocation) => {
-                gl.uniform1i(uLoc, 0);
-            },
-            updateu_color: (uLoc: WebGLUniformLocation) => {
-                gl.uniform3f(uLoc, color.x, color.y, color.z);
-            },
-            updateu_nearFarPlane: (uLoc: WebGLUniformLocation) => {
-                gl.uniform2f(uLoc, Application.NEAR_PLANE, Application.FAR_PLANE);
-            },
-
-
-
+        return (program: CG.IProgram) => {
+            camera.viewProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
+            program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
+            camera.viewMatrix.multiply(mesh.modelMatrix, this._tempMat44);
+            program.uploadUniform("u_mvMatrix", this._tempMat44.data);
+            this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
+            light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
+            program.uploadUniform("u_mlMatrix_normal", this._tempMat44.data);
+            light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
+            program.uploadUniform("u_mlpMatrix", this._tempMat44.data);
+            light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
+            program.uploadUniform("u_mlMatrix", this._tempMat44.data);
+            program.uploadUniform("u_shadowMap", 0);
+            program.uploadUniform("u_color", [color.x, color.y, color.z]);
+            program.uploadUniform("u_nearFarPlane", [Application.NEAR_PLANE, Application.FAR_PLANE]);
+            this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();
             /// --------------------------------------------------------------------------------
             /// debug normals;
-            updateu_debugNormalModelMatrix: (uLoc: WebGL2RenderingContext) => { // model to world
-                this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();
-                gl.uniformMatrix4fv(uLoc, false, this._tempMat44.data);
-            },
-            updateu_debugNormalViewMatrix: (uLoc: WebGL2RenderingContext) => { // world to view;
-                gl.uniformMatrix4fv(uLoc, false, camera.viewMatrix.data);
-            },
-            updateu_debugNormalSpace: (uLoc: WebGL2RenderingContext) => { // 0:model space; 1:world space; 2:view space;
-                gl.uniform1i(uLoc, 1);
-            },
+            program.uploadUniform("u_debugNormalModelMatrix", this._tempMat44.data);
+            program.uploadUniform("u_debugNormalViewMatrix", camera.viewMatrix.data);
+            program.uploadUniform("u_debugNormalSpace", 1);
             /// --------------------------------------------------------------------------------
-        }
+        };
     }
 
     createGUI() {

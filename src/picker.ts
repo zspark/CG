@@ -2,7 +2,7 @@ import log from "./log.js"
 import { Mat44, roMat44 } from "./math.js";
 import { mouseEvents } from "./mouse-events.js"
 import { GLFramebuffer_C0_r32i } from "./webgl.js"
-import { ISubPipeline, IPipeline, IRenderer, ITexture, IGeometry } from "./types-interfaces.js";
+import { IProgram, ISubPipeline, IPipeline, IRenderer, ITexture, IGeometry } from "./types-interfaces.js";
 import { Texture, Program, Pipeline, SubPipeline, Renderer, Framebuffer } from "./device-resource.js";
 import getProgram from "./program-manager.js"
 import { Event_t, default as EventSender } from "./event.js";
@@ -101,14 +101,10 @@ export default class Picker extends EventSender<PickResult_t> {
         const gl = this._gl;
         return new SubPipeline()
             .setGeometry(target.geometry)
-            .setUniformUpdater({
-                updateu_mvpMatrix: (uLoc: WebGLUniformLocation) => {
-                    this._tempMat44.multiply(target.modelMatrix, this._tempMat44b);
-                    gl.uniformMatrix4fv(uLoc, false, this._tempMat44b.data);
-                },
-                updateu_uuid: (uLoc: WebGLUniformLocation) => {
-                    gl.uniform1i(uLoc, target.uuid);
-                },
+            .setUniformUpdaterFn((program: IProgram) => {
+                this._tempMat44.multiply(target.modelMatrix, this._tempMat44b);
+                program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
+                program.uploadUniform("u_uuid", target.uuid);
             });
     }
 }

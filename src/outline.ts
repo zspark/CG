@@ -1,7 +1,7 @@
 import { geometry } from "./geometry.js"
 import { Pipeline, SubPipeline } from "./device-resource.js";
 import getProgram from "./program-manager.js"
-import { IGeometry, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
+import { IProgram, IGeometry, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
 
 export default class Outline {
 
@@ -17,15 +17,10 @@ export default class Outline {
         this._frontFBOQuad = geometry.createFrontQuad().createGPUResource(gl, true);
         this._subPipeline = new SubPipeline()
             .setGeometry(this._frontFBOQuad)
-            .setUniformUpdater({
-                updateu_edgeThrottle: (uLoc: WebGLUniformLocation) => {
-                    gl.uniform1f(uLoc, 2);
-                },
-                updateu_depthTexture_r32f: (uLoc: WebGLUniformLocation) => {
-                    gl.uniform1i(uLoc, 0);
-
-                },
-            })
+            .setUniformUpdaterFn((program: IProgram) => {
+                program.uploadUniform("u_edgeThrottle", 2);
+                program.uploadUniform("u_depthTexture_r32f", 0);
+            });
 
         this._pipeline = new Pipeline(-200000)
             .setProgram(getProgram({ position_in_ndc: true, sobel_silhouette: true, }))

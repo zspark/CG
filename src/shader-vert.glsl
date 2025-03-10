@@ -3,11 +3,12 @@ precision mediump float;
 
 //%%
 
-uniform mat4 u_pInvMatrix;
-uniform mat4 u_vInvMatrix;
+// layout(std140) uniform u_ub_camera { };
 uniform mat4 u_mvMatrix;
 uniform mat4 u_vpMatrix;
 uniform mat4 u_mvpMatrix;
+uniform mat4 u_pInvMatrix;
+uniform mat4 u_vInvMatrix;
 uniform mat4 u_debugNormalModelMatrix;  // model to world;
 uniform mat4 u_debugNormalViewMatrix;   // world to view;
 uniform int u_debugNormalSpace;  // 0:model space; 1:world space; 2:view space;
@@ -24,7 +25,6 @@ out float v_distanceToCamera;
 out vec3 v_color;
 out vec3 v_normal;
 out vec3 v_rayDirection;
-
 
 void main() {
     vec4 pos = vec4(a_position, 1.0);

@@ -8,7 +8,7 @@ import {
     IProgram,
     ITexture, ISkyboxTexture,
     IFramebuffer,
-    IPipeline, ISubPipeline, UniformUpdater_t, PipelineOption_t, SubPipelineOption_t,
+    IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
     IRenderer,
     IBindableObject,
 } from "./types-interfaces.js";
@@ -18,26 +18,19 @@ let _renderState: RenderState;
 class GLUniformBlock {
 
     private _glBuffer: WebGLBuffer;
-    private _blockSizeInBytes: number = -1;
 
     constructor() { }
 
-    get blockSizeInBytes(): number {
-        return this._blockSizeInBytes;
-    }
-
-    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram): GLUniformBlock {
-        const blockIndex = gl.getUniformBlockIndex(program, "u_uniforms");
-        if (blockIndex > 128) return;
-        const sizeInBytes = this._blockSizeInBytes = gl.getActiveUniformBlockParameter(program, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram, blockIndex: GLenum, sizeInBytes: number): GLUniformBlock {
         this._glBuffer ??= gl.createBuffer();
         gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
-        gl.bufferData(gl.UNIFORM_BUFFER, sizeInBytes, gl.DYNAMIC_DRAW); // 3 mat4 (16 floats each, 4 bytes per float)
+        gl.bufferData(gl.UNIFORM_BUFFER, sizeInBytes, gl.DYNAMIC_DRAW);
         gl.uniformBlockBinding(program, blockIndex, 0);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this._glBuffer);
         return this;
     }
-    updateData(gl: WebGL2RenderingContext, data: BufferData_t): GLUniformBlock {
+
+    uploadData(gl: WebGL2RenderingContext, data: BufferData_t): GLUniformBlock {
         gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
         gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data);
         gl.bindBuffer(gl.UNIFORM_BUFFER, null);
@@ -157,8 +150,10 @@ const _wm_program = new WeakMap();
 export class GLProgram implements IProgram {
     private _glProgram: WebGLProgram;
     private _gl: WebGL2RenderingContext;
-    private _mapUniform = new Map();
+    private _mapUniformFn: Map<string, (value: any) => void> = new Map();
     private _uniformBlock = new GLUniformBlock();
+    private _blockData: BufferData_t;
+    private _uniformBlockLayout: Map<string, number> = new Map();
 
     static compile(gl: WebGL2RenderingContext, vsSource: string, type: GLenum): WebGLShader | undefined {
         const _shader = gl.createShader(type);
@@ -201,43 +196,73 @@ export class GLProgram implements IProgram {
             return;
         }
 
+        let _uniformIndicesInBlock: number[] = [];
+        let _uniformOffsetsInBlock: number[] = [];
+        const blockIndex = gl.getUniformBlockIndex(shaderProgram, "u_ub_camera");
+        if (blockIndex !== gl.INVALID_INDEX) {
+            const sizeInBytes = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+            this._blockData = new Float32Array(sizeInBytes / 4);
+            gl.uniformBlockBinding(shaderProgram, blockIndex, 0);
+            _uniformIndicesInBlock = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)
+            _uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
+            //const _uniformTypesInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_TYPE);
+            this._uniformBlock.createGPUResource(gl, shaderProgram, blockIndex, sizeInBytes);
+        } else {
+            log.warn("[GLUniformBlock] Uniform Block not found!");
+        }
+
+        let _fn: any;
         const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
         for (let i = 0; i < uniformCount; i++) {
             const uniformInfo = gl.getActiveUniform(shaderProgram, i);
-            if (uniformInfo) {
-                const _u = gl.getUniformLocation(shaderProgram, uniformInfo.name);
-                this._mapUniform.set(uniformInfo.name, _u);
+            if (_uniformIndicesInBlock.includes(i)) {
+                this._uniformBlockLayout.set(uniformInfo.name, _uniformOffsetsInBlock[i]);
             } else {
-                log.vital("[gl.js] can't get uniform info.");
+                const _u = gl.getUniformLocation(shaderProgram, uniformInfo.name);
+                switch (uniformInfo.type) {
+                    case gl.INT:
+                        _fn = gl.uniform1i.bind(gl, _u);
+                        break;
+                    case gl.FLOAT:
+                        _fn = gl.uniform1f.bind(gl, _u);
+                        break;
+                    case gl.FLOAT_VEC3:
+                        _fn = gl.uniform3fv.bind(gl, _u);
+                        break;
+                    case gl.FLOAT_VEC4:
+                        _fn = gl.uniform4fv.bind(gl, _u);
+                        break;
+                    case gl.FLOAT_MAT4:
+                        _fn = gl.uniformMatrix4fv.bind(gl, _u, false);
+                        break;
+                    case gl.SAMPLER_2D:
+                        _fn = gl.uniform1i.bind(gl, _u);
+                        break;
+                }
+                this._mapUniformFn.set(uniformInfo.name, _fn);
             }
         }
 
         this._glProgram = shaderProgram;
         _wm_program.set(this, shaderProgram);
-
-        //this._uniformBlock.createGPUResource(gl, this._glProgram);
         return this;
     }
 
-    updateUniformBlock(data: BufferData_t): IProgram {
-        this._uniformBlock.updateData(this._gl, data);
+    updateUniformBlock(name: string, data: BufferData_t): IProgram {
+        this._blockData.set(data, this._uniformBlockLayout.get(name));
         return this;
     }
 
-    get uniformBlockSizeInBytes(): number {
-        return this._uniformBlock.blockSizeInBytes;
-    }
-
-    getAttribLocation(name: string) {
-        return this._gl.getAttribLocation(this._glProgram, name);
-    }
-
-    updateUniforms(uniformUpdater: UniformUpdater_t): IProgram {
-        this._mapUniform.forEach((v, k) => {
-            uniformUpdater[`update${k}`](v);
-        });
+    uploadUniformBlock(): IProgram {
+        this._uniformBlock.uploadData(this._gl, this._blockData);
         return this;
-    };
+    }
+
+    uploadUniform(name: string, value: any): IProgram {
+        let _fn = this._mapUniformFn.get(name);
+        _fn && _fn(value);
+        return this;
+    }
 
     bind(): void {
         this._gl.useProgram(this._glProgram);
@@ -615,14 +640,14 @@ export class GLPipeline implements IPipeline {
 
         this._arrSubPipeline.forEach(subp => {
             subp.bind();
-            this.program.updateUniforms(subp.uniformUpdater);
+            subp.uniformUpdaterFn(this.program);
             subp.draw();
         });
 
         if (this._arrOneTimeSubPipeline.length <= 0) return this;
         this._arrOneTimeSubPipeline.forEach(subp => {
             subp.bind();
-            this.program.updateUniforms(subp.uniformUpdater);
+            subp.uniformUpdaterFn(this.program);
             subp.draw();
         });
         this._arrOneTimeSubPipeline.length = 0;
@@ -632,69 +657,77 @@ export class GLPipeline implements IPipeline {
 
 export class GLSubPipeline implements ISubPipeline {
 
-    geometry: IGeometry;
-    textureSet: Set<ITexture | ISkyboxTexture> = new Set();
-    uniformUpdater: UniformUpdater_t;
+    private _geometry: IGeometry;
+    private _textureSet: Set<ITexture | ISkyboxTexture> = new Set();
+    private _uniformUpdaterFn: UniformUpdaterFn_t;
 
     constructor() { }
 
-    setUniformUpdater(updater: UniformUpdater_t): ISubPipeline {
-        this.uniformUpdater = updater;
+    get geometry():IGeometry{
+        return this._geometry;
+    }
+
+    get uniformUpdaterFn(): UniformUpdaterFn_t {
+        return this._uniformUpdaterFn;
+    }
+
+    setUniformUpdaterFn(updater: UniformUpdaterFn_t): ISubPipeline {
+        this._uniformUpdaterFn = updater;
         return this;
     }
 
     setGeometry(geo: IGeometry): ISubPipeline {
-        this.geometry = geo;
+        this._geometry = geo;
         return this;
     }
     setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline {
         tex.forEach(t => {
-            this.textureSet.add(t);
+            this._textureSet.add(t);
         });
         return this;
     }
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline {
-        this.textureSet.add(texture);
+        this._textureSet.add(texture);
         return this;
     }
     clearTextures(): ISubPipeline {
-        this.textureSet.clear();
+        this._textureSet.clear();
         return this;
     }
 
     validate(): ISubPipeline {
         //TODO: fix this, recusive referrencing.;
-        if (!(this.geometry instanceof Object))
+        if (!(this._geometry instanceof Object))
             log.vital('[SubPipeline] geometry is not a instance of Geometry.');
-        this.textureSet.forEach((tex) => {
+        this._textureSet.forEach((tex) => {
             if (!(tex instanceof GLTexture))
                 log.vital('[SubPipeline] textureSet has null-Texture object.');
         });
-        if (!this.uniformUpdater) log.vital('[SubPipeline] uniform updater is not exist.');
+        if (!this._uniformUpdaterFn) log.vital('[SubPipeline] uniform updater is not exist.');
         return this;
     }
 
     bind(): void {
-        _renderState.bind(this.geometry);
+        _renderState.bind(this._geometry);
         //TODO: further improvments.
         let i = 0;
-        this.textureSet.forEach(t => {
+        this._textureSet.forEach(t => {
             t.bind(i);
             ++i;
         });
     }
 
     draw(): void {
-        this.geometry.drawCMD();
+        this._geometry.drawCMD();
     }
 
     clone(): ISubPipeline {
         const sub = new GLSubPipeline();
-        sub.geometry = this.geometry;
-        this.textureSet.forEach(t => {
-            sub.textureSet.add(t);
+        sub._geometry = this._geometry;
+        this._textureSet.forEach(t => {
+            sub._textureSet.add(t);
         });
-        sub.uniformUpdater = this.uniformUpdater;
+        sub._uniformUpdaterFn = this._uniformUpdaterFn;
         return sub;
     }
 }
