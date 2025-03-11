@@ -31,9 +31,12 @@ export default class SpaceController {
         this._helperMat44R.setIdentity();
         this._helperMat44T.setIdentity();
     }
-    setSpace(space: OrthogonalSpace): SpaceController {
-        this._space = space;
-        return this;
+    setSpace(space: OrthogonalSpace): SpaceController | undefined {
+        if (space) {
+            this._space = space;
+            return this;
+        }
+        else return;
     }
 
     /**

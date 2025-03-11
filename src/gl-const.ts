@@ -6,6 +6,7 @@ type _glConst = {
     ELEMENT_ARRAY_BUFFER: GLenum,
     FLOAT: GLenum,
     UNSIGNED_SHORT: GLenum;
+    UNSIGNED_BYTE: GLenum,
 
     FRAMEBUFFER: GLenum,
     FRAMEBUFFER_COMPLETE: GLenum,
@@ -28,6 +29,26 @@ type _glConst = {
 
     CULL_FACE: GLenum,
     CULL_FACE_MODE: GLenum,
+
+    RGBA: GLenum,
+
+    TEXTURE_WRAP_R: GLenum,
+    TEXTURE_WRAP_S: GLenum,
+    TEXTURE_WRAP_T: GLenum,
+    TEXTURE_MIN_FILTER: GLenum,
+    TEXTURE_MAG_FILTER: GLenum,
+    CLAMP_TO_EDGE: GLenum,
+    NEAREST: GLenum,
+
+    DEPTH_COMPONENT16: GLenum,
+    DEPTH_COMPONENT: GLenum,
+    R32I: GLenum,
+    RED_INTEGER: GLenum,
+    INT: GLenum,
+    R32F: GLenum,
+    RED: GLenum,
+
+
 }
 
 //@ts-ignore
@@ -55,7 +76,24 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.STATIC_DRAW = gl.STATIC_DRAW;
     glConst.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
     glConst.LESS = gl.LESS;
+    glConst.RGBA = gl.RGBA;
+    glConst.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
 
+    glConst.TEXTURE_WRAP_R = gl.TEXTURE_WRAP_R;
+    glConst.TEXTURE_WRAP_S = gl.TEXTURE_WRAP_S;
+    glConst.TEXTURE_WRAP_T = gl.TEXTURE_WRAP_T;
+    glConst.TEXTURE_MIN_FILTER = gl.TEXTURE_MIN_FILTER;
+    glConst.TEXTURE_MAG_FILTER = gl.TEXTURE_MAG_FILTER;
+    glConst.CLAMP_TO_EDGE = gl.CLAMP_TO_EDGE;
+    glConst.NEAREST = gl.NEAREST;
+
+    glConst.DEPTH_COMPONENT16 = gl.DEPTH_COMPONENT16;
+    glConst.DEPTH_COMPONENT = gl.DEPTH_COMPONENT;
+    glConst.R32I = gl.R32I;
+    glConst.R32F = gl.R32F;
+    glConst.RED = gl.RED;
+    glConst.RED_INTEGER = gl.RED_INTEGER;
+    glConst.INT = gl.INT;
 }
 
 export default glConst;

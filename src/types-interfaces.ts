@@ -1,4 +1,4 @@
-export type createContext_fn_t = (canvasElementId: string) => WebGL2RenderingContext;
+export type createContext_fn_t = (canvas: HTMLCanvasElement) => WebGL2RenderingContext;
 
 export type BufferData_t = AllowSharedBufferSource & {
     length: number;
@@ -74,10 +74,10 @@ export interface IProgram extends IBindableObject {
 
 export interface ITexture {
     get textureUnit(): GLint;
+    set data(data: ArrayBuffer);
 
-    createGLTexture(data: any): ITexture;
-    updateData(data: any, xoffset: number, yoffset: number, width: number, height: number): ITexture;
-    createGLTextureWithSize(width: number, height: number): ITexture;
+    createGPUResource(gl: WebGL2RenderingContext): ITexture;
+    updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
     setParameter(name: number, value: number): ITexture;
     bind(textureUnit: number): ITexture;
     destroyGLTexture(): ITexture;
@@ -85,23 +85,21 @@ export interface ITexture {
 
 export interface ISkyboxTexture {
 
+    set data(data: ArrayBuffer[]);
     get textureUnit(): GLint;
 
+    createGPUResource(gl: WebGL2RenderingContext): ISkyboxTexture;
     /**
      * data[0-5]: x+,x-,y+, y-, z+,z-
      */
-    createGLTexture(data: any[]): ISkyboxTexture;
-    createGLTextureWithSize(width: number, height: number): ISkyboxTexture;
-    /**
-     * data[0-5]: x+,x-,y+, y-, z+,z-
-     */
-    updateData(data: any[], xoffset: number, yoffset: number, width: number, height: number): ISkyboxTexture;
+    updateData(data: any[], xoffset?: number, yoffset?: number, width?: number, height?: number): ISkyboxTexture;
     setParameter(name: number, value: number): ISkyboxTexture;
     bind(textureUnit: number): ISkyboxTexture;
     destroyGLTexture(): ISkyboxTexture;
 }
 
 export interface IFramebuffer extends IBindableObject {
+    createGPUResource(gl: WebGL2RenderingContext): void;
     attachColorTexture(texture: ITexture, attachment: number, target?: GLenum): void;
     attachDepthTexture(texture: ITexture, target?: number): void;
     validate(): void;
@@ -110,7 +108,7 @@ export interface IFramebuffer extends IBindableObject {
 }
 
 export type SubPipelineOption_t = {
-    onlyOnce?: boolean;
+    renderOnce?: boolean;
 };
 
 export interface IPipeline {
@@ -118,9 +116,9 @@ export interface IPipeline {
     get priority(): number;
     get program(): IProgram;
 
-
     setFBO(fbo: IFramebuffer): IPipeline;
     setProgram(program: IProgram): IPipeline;
+    createGPUResource(gl: WebGL2RenderingContext): IPipeline;
     appendSubPipeline(subp: ISubPipeline, option?: SubPipelineOption_t): IPipeline;
     removeSubPipeline(subp: ISubPipeline): IPipeline;
     removeSubPipelines(): IPipeline;
@@ -129,7 +127,7 @@ export interface IPipeline {
     cullFace(enable: boolean, culledFace?: GLenum): IPipeline;
     drawBuffers(...buffers: GLenum[]): IPipeline;
     validate(): IPipeline;
-    execute(gl: WebGL2RenderingContext): IPipeline;
+    execute(context: IRenderContext): IPipeline;
 }
 
 export interface IGeometry extends IBindableObject {
@@ -153,15 +151,16 @@ export interface IGeometry extends IBindableObject {
 
 export interface ISubPipeline {
     get geometry(): IGeometry;
-    get uniformUpdaterFn(): UniformUpdaterFn_t;
 
+    createGPUResource(gl: WebGL2RenderingContext): ISubPipeline;
     setUniformUpdaterFn(updater: UniformUpdaterFn_t): ISubPipeline;
     setGeometry(geo: IGeometry): ISubPipeline;
     setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline;
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline;
     clearTextures(): ISubPipeline;
     validate(): ISubPipeline;
-    bind(): void;
+    update(program: IProgram): ISubPipeline;
+    bind(context: IRenderContext): void;
     draw(): void;
     clone(): ISubPipeline;
 }
@@ -174,9 +173,18 @@ export interface IBindableObject {
 };
 
 export interface IRenderer {
+    readonly gl: WebGL2RenderingContext;
     render(): IRenderer;
     addPipeline(p: IPipeline, option?: PipelineOption_t): IRenderer;
     addTransparentPipeline(p: IPipeline): IRenderer;
     removePipeline(p: IPipeline): IRenderer;
+}
+
+export interface IRenderContext {
+    readonly gl: WebGL2RenderingContext;
+    bind(obj: IBindableObject): void;
+    setDepthTest(enable: boolean, func: GLenum): void;
+    setBlend(enable: boolean, funcSF: GLenum, funcDF: GLenum, equation: GLenum): void;
+    setCullFace(enable: boolean, faceToCull: GLenum): void;
 }
 

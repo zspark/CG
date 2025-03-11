@@ -1,7 +1,7 @@
 import log from "./log.js"
 
 export type mouseEventCallback = (evt: MouseEvent | WheelEvent) => void;
-export type mouseEvents = {
+export type MouseEvents_t = {
     onDown: (cb: mouseEventCallback) => void;
     offDown: (cb: mouseEventCallback) => void;
     onWheel: (cb: mouseEventCallback) => void;
@@ -67,7 +67,7 @@ export default function registMouseEvents(canvas: HTMLCanvasElement) {
     const _mapMoveCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
     const _mapDBClickCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
     const _mapClickCallbackFun = new Map<mouseEventCallback, boolean>();// cb->true;
-    const _mouseEvents: mouseEvents = {
+    const _mouseEvents: MouseEvents_t = {
         onDown: (cb: mouseEventCallback) => {
             _mapDownCallbackFun.set(cb, true);
         },

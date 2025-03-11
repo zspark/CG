@@ -259,7 +259,7 @@ export default class Geometry implements IGeometry {
 
     createGPUResource(gl: WebGL2RenderingContext, createBufferGPUResourceAsWell: boolean = false): IGeometry {
         if (this._inited) {
-            log.warn("[geometry] this instance has already been initiated.");
+            //log.warn("[geometry] this instance has already been initiated.");
             return this;
         }
         this._gl = gl;

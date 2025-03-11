@@ -3,194 +3,41 @@ import * as dat from "../third/dat.gui.module.js";
 import * as CG from "./api.js";
 
 export default class Application {
-    static NEAR_PLANE = 1;
-    static FAR_PLANE = 100;
 
     private _gui = new dat.GUI();
-    private _tempMat44 = new CG.Mat44();
-    private _tempVec4 = new CG.Vec4();
-    private _loader = CG.createLoader("./");
-    private _camera: CG.ICamera;
-    private _frustum = new CG.Frustum().createPerspectiveProjection(CG.utils.deg2Rad(60), 640 / 480, Application.NEAR_PLANE, Application.FAR_PLANE);
-    //private _frustum = new CG.Frustum().createOrthogonalProjection(-10, 10, -10, 10, 0, 100);
     private _ctrl = new CG.SpaceController();
     private _geometryCube: CG.IGeometry;
-    private _gl: WebGL2RenderingContext;
-    private _renderer: CG.IRenderer;
-    private _backFBO: CG.IFramebuffer;
-    private _depthTexture: CG.ITexture;
-    private _colorTexture: CG.ITexture;
-    private _latlonTexture: CG.ITexture;
-    private _meshCube: CG.Mesh;
-    private _meshCube1: CG.Mesh;
-    private _meshCube2: CG.Mesh;
-    private _meshCube3: CG.Mesh;
-    //private _light: CG.ILight = new CG.light.ParallelLight(10, 20, -10);
-    private _light: CG.ILight = new CG.light.PointLight(10, 20, -10);
-    private _axis: CG.Axes;
-    private _gridFloor: CG.GridFloor;
-    private _backFBOPipeline: CG.IPipeline;
-    private _outline: CG.Outline;
-    private _picker: CG.Picker;
-    private _deltaTimeInMS: number = 0;
+    private _scene: CG.Scene;
 
     constructor() {
         this.createGUI();
         CG.registWebGL();
         CG.programManagerHint(true, true);
-        const gl = this._gl = CG.createContext('glcanvas');
-        const _evts = CG.registMouseEvents(gl.canvas as HTMLCanvasElement);
-        this._camera = new CG.Camera(-10, 4, 8).setMouseEvents(_evts).setFrustum(this._frustum)//.setPosition(-4, 0, 0)
-            .lookAt(CG.Vec4.VEC4_0001)
-        this._renderer = new CG.Renderer(gl);
-        this._axis = new CG.Axes(gl, this._renderer);//, this._backFBO);
-        this._gridFloor = new CG.GridFloor(gl, this._renderer);//, this._backFBO);
-        this._light.setDirection(-1, -1, 1);
-        this.createBackFBO();
-        this._outline = new CG.Outline(gl, this._renderer).setDepthTexture(this._colorTexture);
-        this._outline.enable();
-        this._picker = new CG.Picker(gl, this._renderer).setMouseEvents(_evts);
-        //this.createFront();
+        const canvas: HTMLCanvasElement = document.getElementById("glcanvas") as HTMLCanvasElement;
+        this._scene = new CG.Scene(canvas);
 
         //--------------------------------------------------------------------------------
-        this._loader.loadTexture("./assets/skybox/latlon.jpg").then((v) => {
-            this._latlonTexture.updateData(v, 0, 0, 4096, 2048);
-        });
-        this._latlonTexture = new CG.Texture(gl, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE).createGLTextureWithSize(4096, 2048);
-        const _plane = CG.geometry.createPlane(2, 2).createGPUResource(gl, true);
-        const _subPipeCubeLatlon = new CG.SubPipeline()
-            .setGeometry(_plane)
-            .setTexture(this._latlonTexture)
-            .setUniformUpdaterFn((program: CG.IProgram) => {
-                program.uploadUniform("u_skybox_latlon", this._latlonTexture.textureUnit);
-                this._tempMat44.copyFrom(this._frustum.projectionMatrix).invert();
-                program.uploadUniform("u_pInvMatrix", this._tempMat44.data);
-                this._tempMat44.copyFrom(this._camera.viewMatrix).invert();
-                program.uploadUniform("u_vInvMatrix", this._tempMat44.data);
-            });
-        const _p2 = new CG.Pipeline(10)
-            .cullFace(false, gl.BACK)
-            .depthTest(false, gl.LESS)
-            .setProgram(CG.getProgram({ position_in_ndc: true, skybox_latlon: true }))
-            .appendSubPipeline(_subPipeCubeLatlon)
-            .validate()
-        this._renderer.addPipeline(_p2);
-
         //--------------------------------------------------------------------------------
-        this._geometryCube = CG.geometry.createCube(2).createGPUResource(gl, true);
-        const _meshCube1 = this._meshCube1 = new CG.Mesh("cube1", this._geometryCube);
-        const _meshCube2 = this._meshCube2 = new CG.Mesh("cube2", this._geometryCube);
-        const _meshCube3 = this._meshCube3 = new CG.Mesh("cube3", this._geometryCube);
+        this._geometryCube = CG.geometry.createCube(2);
+        const _primitive = new CG.Primitive("primitive-cube", this._geometryCube);
+        const _meshCube1 = new CG.Mesh("MeshCube1", _primitive);
+        const _meshCube2 = new CG.Mesh("MeshCube2", _primitive);
+        const _meshCube3 = new CG.Mesh("MeshCube3", _primitive);
         this._ctrl.setSpace(_meshCube1).setPosition(2, 2, 2)
             .setSpace(_meshCube2).setPosition(-4, -4, 3).rotateAroundSelfX(Math.PI / 3)
             .setSpace(_meshCube3).setPosition(0.5, 6, -8).rotateAroundSelfY(1.7).rotateAroundSelfZ(0.33);
-        this._meshCube = this._meshCube1;
 
-
-        const _subPipeCube = new CG.SubPipeline()
-            .setGeometry(_meshCube1.geometry)
-            .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, _meshCube1, new CG.Vec4(1, 0, 0, 1)))
-        const _subPipeCube2 = _subPipeCube.clone()
-            .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, _meshCube2, new CG.Vec4(0, 1, 0, 1)))
-        const _subPipeCube3 = _subPipeCube.clone()
-            .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, _meshCube3, new CG.Vec4(0, 0, 1, 1)))
-
-        const _p = new CG.Pipeline(0)
-            .cullFace(true, gl.BACK)
-            .depthTest(true, gl.LESS)
-            .setProgram(CG.getProgram({ color_vertex_attrib: true, }))
-            .appendSubPipeline(_subPipeCube)
-            .appendSubPipeline(_subPipeCube2)
-            .appendSubPipeline(_subPipeCube3)
-            .validate()
-        this._renderer.addPipeline(_p);
-        this._picker.addPickableTarget(this._meshCube1)
-            .addPickableTarget(this._meshCube2)
-            .addPickableTarget(this._meshCube3);
-
-        this._backFBOPipeline = new CG.Pipeline(100)
-            .setFBO(this._backFBO)
-            .cullFace(true, gl.BACK)
-            .depthTest(false, gl.LESS)
-            //.drawBuffers(gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1)
-            .setProgram(CG.getProgram({ r32f: true })).validate()
-        this._renderer.addPipeline(this._backFBOPipeline);
-
+        this._scene.addMesh(_meshCube1, true);
+        this._scene.addMesh(_meshCube2, true);
+        this._scene.addMesh(_meshCube3, true);
+        this._scene.loadGLTF();
         //--------------------------------------------------------------------------------
-        this._picker.addReceiver({
-            notify: (event: CG.Event_t<CG.PickResult_t>): boolean => {
-                this._backFBOPipeline.removeSubPipelines();
-                this._meshCube = event.info.picked as CG.Mesh;
-                this._meshCube.getPosition(this._tempVec4);
-                this._camera.setRotateCenter(this._tempVec4.x, this._tempVec4.y, this._tempVec4.z);
-                this._axis.setTarget(this._meshCube);
-                this._backFBOPipeline.appendSubPipeline(
-                    new CG.SubPipeline()
-                        .setGeometry(this._meshCube.geometry)
-                        .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, this._meshCube, new CG.Vec4(1, 0, 0, 1)))
-                )
-                return false;
-            },
-        }, CG.Picker.PICKED);
         //
         //--------------------------------------------------------------------------------
-        new CG.GLTFParser().load("./assets/gltf/skull/scene.gltf").then((data: CG.GLTFParserOutput_t) => {
-            for (let i = 0, N = data.geometrys.length; i < N; ++i) {
-                data.geometrys[i].createGPUResource(gl, true);
-            }
-
-            for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(-2, -2, 2)
-                const _subPipeCube = new CG.SubPipeline()
-                    .setGeometry(data.CGMeshs[i].geometry)
-                    .setUniformUpdaterFn(this.createUpdater(this._camera, this._light, data.CGMeshs[i], new CG.Vec4(1, 0, 0, 1)))
-                const _p = new CG.Pipeline(0)
-                    .cullFace(true, gl.BACK)
-                    .depthTest(true, gl.LESS)
-                    .setProgram(CG.getProgram({ debug_normal: true, }))
-                    .appendSubPipeline(_subPipeCube)
-                    .validate()
-                this._renderer.addPipeline(_p);
-                this._picker.addPickableTarget(data.CGMeshs[i]);
-            }
-        });
     }
 
     run(dt: number) {
-        this._deltaTimeInMS = dt;
-        this._light.update(dt);
-        this._camera.update(dt);
-        this._gridFloor.update(dt, this._camera);
-        this._picker.update(dt, this._camera.viewProjectionMatrix);
-        this._axis.update(dt, this._camera.viewProjectionMatrix);
-        this._renderer.render();
-    }
-
-    createUpdater(camera: CG.ICamera, light: CG.ILight, mesh: CG.Mesh, color: CG.rgba) {
-        const gl = this._gl;
-        return (program: CG.IProgram) => {
-            camera.viewProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
-            camera.viewMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mvMatrix", this._tempMat44.data);
-            this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
-            light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
-            program.uploadUniform("u_mlMatrix_normal", this._tempMat44.data);
-            light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mlpMatrix", this._tempMat44.data);
-            light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mlMatrix", this._tempMat44.data);
-            program.uploadUniform("u_shadowMap", 0);
-            program.uploadUniform("u_color", [color.x, color.y, color.z]);
-            program.uploadUniform("u_nearFarPlane", [Application.NEAR_PLANE, Application.FAR_PLANE]);
-            this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();
-            /// --------------------------------------------------------------------------------
-            /// debug normals;
-            program.uploadUniform("u_debugNormalModelMatrix", this._tempMat44.data);
-            program.uploadUniform("u_debugNormalViewMatrix", camera.viewMatrix.data);
-            program.uploadUniform("u_debugNormalSpace", 1);
-            /// --------------------------------------------------------------------------------
-        };
+        this._scene.update(dt);
     }
 
     createGUI() {
@@ -201,44 +48,29 @@ export default class Application {
         };
         this._gui.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
             //console.log(v);
-            this._ctrl.setSpace(this._meshCube).rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]));
+            this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]));
             _data[0] = v;
         });
         this._gui.add(obj, 'rotateSlefY').min(-360).max(360).step(0.25).onChange((v: number) => {
-            this._ctrl.setSpace(this._meshCube).rotateAroundSelfY(CG.utils.deg2Rad(v - _data[1]));
+            this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundSelfY(CG.utils.deg2Rad(v - _data[1]));
             _data[1] = v;
         });
         this._gui.add(obj, 'rotateSlefZ').min(-360).max(360).step(0.25).onChange((v: number) => {
-            this._ctrl.setSpace(this._meshCube).rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[2]));
+            this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[2]));
             _data[2] = v;
         });
         this._gui.add(obj, 'rotateParentX').min(-360).max(360).step(0.25).onChange((v: number) => {
-            this._ctrl.setSpace(this._meshCube).rotateAroundParentX(CG.utils.deg2Rad(v - _data[3]));
+            this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundParentX(CG.utils.deg2Rad(v - _data[3]));
             _data[3] = v;
         });
         this._gui.add(obj, 'rotateParentY').min(-360).max(360).step(0.25).onChange((v: number) => {
-            this._ctrl.setSpace(this._meshCube).rotateAroundParentY(CG.utils.deg2Rad(v - _data[4]));
+            this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundParentY(CG.utils.deg2Rad(v - _data[4]));
             _data[4] = v;
         });
         this._gui.add(obj, 'rotateParentZ').min(-360).max(360).step(0.25).onChange((v: number) => {
-            this._ctrl.setSpace(this._meshCube).rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
+            this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
             _data[5] = v;
         });
-    }
-
-    createFront() {
-        const gl = this._gl;
-    }
-
-    createBackFBO() {
-        const gl = this._gl;
-        const width: number = gl.drawingBufferWidth;
-        const height: number = gl.drawingBufferHeight;
-        this._backFBO = new CG.Framebuffer(gl, width, height);
-        //this._depthTexture = new CG.Texture(gl, gl.DEPTH_COMPONENT16, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT).createGLTextureWithSize(width, height);
-        //this._backFBO.attachDepthTexture(this._depthTexture);
-        this._colorTexture = new CG.Texture(gl, gl.R32F, gl.RED, gl.FLOAT).createGLTextureWithSize(width, height);
-        this._backFBO.attachColorTexture(this._colorTexture, 0);
     }
 }
 

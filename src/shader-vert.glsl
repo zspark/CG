@@ -11,7 +11,7 @@ uniform mat4 u_pInvMatrix;
 uniform mat4 u_vInvMatrix;
 uniform mat4 u_debugNormalModelMatrix;  // model to world;
 uniform mat4 u_debugNormalViewMatrix;   // world to view;
-uniform int u_debugNormalSpace;  // 0:model space; 1:world space; 2:view space;
+uniform int u_debugNormalSpace;         // 0:model space; 1:world space; 2:view space;
 
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_uvCoord;
@@ -35,9 +35,7 @@ void main() {
     } else if (u_debugNormalSpace == 1) {
         v_normal = (u_debugNormalModelMatrix * vec4(a_normal, .0)).xyz;
     } else if (u_debugNormalSpace == 2) {
-        v_normal = (u_debugNormalViewMatrix * u_debugNormalModelMatrix *
-                    vec4(a_normal, .0))
-                       .xyz;
+        v_normal = (u_debugNormalViewMatrix * u_debugNormalModelMatrix * vec4(a_normal, .0)).xyz;
     }
 #endif
 
@@ -62,8 +60,9 @@ void main() {
     #endif
 
     #ifdef INSTANCED_MATRIX
-    mat4 _instanceMatrix = mat4(a_instanceMatrix_col0, a_instanceMatrix_col1,
-                                a_instanceMatrix_col2, a_instanceMatrix_col3);
+    mat4 _instanceMatrix = mat4(
+        a_instanceMatrix_col0, a_instanceMatrix_col1,
+        a_instanceMatrix_col2, a_instanceMatrix_col3);
     gl_Position = u_vpMatrix * _instanceMatrix * pos;
     #else
     gl_Position = u_mvpMatrix * pos;

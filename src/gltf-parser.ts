@@ -5,6 +5,7 @@ import { IGeometry, IBuffer, ShaderLocation_e, StepMode_e } from "./types-interf
 import { Buffer } from "./device-resource.js"
 import { GLBuffer } from "./webgl.js"
 import Mesh from "./mesh.js"
+import Primitive from "./primitive.js"
 import SpacialNode from "./spacial-node.js"
 import { Mat44, Quat } from "./math.js"
 
@@ -23,6 +24,7 @@ type GLTFNode_t = {
     camera?: number,
 };
 type GLTFPrimitive_t = {
+    name?: string;
     mode: number,
     indices?: number,
     attributes: {
@@ -54,6 +56,7 @@ type GLTFAccessor_t = {
 }
 
 type GLTFMesh_t = {
+    name?: string,
     primitives: GLTFPrimitive_t[],
 };
 
@@ -72,8 +75,8 @@ export interface IGLTFParser {
 
 
 export type GLTFParserOutput_t = {
-    CGMeshs: Mesh[],
     geometrys: IGeometry[],
+    CGMeshs: Mesh[],
     SpacialNodes: SpacialNode[],
 }
 
@@ -91,7 +94,7 @@ export default class GLTFParser implements IGLTFParser {
     private _loader: ILoader;
 
     constructor(deleteAfterParse: boolean = true) {
-        this._output = { SpacialNodes: [], geometrys: [], CGMeshs: [] }
+        this._output = { SpacialNodes: [], geometrys: [], CGMeshs: [] };
     }
 
     async load(url: string): Promise<GLTFParserOutput_t> {
@@ -124,9 +127,7 @@ export default class GLTFParser implements IGLTFParser {
     private _parseNode(index: number, node: GLTFNode_t): void {
         let _CGNode: SpacialNode;
         if (node.mesh != undefined) {
-            _CGNode = new Mesh(node.name);
-            (_CGNode as Mesh).geometry = this._output.geometrys[node.mesh];
-            this._output.CGMeshs.push(_CGNode as Mesh);
+            _CGNode = this._output.CGMeshs[node.mesh];
         } else {
             _CGNode = new SpacialNode(node.name);
         }
@@ -175,27 +176,23 @@ export default class GLTFParser implements IGLTFParser {
         if (meshes?.length <= 0) return;
 
         for (let i = 0, N = meshes.length; i < N; ++i) {
-            let _geo = this._parseMesh(meshes[i]);
-            this._output.geometrys[i] = _geo;
+            let _mesh = this._parseMesh(meshes[i]);
+            this._output.CGMeshs[i] = _mesh;
         }
     }
 
-    private _parseMesh(mesh: GLTFMesh_t): IGeometry {
-        const _geo: IGeometry = new Geometry();
+    private _parseMesh(mesh: GLTFMesh_t): Mesh {
+        const _mesh: Mesh = new Mesh(mesh.name);
         for (let i = 0, N = mesh.primitives.length; i < N; ++i) {
-            this._parsePrimitive(_geo, mesh.primitives[i]);
+            let _primitive = this._parsePrimitive(mesh.primitives[i]);
+            _mesh.addPrimitive(_primitive);
         }
-        return _geo;
+        return _mesh;
     }
 
-    private _parsePrimitive(geo: IGeometry, primitive: GLTFPrimitive_t): void {
+    private _parsePrimitive(primitive: GLTFPrimitive_t): Primitive {
+        const _geo: IGeometry = new Geometry();
         let _acc;
-        /*
-        _acc = this._ref_accessors[primitive.indices];
-        if (_acc) {
-        }
-        */
-
         let _buf: IBuffer;
         let _attrib: Attribute_t;
         _acc = this._ref_accessors[primitive.attributes.POSITION];
@@ -213,22 +210,23 @@ export default class GLTFParser implements IGLTFParser {
             _attrib = this._getAttribute(_bv, _acc);
             _buf.setAttribute(ShaderLocation_e.ATTRIB_NORMAL, _attrib.size, _attrib.type, _attrib.normalized, _attrib.offset);
         }
-        geo.addVertexBuffer(_buf);
+        _geo.addVertexBuffer(_buf);
 
         _acc = this._ref_accessors[primitive.indices];
         if (_acc) {
             const _bv = this._ref_bufferViews[_acc.bufferView];
             if (_bv) {
                 _buf = this._getBuffer(_bv, _acc);
-                geo.setIndexBuffer(_buf);
-                geo.setDrawElementsParameters(primitive.mode, _acc.count, _acc.componentType, 0);
+                _geo.setIndexBuffer(_buf);
+                _geo.setDrawElementsParameters(primitive.mode, _acc.count, _acc.componentType, 0);
             } else {
                 log.warn("[GLTFParser] index accessor exist, but NO buffer view!");
             }
         } else {
-            geo.setDrawArraysParameters(primitive.mode, 0, _acc.count);
+            _geo.setDrawArraysParameters(primitive.mode, 0, _acc.count);
         }
-
+        const _primitive: Primitive = new Primitive(primitive.name, _geo);
+        return _primitive;
     }
 
     private _getBuffer(bv: GLTFBufferView_t, accessor: GLTFAccessor_t): IBuffer {

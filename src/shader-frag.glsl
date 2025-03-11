@@ -59,8 +59,7 @@ void main() {
     vec3 _color = vec3(1.0);
 
 #ifdef FADE_AWAY_FROM_CAMERA
-    _alpha = 1.0 - smoothstep(FADE_DISTANCE_BEGIN, FADE_DISTANCE_END,
-                              v_distanceToCamera);
+    _alpha = 1.0 - smoothstep(FADE_DISTANCE_BEGIN, FADE_DISTANCE_END, v_distanceToCamera);
 #endif
 
 #ifdef COLOR_VERTEX_ATTRIB
@@ -75,18 +74,14 @@ void main() {
     float v = 0.5 - asin(rayDir.y) / PI;
     _color = texture(u_skybox_latlon, vec2(u, v)).rgb;
 #elif defined(SOBEL_SILHOUETTE)
-    vec2 _textureSize =
-        vec2(textureSize(u_depthTexture_r32f, 0));  // 0 means lod level;
+    vec2 _textureSize = vec2(textureSize(u_depthTexture_r32f, 0));  // 0 means lod level;
     vec2 _texelSize = 1.0 / _textureSize;
 
     float _depth[9];
     int _index = 0;
     for (int i = -1; i <= 1; i++) {
         for (int j = -1; j <= 1; j++) {
-            _depth[_index] =
-                texture(u_depthTexture_r32f,
-                        (gl_FragCoord.xy + vec2(i, j)) * _texelSize)
-                    .r;
+            _depth[_index] = texture(u_depthTexture_r32f, (gl_FragCoord.xy + vec2(i, j)) * _texelSize).r;
             ++_index;
         }
     }

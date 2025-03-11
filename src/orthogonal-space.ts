@@ -1,10 +1,10 @@
 import { roMat44, xyzw, Mat44, Vec4 } from "./math.js"
-import { default as EventSender, Event_t } from "./event.js"
+import { default as EventDispatcher, Event_t } from "./event.js"
 
 /**
 * we use right handed system.
 */
-export default class OrthogonalSpace extends EventSender<number> {
+export default class OrthogonalSpace extends EventDispatcher {
     static TRANSFORM_CHANGED: number = 1;
 
     private _invMatDirty: boolean = false;
@@ -15,7 +15,7 @@ export default class OrthogonalSpace extends EventSender<number> {
 
     protected _transformInv: Mat44 = new Mat44();
     protected _transform: Mat44 = new Mat44();
-    protected _event: Event_t<number>;
+    protected _event: Event_t;
 
     constructor() {
         super();

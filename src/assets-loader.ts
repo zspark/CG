@@ -62,8 +62,6 @@ function _loadTexture(combinedURL: string): Promise<HTMLImageElement> {
 * baseURL should ended up with '\'
 */
 export default function createLoader(baseURL: string): ILoader {
-
-
     return {
         loadShader_separate: (vertName: string, fragName: string) => {
             return Promise.all([_loadFile(`${baseURL}${vertName}-vert.glsl`), _loadFile(`${baseURL}${fragName}-frag.glsl`)]);
@@ -85,4 +83,7 @@ export default function createLoader(baseURL: string): ILoader {
         }
     }
 }
+
+const Loader: ILoader = createLoader("./");
+export { Loader };
 

@@ -1,13 +1,13 @@
 import log from "./log.js"
 import { roMat44, xyzw, Mat44, Vec4 } from "./math.js"
-import OrthogonalSpace from "./orthogonal-space.js"
 import { IGeometry } from "./types-interfaces.js"
-import { IPickable } from "./picker.js";
+import { Pickable_t } from "./picker.js";
 import utils from "./utils.js";
 import SpacialNode from "./spacial-node.js";
+import Primitive from "./primitive.js";
 
 /*
-export interface IMesh extends OrthogonalSpace, IPickable {
+export interface IMesh extends OrthogonalSpace{
     readonly uuid: number;
     readonly numberIndices: number;
     readonly vertexDataLengthInFloat: number;
@@ -25,36 +25,61 @@ export interface IMesh extends OrthogonalSpace, IPickable {
 * so we use `meshMatrix` to transform it into model space;
 * the major purpose of Mesh is to transform position and orientation of a geometry;
 */
-export default class Mesh extends SpacialNode implements IPickable {
+export default class Mesh extends SpacialNode {
 
-    protected _ref_geo: IGeometry;
+    protected _primitiveSet: Set<Primitive> = new Set();
     protected _uuid: number = utils.uuid();
 
-    constructor(name?: string, geometry?: IGeometry) {
+    constructor(name?: string, primitive?: Primitive) {
         super(name);
-        this._ref_geo = geometry;
+        primitive && this.addPrimitive(primitive);
     }
 
-    get uuid(): number { return this._uuid; }
-
-    get numberIndices(): number {
-        return this._ref_geo.indexBufferLength;
+    get uuid(): number {
+        return this._uuid;
     }
 
-    get vertexDataLengthInFloat(): number {
-        return this._ref_geo.vertexBufferLength;
+    addPrimitive(p: Primitive): void {
+        this._primitiveSet.add(p);
     }
 
-    get material(): any {
-        log.info('[mesh] TODO: need material!');
-        return undefined;
+    setPrimitive(p: Primitive): void {
+        this._primitiveSet.clear();
+        this.addPrimitive(p);
     }
 
-    get geometry(): IGeometry {
-        return this._ref_geo;
+    removePrimitive(p: Primitive): boolean {
+        return this._primitiveSet.delete(p);
     }
 
-    set geometry(geo: IGeometry) {
-        this._ref_geo = geo;
+    getPickables(): Pickable_t[] {
+        const _out: Pickable_t[] = [];
+        this._primitiveSet.forEach(p => {
+            _out.push({
+                primitive: p,
+                mesh: this,
+            });
+        });
+
+        return _out;
+    }
+
+    getPrimitives(): Primitive[] {
+        const _arrGeo: Primitive[] = [];
+        this._primitiveSet.forEach(p => {
+            _arrGeo.push(p);
+        });
+
+        return _arrGeo;
+    }
+
+    getGeometrys(): IGeometry[] {
+        const _arrGeo: IGeometry[] = [];
+        this._primitiveSet.forEach(p => {
+            _arrGeo.push(p.geometry);
+        });
+
+        return _arrGeo;
     }
 }
+

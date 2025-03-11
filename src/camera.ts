@@ -3,12 +3,13 @@ import { xyzw, roMat44, Mat44, Vec4 } from "./math.js"
 import OrthogonalSpace from "./orthogonal-space.js"
 import Frustum from "./frustum.js"
 import SpaceController from "./space-controller.js"
-import { mouseEvents, mouseEventCallback } from "./mouse-events.js"
+import { MouseEvents_t, mouseEventCallback } from "./mouse-events.js"
 
 export interface ICamera {
-    position: xyzw;
+    readonly position: xyzw;
+    readonly frustum: Frustum;
 
-    setMouseEvents(events: mouseEvents): ICamera;
+    setMouseEvents(events: MouseEvents_t): ICamera;
     viewMatrix: roMat44;
     viewProjectionMatrix: roMat44;
     update(dt: number): void;
@@ -24,6 +25,8 @@ export interface ICamera {
 };
 
 export default class Camera implements ICamera {
+    static NEAR_PLANE = 1;
+    static FAR_PLANE = 100;
 
     private _rotateCenterPosition = new Vec4();
     private _helperMat44 = new Mat44();
@@ -39,13 +42,19 @@ export default class Camera implements ICamera {
         this._space = new OrthogonalSpace();
         this._space.setPosition(posX, posY, posZ);
         this._spaceCtrl = new SpaceController(this._space);
+        this._frustum.createPerspectiveProjection(Math.PI / 3, 640 / 480, Camera.NEAR_PLANE, Camera.FAR_PLANE);
+        //.createOrthogonalProjection(-10, 10, -10, 10, 0, 100);
     }
 
     get position(): xyzw {
         return this._space.getPosition(this._helperVec4_z);
     }
 
-    setMouseEvents(events: mouseEvents): Camera {
+    get frustum(): Frustum {
+        return this._frustum;
+    }
+
+    setMouseEvents(events: MouseEvents_t): Camera {
         let _onMoveFn: mouseEventCallback;
         const _onDown: mouseEventCallback = (evt) => {
             //log.info(evt);
