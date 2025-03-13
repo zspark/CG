@@ -17,7 +17,6 @@ export interface IAxesTarget extends IEventDispatcher {
 export default class Axes extends Mesh implements IEventListener {
 
     private _targetMatricesDirty = false;
-    private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _arrRefTarget: IAxesTarget[] = [];
     private _instanceMatrices: Float32Array<ArrayBufferLike>;
     private _instanceMatricesHandler: Mat44;
@@ -52,7 +51,6 @@ export default class Axes extends Mesh implements IEventListener {
         const _subp = new SubPipeline()
             .setGeometry(_primitive.geometry)
             .setUniformUpdaterFn((program: IProgram) => {
-                program.uploadUniform("u_vpMatrix", this._tempMat44.data);
             });
 
         this._pipeline = new Pipeline(-1000)
@@ -68,8 +66,7 @@ export default class Axes extends Mesh implements IEventListener {
         return this._pipeline;
     }
 
-    update(dt: number, vpMatrix: roMat44): void {
-        this._tempMat44.copyFrom(vpMatrix);
+    update(dt: number): void {
         if (this._targetMatricesDirty) {
             const _m = this._instanceMatricesHandler;
             const N = this._arrRefTarget.length;

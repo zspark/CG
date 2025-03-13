@@ -4,10 +4,13 @@ import OrthogonalSpace from "./orthogonal-space.js"
 import Frustum from "./frustum.js"
 import SpaceController from "./space-controller.js"
 import { MouseEvents_t, mouseEventCallback } from "./mouse-events.js"
+import { UniformBlock } from "./device-resource.js"
+import { IUniformBlock } from "./types-interfaces.js"
 
 export interface ICamera {
     readonly position: xyzw;
     readonly frustum: Frustum;
+    readonly _UBO: IUniformBlock;
 
     setMouseEvents(events: MouseEvents_t): ICamera;
     viewMatrix: roMat44;
@@ -25,9 +28,11 @@ export interface ICamera {
 };
 
 export default class Camera implements ICamera {
-    static NEAR_PLANE = 1;
-    static FAR_PLANE = 100;
+    static NEAR_PLANE: number = 1;
+    static FAR_PLANE: number = 100;
+    static UBO_BINDING_POINT: number = 0;
 
+    _UBO: IUniformBlock;
     private _rotateCenterPosition = new Vec4();
     private _helperMat44 = new Mat44();
     private _helperVec4_x = new Vec4();
@@ -35,15 +40,22 @@ export default class Camera implements ICamera {
     private _helperVec4_z = new Vec4();
     private _spaceCtrl: SpaceController;
     private _space: OrthogonalSpace;
-    private _viewProjectionMatrix = new Mat44().setIdentity();
-    private _frustum = new Frustum();
+    private _viewProjectionMatrix: Mat44;
+    private _frustum: Frustum;
+    private _cameraDirtyFlag: boolean = true;
+    private _uboData: Float32Array;
 
     constructor(posX: number, posY: number, posZ: number) {
-        this._space = new OrthogonalSpace();
+        const _sizeInFloat = 5 * 16; // 5 matrices;
+        this._uboData = new Float32Array(_sizeInFloat);
+        this._UBO = new UniformBlock(Camera.UBO_BINDING_POINT, _sizeInFloat * 4);
+        this._space = new OrthogonalSpace(this._uboData, 16 * 0);
         this._space.setPosition(posX, posY, posZ);
         this._spaceCtrl = new SpaceController(this._space);
+        this._frustum = new Frustum(this._uboData, 16 * 2);
         this._frustum.createPerspectiveProjection(Math.PI / 3, 640 / 480, Camera.NEAR_PLANE, Camera.FAR_PLANE);
-        //.createOrthogonalProjection(-10, 10, -10, 10, 0, 100);
+        this._viewProjectionMatrix = new Mat44(this._uboData, 16 * 4);
+        this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
     }
 
     get position(): xyzw {
@@ -112,7 +124,7 @@ export default class Camera implements ICamera {
         */
         events.onWheel((evt) => {
             let delta = 0.5 * Math.sign((evt as WheelEvent).deltaY);
-            this._spaceCtrl.moveForward(delta);
+            this.moveForward(delta);
             //this._spaceCtrl.moveRight(delta);
             //this._spaceCtrl.moveUp(delta);
             //this._spaceCtrl.axisZPointsToVec(Vec4.VEC4_0001, false);
@@ -131,7 +143,11 @@ export default class Camera implements ICamera {
     }
 
     update(dt: number): void {
-        this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+        if (this._cameraDirtyFlag) {
+            this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+            this._UBO.uploadData(this._uboData);
+            this._cameraDirtyFlag = false;
+        }
     }
 
     setRotateCenter(posX: number, posY: number, posZ: number): Camera {
@@ -141,6 +157,7 @@ export default class Camera implements ICamera {
 
     setPosition(posX: number, posY: number, posZ: number): Camera {
         this._space.setPosition(posX, posY, posZ);
+        this._cameraDirtyFlag = true;
         return this;
     }
 
@@ -151,16 +168,25 @@ export default class Camera implements ICamera {
 
     moveHorizontally(deltaX: number, delta: number): Camera {
         this._spaceCtrl.moveHorizontally(deltaX, delta);
+        this._cameraDirtyFlag = true;
+        return this;
+    }
+
+    moveForward(delta: number): Camera {
+        this._spaceCtrl.moveForward(delta);
+        this._cameraDirtyFlag = true;
         return this;
     }
 
     moveAround(pos: xyzw, dir_normalized: xyzw, theta: number): Camera {
         this._spaceCtrl.rotateAround(pos, dir_normalized, theta);
+        this._cameraDirtyFlag = true;
         return this;
     }
 
     lookAt(pos: xyzw): Camera {
         this._spaceCtrl.axisZPointsToVec(pos, false);
+        this._cameraDirtyFlag = true;
         return this;
     }
 }

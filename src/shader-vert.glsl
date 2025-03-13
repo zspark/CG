@@ -3,12 +3,14 @@ precision mediump float;
 
 //%%
 
-// layout(std140) uniform u_ub_camera { };
-uniform mat4 u_mvMatrix;
-uniform mat4 u_vpMatrix;
-uniform mat4 u_mvpMatrix;
-uniform mat4 u_pInvMatrix;
-uniform mat4 u_vInvMatrix;
+layout(std140) uniform u_ub_camera {
+    mat4 u_vInvMatrix;
+    mat4 u_vMatrix;
+    mat4 u_pMatrix;
+    mat4 u_pInvMatrix;
+    mat4 u_vpMatrix;
+};
+uniform mat4 u_mMatrix;
 uniform mat4 u_debugNormalModelMatrix;  // model to world;
 uniform mat4 u_debugNormalViewMatrix;   // world to view;
 uniform int u_debugNormalSpace;         // 0:model space; 1:world space; 2:view space;
@@ -52,7 +54,7 @@ void main() {
 #else
 
     #ifdef FADE_AWAY_FROM_CAMERA
-    v_distanceToCamera = -(u_mvMatrix * pos).z;
+    v_distanceToCamera = -(u_vMatrix * u_mMatrix * pos).z;
     #endif
 
     #ifdef COLOR_VERTEX_ATTRIB
@@ -65,7 +67,7 @@ void main() {
         a_instanceMatrix_col2, a_instanceMatrix_col3);
     gl_Position = u_vpMatrix * _instanceMatrix * pos;
     #else
-    gl_Position = u_mvpMatrix * pos;
+    gl_Position = u_vpMatrix * u_mMatrix * pos;
     #endif
 
 #endif

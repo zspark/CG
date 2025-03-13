@@ -1,5 +1,6 @@
 import log from "./log.js"
 import {
+    IUniformBlock,
     IRenderContext,
     IRenderer,
     IGeometry,
@@ -113,6 +114,7 @@ export default class Renderer implements IRenderer {
     private _arrTransparentPipeline: IPipeline[] = [];
     private _device: WebGL2RenderingContext;
     private _renderContext: RenderContext;
+    private _arrBindingPointsToUBO: IUniformBlock[] = [];
 
     constructor(options: RendererOptions_t) {
         const _gl = this._device = createContext(options.canvas);
@@ -124,6 +126,11 @@ export default class Renderer implements IRenderer {
 
     get gl(): WebGL2RenderingContext {
         return this._device;
+    }
+
+    registerUBO(ubo: IUniformBlock): IRenderer {
+        this._arrBindingPointsToUBO[ubo.bindingPoint] = ubo;
+        return this;
     }
 
     render(): IRenderer {
@@ -145,6 +152,7 @@ export default class Renderer implements IRenderer {
         p.FBO ??= this._defaultFBO;
         _onlyOnce ? this._arrOneTimePipeline.push(p) : this._arrPipeline.push(p);
         p.createGPUResource(this._device);
+        p.program.setUBO(this._arrBindingPointsToUBO[0]);
         this._sortPipline();
         return this;
     }

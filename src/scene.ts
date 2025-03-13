@@ -54,10 +54,11 @@ export default class Scene {
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
         this._camera = new Camera(-10, 4, 8).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
+        this._renderer.registerUBO(this._camera._UBO);
         this._light = new light.PointLight(10, 20, -10); this._light.setDirection(-1, -1, 1);
-        this._gridFloor = new GridFloor();//, this._backFBO);
-        this._axis = new Axes();//, this._backFBO);
-        this._skybox = new Skybox();
+        this._gridFloor = new GridFloor();
+        this._axis = new Axes();
+        //this._skybox = new Skybox();
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._configWrapper();
@@ -135,20 +136,17 @@ export default class Scene {
         this._deltaTimeInMS = dt;
         this._light?.update(dt);
         this._camera?.update(dt);
-        this._gridFloor?.update(dt, this._camera);
-        this._picker?.update(dt, this._camera.viewProjectionMatrix);
-        this._axis?.update(dt, this._camera.viewProjectionMatrix);
-        this._skybox?.update(dt, this._camera);
-        this._outline?.update(dt, this._camera);
+        this._gridFloor?.update(dt);
+        this._picker?.update(dt);
+        this._axis?.update(dt);
+        this._skybox?.update(dt);
+        this._outline?.update(dt);
         this._renderer.render();
     }
 
     private _createUpdater(mesh: Mesh, color: rgba) {
         return (program: IProgram) => {
-            this._camera.viewProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
-            this._camera.viewMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mvMatrix", this._tempMat44.data);
+            program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
             this._light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
             program.uploadUniform("u_mlMatrix_normal", this._tempMat44.data);

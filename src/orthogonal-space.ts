@@ -13,14 +13,14 @@ export default class OrthogonalSpace extends EventDispatcher {
     private _axisZ: Vec4;
     private _axisW: Vec4;
 
-    protected _transformInv: Mat44 = new Mat44();
-    protected _transform: Mat44 = new Mat44();
+    protected _transformInv: Mat44;
+    protected _transform: Mat44;
     protected _event: Event_t;
 
-    constructor() {
+    constructor(storage?: Float32Array, index: number = 0) {
         super();
-        this._transform.setIdentity();
-        this._transformInv.setIdentity();
+        this._transform = new Mat44(storage, index).setIdentity();
+        this._transformInv = new Mat44(storage, index + 16).setIdentity();
         const _data = this._transform.data;
         this._axisX = new Vec4(0, 0, 0, 0, _data.subarray(0, 4));
         this._axisY = new Vec4(0, 0, 0, 0, _data.subarray(4, 8));

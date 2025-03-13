@@ -14,7 +14,6 @@ export type OutlineTarget_t = {
 
 export default class Outline {
 
-    private _tempMat44: Mat44 = new Mat44().setIdentity();
     private _frontFBOQuad: IGeometry;
     private _pipeline: IPipeline;
     private _subPipeline: ISubPipeline;
@@ -57,8 +56,7 @@ export default class Outline {
             new SubPipeline()
                 .setGeometry(target.geometry)
                 .setUniformUpdaterFn((program: IProgram) => {
-                    this._tempMat44.multiply(target.modelMatrix, this._tempMat44);
-                    program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
+                    program.uploadUniform("u_mMatrix", target.modelMatrix.data);
                 })
         )
         return this;
@@ -73,8 +71,7 @@ export default class Outline {
         return this;
     }
 
-    update(dt: number, camera: ICamera): void {
-        this._tempMat44.copyFrom(camera.viewProjectionMatrix);
+    update(dt: number): void {
     }
 }
 

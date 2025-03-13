@@ -26,8 +26,6 @@ export default class Picker extends EventDispatcher {
     static RENDER_ONCE: number = 2;
 
     private _backFBO: GLFramebuffer_C0_r32i;
-    private _tempMat44: Mat44 = new Mat44().setIdentity();
-    private _tempMat44b: Mat44 = new Mat44().setIdentity();
     private _uuidToPickables: Map<number, { t: Pickable_t, p: ISubPipeline }> = new Map();
     private _pipeline: IPipeline;
     private _event: Event_t;
@@ -97,16 +95,14 @@ export default class Picker extends EventDispatcher {
         }
     }
 
-    update(dt: number, vpMatrix: roMat44): void {
-        this._tempMat44.copyFrom(vpMatrix);
+    update(dt: number): void {
     }
 
     private _createSubPipeline(target: Pickable_t): ISubPipeline {
         return new SubPipeline()
             .setGeometry(target.primitive.geometry)
             .setUniformUpdaterFn((program: IProgram) => {
-                this._tempMat44.multiply(target.mesh.modelMatrix, this._tempMat44b);
-                program.uploadUniform("u_mvpMatrix", this._tempMat44b.data);
+                program.uploadUniform("u_mMatrix", target.mesh.modelMatrix.data);
                 program.uploadUniform("u_uuid", target.mesh.uuid);
             });
     }

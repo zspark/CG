@@ -3,6 +3,7 @@ import { initProgram } from "./program-manager.js"
 import { default as glC, initGLConstant } from "./gl-const.js"
 import {
     createContext_fn_t,
+    IUniformBlock,
     IRenderContext,
     IGeometry,
     IBuffer, BufferData_t, BufferLayout_t, StepMode_e, ShaderLocation_e,
@@ -14,22 +15,37 @@ import {
     IBindableObject,
 } from "./types-interfaces.js";
 
-class GLUniformBlock {
+const _wm_buffer = new WeakMap();
+
+export class GLUniformBlock {
 
     private _glBuffer: WebGLBuffer;
+    private _bindingPoint: number;
+    private _sizeInBytes: number;
+    private _gl: WebGL2RenderingContext;
 
-    constructor() { }
+    constructor(bindingPoint: number, sizeInBytes: number) {
+        this._bindingPoint = bindingPoint;
+        this._sizeInBytes = sizeInBytes;
+    }
 
-    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram, blockIndex: GLenum, sizeInBytes: number): GLUniformBlock {
-        this._glBuffer ??= gl.createBuffer();
-        gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
-        gl.bufferData(gl.UNIFORM_BUFFER, sizeInBytes, gl.DYNAMIC_DRAW);
-        gl.uniformBlockBinding(program, blockIndex, 0);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this._glBuffer);
+    get bindingPoint(): number {
+        return this._bindingPoint;
+    }
+
+    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram, UBOIndex: number): GLUniformBlock {
+        this._gl = gl;
+        if (!this._glBuffer) {
+            this._glBuffer ??= gl.createBuffer();
+            gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
+            gl.bufferData(gl.UNIFORM_BUFFER, this._sizeInBytes, gl.DYNAMIC_DRAW);
+            _wm_buffer.set(this, this._glBuffer);
+        }
         return this;
     }
 
-    uploadData(gl: WebGL2RenderingContext, data: BufferData_t): GLUniformBlock {
+    uploadData(data: BufferData_t): GLUniformBlock {
+        const gl = this._gl;
         gl.bindBuffer(gl.UNIFORM_BUFFER, this._glBuffer);
         gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data);
         gl.bindBuffer(gl.UNIFORM_BUFFER, null);
@@ -99,6 +115,7 @@ export class GLBuffer implements IBuffer {
     createGPUResource(gl: WebGL2RenderingContext): IBuffer {
         this._gl = gl;
         this._glBuffer ??= gl.createBuffer();
+        _wm_buffer.set(this, this._glBuffer);
         this.updateData(this._data);
         this._data = undefined;
 
@@ -148,9 +165,7 @@ export class GLProgram implements IProgram {
     private _glProgram: WebGLProgram;
     private _gl: WebGL2RenderingContext;
     private _mapUniformFn: Map<string, (value: any) => void> = new Map();
-    private _uniformBlock = new GLUniformBlock();
-    private _blockData: BufferData_t;
-    private _uniformBlockLayout: Map<string, number> = new Map();
+    private _uboIndex: number;
 
     static compile(gl: WebGL2RenderingContext, vsSource: string, type: GLenum): WebGLShader | undefined {
         const _shader = gl.createShader(type);
@@ -178,6 +193,15 @@ export class GLProgram implements IProgram {
 
     get criticalKey(): object { return GLProgram; }
 
+    setUBO(ubo: IUniformBlock): IProgram {
+        const gl = this._gl;
+        gl.bindBuffer(gl.UNIFORM_BUFFER, _wm_buffer.get(ubo));
+        gl.uniformBlockBinding(this._glProgram, this._uboIndex, ubo.bindingPoint);
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, ubo.bindingPoint, _wm_buffer.get(ubo));
+        ubo.createGPUResource(this._gl, this._glProgram, this._uboIndex);
+        return this;
+    }
+
     link(vertexShader: WebGLShader, fragmentShader: WebGLShader): IProgram {
         const gl = this._gl;
         const shaderProgram = gl.createProgram();
@@ -194,16 +218,14 @@ export class GLProgram implements IProgram {
         }
 
         let _uniformIndicesInBlock: number[] = [];
-        let _uniformOffsetsInBlock: number[] = [];
-        const blockIndex = gl.getUniformBlockIndex(shaderProgram, "u_ub_camera");
+        //let _uniformOffsetsInBlock: number[] = [];
+        const blockIndex = this._uboIndex = gl.getUniformBlockIndex(shaderProgram, "u_ub_camera");
         if (blockIndex !== gl.INVALID_INDEX) {
-            const sizeInBytes = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
-            this._blockData = new Float32Array(sizeInBytes / 4);
-            gl.uniformBlockBinding(shaderProgram, blockIndex, 0);
+            //const sizeInBytes = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+            //gl.uniformBlockBinding(shaderProgram, blockIndex, 0);
             _uniformIndicesInBlock = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)
-            _uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
+            //_uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
             //const _uniformTypesInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_TYPE);
-            this._uniformBlock.createGPUResource(gl, shaderProgram, blockIndex, sizeInBytes);
         } else {
             //log.warn("[GLUniformBlock] Uniform Block not found!");
         }
@@ -212,9 +234,7 @@ export class GLProgram implements IProgram {
         const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
         for (let i = 0; i < uniformCount; i++) {
             const uniformInfo = gl.getActiveUniform(shaderProgram, i);
-            if (_uniformIndicesInBlock.includes(i)) {
-                this._uniformBlockLayout.set(uniformInfo.name, _uniformOffsetsInBlock[i]);
-            } else {
+            if (!_uniformIndicesInBlock.includes(i)) {
                 const _u = gl.getUniformLocation(shaderProgram, uniformInfo.name);
                 switch (uniformInfo.type) {
                     case gl.INT:
@@ -242,16 +262,6 @@ export class GLProgram implements IProgram {
 
         this._glProgram = shaderProgram;
         _wm_program.set(this, shaderProgram);
-        return this;
-    }
-
-    updateUniformBlock(name: string, data: BufferData_t): IProgram {
-        this._blockData.set(data, this._uniformBlockLayout.get(name));
-        return this;
-    }
-
-    uploadUniformBlock(): IProgram {
-        this._uniformBlock.uploadData(this._gl, this._blockData);
         return this;
     }
 

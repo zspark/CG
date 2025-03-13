@@ -66,9 +66,8 @@ export type UniformUpdaterFn_t = (program: IProgram) => void;
 
 export interface IProgram extends IBindableObject {
     link(vertexShader: WebGLShader, fragmentShader: WebGLShader): IProgram;
-    updateUniformBlock(name: string, data: BufferData_t): IProgram;
-    uploadUniformBlock(): IProgram;
     uploadUniform(name: string, value: any): IProgram;
+    setUBO(ubo: IUniformBlock): IProgram;
     destroy(): void;
 }
 
@@ -174,6 +173,7 @@ export interface IBindableObject {
 
 export interface IRenderer {
     readonly gl: WebGL2RenderingContext;
+    registerUBO(ubo: IUniformBlock): IRenderer;
     render(): IRenderer;
     addPipeline(p: IPipeline, option?: PipelineOption_t): IRenderer;
     addTransparentPipeline(p: IPipeline): IRenderer;
@@ -188,3 +188,8 @@ export interface IRenderContext {
     setCullFace(enable: boolean, faceToCull: GLenum): void;
 }
 
+export interface IUniformBlock {
+    get bindingPoint(): number;
+    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram, UBOIndex: number): IUniformBlock;
+    uploadData(data: BufferData_t): IUniformBlock;
+}

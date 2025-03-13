@@ -13,8 +13,6 @@ import { Loader } from "./assets-loader.js";
 
 export default class Skybox {
 
-    private _tempMat44: Mat44 = new Mat44();
-    private _tempMat44b: Mat44 = new Mat44();
     private _latlonTexture: ITexture;
     private _plane;
     private _pipeline;
@@ -30,12 +28,6 @@ export default class Skybox {
             .setTexture(this._latlonTexture)
             .setUniformUpdaterFn((program: IProgram) => {
                 program.uploadUniform("u_skybox_latlon", this._latlonTexture.textureUnit);
-
-                this._tempMat44b.invert();
-                program.uploadUniform("u_pInvMatrix", this._tempMat44b.data);
-
-                this._tempMat44.invert();
-                program.uploadUniform("u_vInvMatrix", this._tempMat44.data);
             });
 
         this._pipeline = new Pipeline(10)
@@ -50,9 +42,7 @@ export default class Skybox {
         return this._pipeline;
     }
 
-    update(dt: number, camera: ICamera): void {
-        this._tempMat44.copyFrom(camera.viewMatrix);
-        this._tempMat44b.copyFrom(camera.frustum.projectionMatrix);
+    update(dt: number): void {
     }
 }
 

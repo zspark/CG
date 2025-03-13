@@ -11,8 +11,6 @@ import getProgram from "./program-manager.js"
 export default class GridFloor extends Mesh {
 
     private _color = [0.5, 0.5, 0.5];
-    private _tempMat44: Mat44 = new Mat44().setIdentity();
-    private _tempMat44b: Mat44 = new Mat44().setIdentity();
     private _pipeline: IPipeline;
     private _primitive: Primitive;
 
@@ -24,10 +22,7 @@ export default class GridFloor extends Mesh {
         const _subp = new SubPipeline()
             .setGeometry(this._primitive.geometry)
             .setUniformUpdaterFn((program: IProgram) => {
-                this._tempMat44.multiply(this.modelMatrix, this._tempMat44);
-                program.uploadUniform("u_mvpMatrix", this._tempMat44.data);
-                this._tempMat44b.multiply(this.modelMatrix, this._tempMat44b);
-                program.uploadUniform("u_mvMatrix", this._tempMat44b.data);
+                program.uploadUniform("u_mMatrix", this.modelMatrix.data);
                 program.uploadUniform("u_color", this._color);
             })
             .validate();
@@ -45,9 +40,7 @@ export default class GridFloor extends Mesh {
         return this._pipeline;
     }
 
-    update(dt: number, camera: ICamera): void {
-        this._tempMat44.copyFrom(camera.viewProjectionMatrix);
-        this._tempMat44b.copyFrom(camera.viewMatrix);
+    update(dt: number): void {
     }
 }
 
