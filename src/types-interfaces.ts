@@ -190,6 +190,6 @@ export interface IRenderContext {
 
 export interface IUniformBlock {
     get bindingPoint(): number;
-    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram, UBOIndex: number): IUniformBlock;
+    createGPUResource(gl: WebGL2RenderingContext): IUniformBlock;
     uploadData(data: BufferData_t): IUniformBlock;
 }

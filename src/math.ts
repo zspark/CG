@@ -54,12 +54,13 @@ export class Vec4 implements xyzw {
 
     data: Float32Array;
 
-    constructor(x: number = 0, y: number = 0, z: number = 0, w: number = 0, storage?: Float32Array) {
+    constructor(x: number = 0, y: number = 0, z: number = 0, w: number = 0, storage?: Float32Array, index: number = 0) {
         if (storage) {
-            this.data = storage;
+            this.data = storage.subarray(index, index + 4);
         } else {
-            this.data = new Float32Array([x, y, z, w]);
+            this.data = new Float32Array(4);
         }
+        this.reset(x, y, z, w);
     }
 
     get x(): number { return this.data[0]; }

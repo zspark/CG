@@ -152,7 +152,9 @@ export default class Renderer implements IRenderer {
         p.FBO ??= this._defaultFBO;
         _onlyOnce ? this._arrOneTimePipeline.push(p) : this._arrPipeline.push(p);
         p.createGPUResource(this._device);
-        p.program.setUBO(this._arrBindingPointsToUBO[0]);
+        this._arrBindingPointsToUBO.forEach(ubo => {
+            p.program.setUBO(ubo);
+        });
         this._sortPipline();
         return this;
     }

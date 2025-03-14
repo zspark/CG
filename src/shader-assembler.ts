@@ -34,6 +34,7 @@ export type ShaderID_t = {
 
     debug_normal?: boolean,
 
+    phong?: boolean,
     sobel_silhouette?: boolean,
     color_vertex_attrib?: boolean,
     color_uniform?: boolean,

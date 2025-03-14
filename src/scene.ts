@@ -54,8 +54,10 @@ export default class Scene {
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
         this._camera = new Camera(-10, 4, 8).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
-        this._renderer.registerUBO(this._camera._UBO);
-        this._light = new light.PointLight(10, 20, -10); this._light.setDirection(-1, -1, 1);
+        this._renderer.registerUBO(this._camera.UBO);
+        this._light = new light.PointLight(10, 20, -10);
+        this._light.setDirection(-1, -1, 1);
+        this._renderer.registerUBO(this._light.UBO);
         this._gridFloor = new GridFloor();
         this._axis = new Axes();
         //this._skybox = new Skybox();
@@ -99,7 +101,7 @@ export default class Scene {
         new GLTFParser().load("./assets/gltf/skull/scene.gltf").then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
                 //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(-2, -2, 2)
-                this.addMesh(data.CGMeshs[i], true, getProgram({ debug_normal: true, }));
+                this.addMesh(data.CGMeshs[i], true, getProgram({ phong: true, }));
             }
         });
     }
@@ -148,12 +150,13 @@ export default class Scene {
         return (program: IProgram) => {
             program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
-            this._light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
-            program.uploadUniform("u_mlMatrix_normal", this._tempMat44.data);
-            this._light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mlpMatrix", this._tempMat44.data);
-            this._light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            program.uploadUniform("u_mlMatrix", this._tempMat44.data);
+            program.uploadUniform("u_mMatrix_dir", this._tempMat44.data);
+            //this._light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
+            //program.uploadUniform("u_mlMatrix_normal", this._tempMat44.data);
+            //this._light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
+            //program.uploadUniform("u_mlpMatrix", this._tempMat44.data);
+            //this._light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
+            //program.uploadUniform("u_mlMatrix", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", 0);
             program.uploadUniform("u_color", [color.x, color.y, color.z]);
             program.uploadUniform("u_nearFarPlane", [Scene.NEAR_PLANE, Scene.FAR_PLANE]);

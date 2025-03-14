@@ -15,10 +15,27 @@ uniform sampler2D u_depthTexture_r32f;
 uniform sampler2D u_skybox_latlon;
 uniform vec3 u_color;
 
-in vec3 v_normal;
+layout(std140) uniform u_ub_camera {
+    mat4 u_vInvMatrix;
+    mat4 u_vMatrix;
+    mat4 u_pMatrix;
+    mat4 u_pInvMatrix;
+    mat4 u_vpMatrix;
+};
+layout(std140) uniform u_ub_phong {
+    mat4 u_lInvMatrix;
+    mat4 u_lMatrix;
+    mat4 u_lpMatrix;
+    vec3 u_ambientColor;
+    vec4 u_lightColor;  // w: u_specularHighlight;
+};
+
+in vec3 v_normal_debug;
 in vec3 v_rayDirection;
 in float v_distanceToCamera;
 in vec3 v_color;
+in vec3 v_positionW;
+in vec3 v_normalW;
 
 #ifdef R32I
 out int o_pickable;
@@ -67,7 +84,7 @@ void main() {
 #elif defined(COLOR_UNIFORM)
     _color = u_color;
 #elif defined(DEBUG_NORMAL)
-    _color = normalize(v_normal) * .5 + .5;
+    _color = normalize(v_normal_debug) * .5 + .5;
 #elif defined(SKYBOX_LATLON)
     vec3 rayDir = normalize(v_rayDirection);
     float u = 0.5 + atan(rayDir.z, rayDir.x) / PI2;
@@ -110,6 +127,20 @@ void main() {
         _color = vec3(1.0, 1.0, 0.0);
     } else
         discard;
+#elif defined(PHONG)
+    vec3 _normalW = normalize(v_normalW);
+    vec3 _lightPosW = vec3(u_lInvMatrix[3][0], u_lInvMatrix[3][1], u_lInvMatrix[3][2]);
+    vec3 _lightDir = normalize(_lightPosW - v_positionW);
+    float _lDn = dot(_lightDir, _normalW);
+    if (_lDn <= 0.0) {
+        _color = 0.4 * u_ambientColor;
+    } else {
+        vec3 _cameraDir = normalize(vec3(u_vInvMatrix[3][0], u_vInvMatrix[3][1], u_vInvMatrix[3][2]) - v_positionW);
+        vec3 _halfDir = (_cameraDir + _lightDir) * .5;
+        float diffuseIntensity = clamp(_lDn, 0.0, 1.0);
+        float specularIntensity = pow(clamp(dot(_halfDir, _normalW), 0.0, 1.0), u_lightColor.w);
+        _color = 0.4 * u_ambientColor + 0.6 * (diffuseIntensity + specularIntensity) * u_lightColor.xyz;
+    }
 #else
     _color = vec3(0.0, 1.0, 1.0);
 #endif

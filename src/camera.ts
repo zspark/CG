@@ -6,11 +6,12 @@ import SpaceController from "./space-controller.js"
 import { MouseEvents_t, mouseEventCallback } from "./mouse-events.js"
 import { UniformBlock } from "./device-resource.js"
 import { IUniformBlock } from "./types-interfaces.js"
+import { BINDING_POINT } from "./gl-const.js"
 
 export interface ICamera {
     readonly position: xyzw;
     readonly frustum: Frustum;
-    readonly _UBO: IUniformBlock;
+    readonly UBO: IUniformBlock;
 
     setMouseEvents(events: MouseEvents_t): ICamera;
     viewMatrix: roMat44;
@@ -30,9 +31,9 @@ export interface ICamera {
 export default class Camera implements ICamera {
     static NEAR_PLANE: number = 1;
     static FAR_PLANE: number = 100;
-    static UBO_BINDING_POINT: number = 0;
 
-    _UBO: IUniformBlock;
+    private _UBO: IUniformBlock;
+    private _uboData: Float32Array;
     private _rotateCenterPosition = new Vec4();
     private _helperMat44 = new Mat44();
     private _helperVec4_x = new Vec4();
@@ -43,12 +44,11 @@ export default class Camera implements ICamera {
     private _viewProjectionMatrix: Mat44;
     private _frustum: Frustum;
     private _cameraDirtyFlag: boolean = true;
-    private _uboData: Float32Array;
 
     constructor(posX: number, posY: number, posZ: number) {
         const _sizeInFloat = 5 * 16; // 5 matrices;
         this._uboData = new Float32Array(_sizeInFloat);
-        this._UBO = new UniformBlock(Camera.UBO_BINDING_POINT, _sizeInFloat * 4);
+        this._UBO = new UniformBlock(BINDING_POINT.UBO_BINDING_POINT_CAMERA, _sizeInFloat * 4);
         this._space = new OrthogonalSpace(this._uboData, 16 * 0);
         this._space.setPosition(posX, posY, posZ);
         this._spaceCtrl = new SpaceController(this._space);
@@ -56,6 +56,10 @@ export default class Camera implements ICamera {
         this._frustum.createPerspectiveProjection(Math.PI / 3, 640 / 480, Camera.NEAR_PLANE, Camera.FAR_PLANE);
         this._viewProjectionMatrix = new Mat44(this._uboData, 16 * 4);
         this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+    }
+
+    get UBO(): IUniformBlock {
+        return this._UBO;
     }
 
     get position(): xyzw {

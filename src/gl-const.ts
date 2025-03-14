@@ -98,3 +98,8 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
 
 export default glConst;
 
+export const BINDING_POINT = {
+    UBO_BINDING_POINT_CAMERA: 0,
+    UBO_BINDING_POINT_LIGHT: 1,
+}
+

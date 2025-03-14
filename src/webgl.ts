@@ -1,6 +1,6 @@
 import log from "./log.js"
 import { initProgram } from "./program-manager.js"
-import { default as glC, initGLConstant } from "./gl-const.js"
+import { BINDING_POINT, default as glC, initGLConstant } from "./gl-const.js"
 import {
     createContext_fn_t,
     IUniformBlock,
@@ -33,7 +33,7 @@ export class GLUniformBlock {
         return this._bindingPoint;
     }
 
-    createGPUResource(gl: WebGL2RenderingContext, program: WebGLProgram, UBOIndex: number): GLUniformBlock {
+    createGPUResource(gl: WebGL2RenderingContext): GLUniformBlock {
         this._gl = gl;
         if (!this._glBuffer) {
             this._glBuffer ??= gl.createBuffer();
@@ -165,7 +165,8 @@ export class GLProgram implements IProgram {
     private _glProgram: WebGLProgram;
     private _gl: WebGL2RenderingContext;
     private _mapUniformFn: Map<string, (value: any) => void> = new Map();
-    private _uboIndex: number;
+    private _uboCameraIndex: number;
+    private _uboLightIndex: number;
 
     static compile(gl: WebGL2RenderingContext, vsSource: string, type: GLenum): WebGLShader | undefined {
         const _shader = gl.createShader(type);
@@ -195,10 +196,17 @@ export class GLProgram implements IProgram {
 
     setUBO(ubo: IUniformBlock): IProgram {
         const gl = this._gl;
+        ubo.createGPUResource(gl);
+        let _uboIndex = -1;
+        if (ubo.bindingPoint === BINDING_POINT.UBO_BINDING_POINT_CAMERA) {
+            _uboIndex = this._uboCameraIndex;
+        } else if (ubo.bindingPoint === BINDING_POINT.UBO_BINDING_POINT_LIGHT) {
+            _uboIndex = this._uboLightIndex;
+        }
         gl.bindBuffer(gl.UNIFORM_BUFFER, _wm_buffer.get(ubo));
-        gl.uniformBlockBinding(this._glProgram, this._uboIndex, ubo.bindingPoint);
+        gl.uniformBlockBinding(this._glProgram, _uboIndex, ubo.bindingPoint);
         gl.bindBufferBase(gl.UNIFORM_BUFFER, ubo.bindingPoint, _wm_buffer.get(ubo));
-        ubo.createGPUResource(this._gl, this._glProgram, this._uboIndex);
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
         return this;
     }
 
@@ -217,18 +225,23 @@ export class GLProgram implements IProgram {
             return;
         }
 
-        let _uniformIndicesInBlock: number[] = [];
-        //let _uniformOffsetsInBlock: number[] = [];
-        const blockIndex = this._uboIndex = gl.getUniformBlockIndex(shaderProgram, "u_ub_camera");
-        if (blockIndex !== gl.INVALID_INDEX) {
-            //const sizeInBytes = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
-            //gl.uniformBlockBinding(shaderProgram, blockIndex, 0);
-            _uniformIndicesInBlock = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)
-            //_uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
-            //const _uniformTypesInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_TYPE);
-        } else {
-            //log.warn("[GLUniformBlock] Uniform Block not found!");
+        const _uniformIndicesInBlock: number[] = [];
+        function _fn2(uboName: string) {
+            //let _uniformOffsetsInBlock: number[] = [];
+            const blockIndex = gl.getUniformBlockIndex(shaderProgram, uboName);
+            if (blockIndex !== gl.INVALID_INDEX) {
+                //const sizeInBytes = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
+                //gl.uniformBlockBinding(shaderProgram, blockIndex, 0);
+                _uniformIndicesInBlock.concat(gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES));
+                //_uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
+                //const _uniformTypesInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_TYPE);
+            } else {
+                //log.warn("[GLUniformBlock] Uniform Block not found!");
+            }
+            return blockIndex;
         }
+        this._uboCameraIndex = _fn2("u_ub_camera");
+        this._uboLightIndex = _fn2("u_ub_phong");
 
         let _fn: any;
         const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
