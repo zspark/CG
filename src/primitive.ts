@@ -3,12 +3,14 @@ import { roMat44, xyzw, Mat44, Vec4 } from "./math.js"
 import { ISubPipeline, IGeometry, IProgram } from "./types-interfaces.js"
 import { Pickable_t } from "./picker.js";
 import utils from "./utils.js";
+import Material from "./material.js";
 import { SubPipeline } from "./device-resource.js";
 
 export default class Primitive {
 
     protected _ref_geo: IGeometry;
     protected _uuid: number = utils.uuid();
+    protected _material: Material;
     private _name: string;
 
     constructor(name?: string, geometry?: IGeometry) {
@@ -32,9 +34,12 @@ export default class Primitive {
         return this._ref_geo.vertexBufferLength;
     }
 
-    get material(): any {
-        log.info('[primitive] TODO: need material!');
-        return undefined;
+    get material(): Material {
+        return this._material;
+    }
+
+    set material(m: Material) {
+        this._material = m;
     }
 
     get geometry(): IGeometry {

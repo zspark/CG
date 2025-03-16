@@ -33,7 +33,7 @@ export default class Skybox {
         this._pipeline = new Pipeline(10)
             .cullFace(false, glC.BACK)
             .depthTest(false, glC.LESS)
-            .setProgram(getProgram({ position_in_ndc: true, skybox_latlon: true }))
+            .setProgram(getProgram({ position_in_ndc: true, fn_skybox_latlon: true }))
             .appendSubPipeline(_subPipeCubeLatlon)
             .validate()
     }

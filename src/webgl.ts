@@ -241,7 +241,7 @@ export class GLProgram implements IProgram {
             return blockIndex;
         }
         this._uboCameraIndex = _fn2("u_ub_camera");
-        this._uboLightIndex = _fn2("u_ub_phong");
+        this._uboLightIndex = _fn2("u_ub_light");
 
         let _fn: any;
         const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
@@ -307,8 +307,9 @@ export class GLTexture implements ITexture {
     private _type: GLenum;
     private _width: number;
     private _height: number;
-    private _data: ArrayBuffer;
+    private _data: ArrayBuffer | HTMLImageElement;
     private _mapTextureParameter: Map<GLenum, GLenum> = new Map();
+    private _UVIndex: number = 0;
 
     /**
     * internalFormat defaults to gl.RGBA
@@ -327,7 +328,15 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
     }
 
-    set data(data: ArrayBuffer) {
+    set UVIndex(index: number) {
+        this._UVIndex = index;
+    }
+
+    get UVIndex(): number {
+        return this._UVIndex;
+    }
+
+    set data(data: ArrayBuffer | HTMLImageElement) {
         if (this._glTexture) {
             this.updateData(data);
         } else {
@@ -362,6 +371,7 @@ export class GLTexture implements ITexture {
         const gl = this._gl;
         gl.bindTexture(gl.TEXTURE_2D, this._glTexture);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height, this._format, this._type, data);
+        gl.generateMipmap(gl.TEXTURE_2D);
         return this;
     }
 
@@ -669,6 +679,7 @@ export class GLSubPipeline implements ISubPipeline {
     }
 
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline {
+        if (!texture) return this;
         this._textureSet.add(texture);
         return this;
     }
@@ -749,9 +760,13 @@ export class GLFramebuffer implements IFramebuffer {
                 gl.bindTexture(target, _glTex);
                 gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, target, _glTex, 0);
             });
-            const _glTex = _wm_texture.get(this._depthTexture);
-            gl.bindTexture(target, _glTex);
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, target, _glTex, 0);
+
+            if (this._depthTexture) {
+                this._depthTexture.createGPUResource(gl);
+                const _glTex = _wm_texture.get(this._depthTexture);
+                gl.bindTexture(target, _glTex);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, target, _glTex, 0);
+            }
 
             gl.bindTexture(target, null);
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -879,3 +894,29 @@ export class GLFramebuffer_C0_r32f extends GLFramebuffer {
         gl.clear(gl.COLOR_BUFFER_BIT);
     }
 }
+
+export class GLFramebuffer_Depth_f extends GLFramebuffer {
+
+    constructor(width: number, height: number) {
+        super(width, height);
+        this._depthTexture = new GLTexture(width, height, glC.DEPTH_COMPONENT16, glC.DEPTH_COMPONENT, glC.UNSIGNED_SHORT);
+        this._depthTexture.setParameter(glC.TEXTURE_COMPARE_MODE, glC.COMPARE_REF_TO_TEXTURE);
+        this._depthTexture.setParameter(glC.TEXTURE_COMPARE_FUNC, glC.LEQUAL);
+        this._depthTexture.setParameter(glC.TEXTURE_MIN_FILTER, glC.LINEAR);
+        this._depthTexture.setParameter(glC.TEXTURE_MAG_FILTER, glC.LINEAR);
+    }
+
+    get criticalKey(): object {
+        return GLFramebuffer;
+    }
+
+    get depthTexture(): ITexture {
+        return this._depthTexture;
+    }
+
+    clears(): void {
+        const gl = this._gl;
+        gl.clearBufferfv(gl.DEPTH, 0, [1]);
+    }
+}
+

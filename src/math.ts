@@ -43,9 +43,15 @@ export interface xyzw {
     readonly w: number;
     isSame: (x: number, y: number, z: number, w: number) => boolean;
 }
-export type rgba = xyzw;
+export interface rgba {
+    readonly r: number;
+    readonly g: number;
+    readonly b: number;
+    readonly a: number;
+    isSame: (r: number, g: number, b: number, a: number) => boolean;
+}
 
-export class Vec4 implements xyzw {
+export class Vec4 implements xyzw, rgba {
     static VEC4_0000 = Object.freeze(new Vec4(0, 0, 0, 0));
     static VEC4_1000 = Object.freeze(new Vec4(1, 0, 0, 0));
     static VEC4_0100 = Object.freeze(new Vec4(0, 1, 0, 0));
@@ -71,6 +77,10 @@ export class Vec4 implements xyzw {
     set y(v: number) { this.data[1] = v; }
     set z(v: number) { this.data[2] = v; }
     set w(v: number) { this.data[3] = v; }
+    get r(): number { return this.data[0]; }
+    get g(): number { return this.data[1]; }
+    get b(): number { return this.data[2]; }
+    get a(): number { return this.data[3]; }
 
     reset(x: number, y: number, z: number, w: number): Vec4 {
         this.data[0] = x;

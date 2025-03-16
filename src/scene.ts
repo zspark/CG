@@ -20,6 +20,8 @@ import utils from "./utils.js";
 import Outline from "./outline.js";
 import Renderer from "./renderer.js";
 import Skybox from "./skybox.js";
+import Material from "./material.js";
+import ShadowMap from "./shadow-map.js";
 
 export default class Scene {
     static NEAR_PLANE = 1;
@@ -41,6 +43,7 @@ export default class Scene {
     private _outline: Outline;
     private _renderer: Renderer;
     private _skybox: Skybox;
+    private _shadowMap: ShadowMap;
     private _deltaTimeInMS: number = 0;
 
     private _pickWrapper: {
@@ -53,21 +56,23 @@ export default class Scene {
         this._renderer = new Renderer({ canvas });
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
-        this._camera = new Camera(-10, 4, 8).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
+        this._camera = new Camera(2, 2, 2).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
         this._renderer.registerUBO(this._camera.UBO);
-        this._light = new light.PointLight(10, 20, -10);
-        this._light.setDirection(-1, -1, 1);
+        this._light = new light.PointLight(2, 2, 2);
+        this._light.setDirection(-1, -1, -1);
         this._renderer.registerUBO(this._light.UBO);
         this._gridFloor = new GridFloor();
         this._axis = new Axes();
         //this._skybox = new Skybox();
         this._picker = new Picker(_evts);
         this._outline = new Outline();
+        this._shadowMap = new ShadowMap(this._renderer.gl);
         this._configWrapper();
 
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
         //this._renderer.addPipeline(this._skybox.pipeline);
+        this._renderer.addPipeline(this._shadowMap.pipeline);
         const _arrP = this._outline?.pipelines;
         _arrP?.forEach(p => {
             this._renderer.addPipeline(p);
@@ -96,12 +101,16 @@ export default class Scene {
     }
 
     get picker() { return this._pickWrapper; }
+    get light() { return this._light.API; }
 
     loadGLTF() {
         new GLTFParser().load("./assets/gltf/skull/scene.gltf").then((data: GLTFParserOutput_t) => {
+            //new GLTFParser().load("./assets/gltf/dragon_sculpture/scene.gltf").then((data: GLTFParserOutput_t) => {
+            //new GLTFParser().load("./assets/gltf/cup_with_holder/scene.gltf").then((data: GLTFParserOutput_t) => {
+            //new GLTFParser().load("./assets/gltf/glass_bunny/scene.gltf").then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(-2, -2, 2)
-                this.addMesh(data.CGMeshs[i], true, getProgram({ phong: true, }));
+                //this._ctrl.setSpace(data.CGMeshs[i]).scale(0.2, .2, .2)//.setPosition(-2, -2, 2)
+                this.addMesh(data.CGMeshs[i], true, getProgram({ ft_tex_normal: true, ft_shadow: true, ft_phong: true, fn_gltf: true, }));
             }
         });
     }
@@ -115,7 +124,10 @@ export default class Scene {
         mesh.getPrimitives().forEach(p => {
             _p.appendSubPipeline(new SubPipeline()
                 .setGeometry(p.geometry)
-                .setUniformUpdaterFn(this._createUpdater(mesh, new Vec4(1, 0, 0, 1)))
+                .setTexture(this._shadowMap.depthTexture)
+                .setTexture(p.material?._normalTexture)
+                .setTexture(p.material?._albedoTexture)
+                .setUniformUpdaterFn(this._createUpdater(mesh, p.material, new Vec4(1, 0, 0, 1)))
                 .validate()
             );
         });
@@ -124,6 +136,7 @@ export default class Scene {
         if (enablePick && this._picker) {
             this._addToPicker(mesh.getPickables());
         }
+        this._shadowMap.addTarget(mesh);
         return this;
     }
 
@@ -146,7 +159,7 @@ export default class Scene {
         this._renderer.render();
     }
 
-    private _createUpdater(mesh: Mesh, color: rgba) {
+    private _createUpdater(mesh: Mesh, material: Material, color: rgba) {
         return (program: IProgram) => {
             program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
@@ -157,8 +170,16 @@ export default class Scene {
             //program.uploadUniform("u_mlpMatrix", this._tempMat44.data);
             //this._light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
             //program.uploadUniform("u_mlMatrix", this._tempMat44.data);
-            program.uploadUniform("u_shadowMap", 0);
-            program.uploadUniform("u_color", [color.x, color.y, color.z]);
+            program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
+            if (material?._normalTexture) {
+                program.uploadUniform("u_normalTexture", material._normalTexture.textureUnit);
+                program.uploadUniform("u_normalTextureUVIndex", material._normalTexture.UVIndex);
+            }
+            if (material?._albedoTexture) {
+                program.uploadUniform("u_albedoTexture", material._albedoTexture.textureUnit);
+                program.uploadUniform("u_albedoTextureUVIndex", material._albedoTexture.UVIndex);
+            }
+            program.uploadUniform("u_color", [color.r, color.g, color.b]);
             program.uploadUniform("u_nearFarPlane", [Scene.NEAR_PLANE, Scene.FAR_PLANE]);
             /// --------------------------------------------------------------------------------
             /// debug normals;
@@ -175,7 +196,6 @@ export default class Scene {
             pickedResult: this._picker.pickedResult,
             addTarget: this._picker.addTarget,
             removeTarget: this._picker.removeTarget,
-        }
+        };
     }
-
 }

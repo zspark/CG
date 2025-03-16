@@ -31,7 +31,7 @@ export default class GridFloor extends Mesh {
             .setFBO(fbo)
             .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .depthTest(true, glC.LESS)
-            .setProgram(getProgram({ fade_away_from_camera: true, color_uniform: true }))
+            .setProgram(getProgram({ fn_fade_away_from_camera: true, color_uniform: true }))
             .appendSubPipeline(_subp)
             .validate();
     }

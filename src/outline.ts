@@ -43,7 +43,7 @@ export default class Outline {
             });
 
         this._pipeline = new Pipeline(-200000)
-            .setProgram(getProgram({ position_in_ndc: true, sobel_silhouette: true, }))
+            .setProgram(getProgram({ position_in_ndc: true, fn_sobel_silhouette: true, }))
             .depthTest(false/*, glC.LESS*/)
             .cullFace(false)
             .appendSubPipeline(this._subPipeline)

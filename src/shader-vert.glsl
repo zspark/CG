@@ -10,6 +10,14 @@ layout(std140) uniform u_ub_camera {
     mat4 u_pInvMatrix;
     mat4 u_vpMatrix;
 };
+
+layout(std140) uniform u_ub_light {
+    mat4 u_lInvMatrix;
+    mat4 u_lMatrix;
+    mat4 u_lpMatrix;
+    vec3 u_ambientColor;
+    vec4 u_lightColor;  // w: u_specularHighlight;
+};
 uniform mat4 u_mMatrix;
 uniform mat4 u_mMatrix_dir;
 uniform mat4 u_debugNormalModelMatrix;  // model to world;
@@ -17,20 +25,30 @@ uniform mat4 u_debugNormalViewMatrix;   // world to view;
 uniform int u_debugNormalSpace;         // 0:model space; 1:world space; 2:view space;
 
 layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_uvCoord;
-layout(location = 2) in vec3 a_normal;
+layout(location = 1) in vec3 a_normal;
+layout(location = 2) in vec4 a_tangent;
 layout(location = 3) in vec3 a_color;
+layout(location = 5) in vec2 a_uvCoord_0;
+layout(location = 6) in vec2 a_uvCoord_1;
+layout(location = 7) in vec2 a_uvCoord_2;
+layout(location = 8) in vec2 a_uvCoord_3;
+layout(location = 9) in vec2 a_uvCoord_4;
 layout(location = 12) in vec4 a_instanceMatrix_col0;
 layout(location = 13) in vec4 a_instanceMatrix_col1;
 layout(location = 14) in vec4 a_instanceMatrix_col2;
 layout(location = 15) in vec4 a_instanceMatrix_col3;
 
+out vec3 v_normal_debug;
+
 out float v_distanceToCamera;
 out vec3 v_positionW;
 out vec3 v_normalW;
+out vec3 v_tangentW;
 out vec3 v_color;
-out vec3 v_normal_debug;
 out vec3 v_rayDirection;
+out vec2 v_arrayUV[5];
+
+out vec4 v_positionLProj;
 
 void main() {
     vec4 pos = vec4(a_position, 1.0);
@@ -48,7 +66,7 @@ void main() {
 #ifdef POSITION_IN_NDC
     gl_Position = pos;
 
-    #ifdef SKYBOX_LATLON
+    #ifdef FN_SKYBOX_LATLON
     vec4 viewPos = u_pInvMatrix * pos;
     viewPos /= viewPos.w;
     viewPos.w = 0.f;  // be careful direction transformation.
@@ -57,7 +75,7 @@ void main() {
     #endif
 #else
 
-    #ifdef FADE_AWAY_FROM_CAMERA
+    #ifdef FN_FADE_AWAY_FROM_CAMERA
     v_distanceToCamera = -(u_vMatrix * u_mMatrix * pos).z;
     #endif
 
@@ -70,13 +88,28 @@ void main() {
         a_instanceMatrix_col0, a_instanceMatrix_col1,
         a_instanceMatrix_col2, a_instanceMatrix_col3);
     gl_Position = u_vpMatrix * _instanceMatrix * pos;
+    #elif defined FN_SHADOW_MAP
+    gl_Position = u_lpMatrix * u_mMatrix * pos;
     #else
     gl_Position = u_vpMatrix * u_mMatrix * pos;
     #endif
 
-    #ifdef PHONG
+    #ifdef FT_PHONG
     v_positionW = (u_mMatrix * pos).xyz;
     v_normalW = (u_mMatrix_dir * vec4(a_normal, 0.0)).xyz;
+    v_tangentW = (u_mMatrix_dir * vec4(a_tangent.xyz, 0.0)).xyz;
+    #endif
+
+    #ifdef FN_GLTF
+    v_arrayUV[0] = a_uvCoord_0;
+    v_arrayUV[1] = a_uvCoord_1;
+    v_arrayUV[2] = a_uvCoord_2;
+    v_arrayUV[3] = a_uvCoord_3;
+    v_arrayUV[4] = a_uvCoord_4;
+    #endif
+
+    #ifdef FT_SHADOW
+    v_positionLProj = u_lpMatrix * u_mMatrix * pos;
     #endif
 
 #endif

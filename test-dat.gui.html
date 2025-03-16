@@ -7,9 +7,8 @@
 
 <body>
     <canvas id="glcanvas" width="640" height="480"></canvas>
-    <script type="text/javascript" src="./third/dat.gui.min.js"></script>
-
-    <script>
+    <script type="module">
+        import * as dat from "./third/dat.gui.module.js";
         var obj = {
             message: 'Hello World',
             displayOutline: false,

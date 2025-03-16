@@ -7,12 +7,14 @@ type _glConst = {
     FLOAT: GLenum,
     UNSIGNED_SHORT: GLenum;
     UNSIGNED_BYTE: GLenum,
+    UNSIGNED_INT: GLenum,
 
     FRAMEBUFFER: GLenum,
     FRAMEBUFFER_COMPLETE: GLenum,
 
     BACK: GLenum,
     FRONT: GLenum,
+    NONE: GLenum,
 
     LINES: GLenum,
     TRIANGLES: GLenum,
@@ -37,8 +39,13 @@ type _glConst = {
     TEXTURE_WRAP_T: GLenum,
     TEXTURE_MIN_FILTER: GLenum,
     TEXTURE_MAG_FILTER: GLenum,
+    TEXTURE_COMPARE_MODE: GLenum,
+    COMPARE_REF_TO_TEXTURE: GLenum,
+    TEXTURE_COMPARE_FUNC: GLenum,
+    LEQUAL: GLenum,
     CLAMP_TO_EDGE: GLenum,
     NEAREST: GLenum,
+    LINEAR: GLenum,
 
     DEPTH_COMPONENT16: GLenum,
     DEPTH_COMPONENT: GLenum,
@@ -75,9 +82,9 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.ELEMENT_ARRAY_BUFFER = gl.ELEMENT_ARRAY_BUFFER;
     glConst.STATIC_DRAW = gl.STATIC_DRAW;
     glConst.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
-    glConst.LESS = gl.LESS;
     glConst.RGBA = gl.RGBA;
     glConst.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
+    glConst.UNSIGNED_INT = gl.UNSIGNED_INT;
 
     glConst.TEXTURE_WRAP_R = gl.TEXTURE_WRAP_R;
     glConst.TEXTURE_WRAP_S = gl.TEXTURE_WRAP_S;
@@ -86,6 +93,12 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.TEXTURE_MAG_FILTER = gl.TEXTURE_MAG_FILTER;
     glConst.CLAMP_TO_EDGE = gl.CLAMP_TO_EDGE;
     glConst.NEAREST = gl.NEAREST;
+    glConst.LINEAR = gl.LINEAR;
+    glConst.TEXTURE_COMPARE_MODE = gl.TEXTURE_COMPARE_MODE;
+    glConst.COMPARE_REF_TO_TEXTURE = gl.COMPARE_REF_TO_TEXTURE;
+    glConst.TEXTURE_COMPARE_FUNC = gl.TEXTURE_COMPARE_FUNC;
+    glConst.LEQUAL = gl.LEQUAL;
+    glConst.LESS = gl.LESS;
 
     glConst.DEPTH_COMPONENT16 = gl.DEPTH_COMPONENT16;
     glConst.DEPTH_COMPONENT = gl.DEPTH_COMPONENT;
@@ -94,6 +107,8 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.RED = gl.RED;
     glConst.RED_INTEGER = gl.RED_INTEGER;
     glConst.INT = gl.INT;
+
+    glConst.NONE = gl.NONE;
 }
 
 export default glConst;

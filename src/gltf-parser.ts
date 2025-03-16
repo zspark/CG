@@ -1,12 +1,14 @@
 import log from "./log.js"
+import glC from "./gl-const.js";
 import { default as createLoader, ILoader } from "./assets-loader.js"
 import { default as Geometry } from "./geometry.js"
-import { IGeometry, IBuffer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
+import { ITexture, IGeometry, IBuffer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
 import { Buffer } from "./device-resource.js"
-import { GLBuffer } from "./webgl.js"
+import { Texture } from "./device-resource.js"
 import Mesh from "./mesh.js"
 import Primitive from "./primitive.js"
 import SpacialNode from "./spacial-node.js"
+import Material from "./material.js"
 import { Mat44, Quat } from "./math.js"
 
 type GLTFScene_t = {
@@ -30,6 +32,11 @@ type GLTFPrimitive_t = {
     attributes: {
         POSITION: number,
         NORMAL?: number,
+        TANGENT?: number,
+        TEXCOORD_0?: number,
+        TEXCOORD_1?: number,
+        TEXCOORD_2?: number,
+        TEXCOORD_3?: number,
     },
     material?: number,
 };
@@ -68,7 +75,61 @@ type GLTFv2_t = {
     buffers?: GLTFBuffer_t[],
     bufferViews?: GLTFBufferView_t[],
     accessors?: GLTFAccessor_t[],
+    materials?: GLTFMaterial_t[],
+    images?: GLTFImage_t[],
+    samplers?: GLTFSampler_t[],
+    textures?: GLTFTexture_t[],
 }
+
+type GLTFMaterial_t = {
+    name: string;
+    pbrMetallicRoughness?: {
+        baseColorTexture: {
+            index: number,
+            texCoord?: number
+        },
+        baseColorFactor: number[],
+        metallicRoughnessTexture: {
+            index: number,
+            texCoord?: number
+        },
+        metallicFactor: number,
+        roughnessFactor: number,
+    }
+    normalTexture: {
+        scale: number,
+        index: number,
+        texCoord?: number,
+    },
+    occlusionTexture: {
+        strength: number,
+        index: number,
+        texCoord?: number,
+    },
+    emissiveTexture: {
+        index: number,
+        texCoord?: number,
+    },
+    emissiveFactor: number[],
+};
+
+type GLTFImage_t = {
+    uri?: string,
+    //bufferView?: number,// for future support
+    //mimeType?: string,// for future support
+};
+
+type GLTFSampler_t = {
+    magFilter: number,
+    minFilter: number,
+    wrapS: number,
+    wrapT: number,
+};
+
+type GLTFTexture_t = {
+    source: number,
+    sampler: number,
+};
 
 export interface IGLTFParser {
 }
@@ -78,6 +139,7 @@ export type GLTFParserOutput_t = {
     geometrys: IGeometry[],
     CGMeshs: Mesh[],
     SpacialNodes: SpacialNode[],
+    CGMaterials: Material[],
 }
 
 export default class GLTFParser implements IGLTFParser {
@@ -92,17 +154,19 @@ export default class GLTFParser implements IGLTFParser {
     private _output: GLTFParserOutput_t;
     private _baseURL: string;
     private _loader: ILoader;
+    private _arrImage: HTMLImageElement[] = [];
+    private _arrTexture: ITexture[] = [];
 
     constructor(deleteAfterParse: boolean = true) {
-        this._output = { SpacialNodes: [], geometrys: [], CGMeshs: [] };
+        this._output = { SpacialNodes: [], geometrys: [], CGMeshs: [], CGMaterials: [] };
     }
 
     async load(url: string): Promise<GLTFParserOutput_t> {
         const _lIndex = url.lastIndexOf('/');
         this._baseURL = url.substring(0, _lIndex) + '/';
         this._loader = createLoader(this._baseURL);
-        const _gltf = await this._loadGLFT(url.substring(_lIndex));
-        await this._loadData(_gltf.buffers);
+        const _gltf = await this._loadGLTF(url.substring(_lIndex));
+        await this._loadData(_gltf);
         this._parse(_gltf);
         return this._output;
     }
@@ -152,15 +216,37 @@ export default class GLTFParser implements IGLTFParser {
         }
     }
 
-    private async _loadGLFT(name: string): Promise<GLTFv2_t> {
+    private _parseTextures(texs: GLTFTexture_t[]): void {
+        for (let i = 0, N = texs.length; i < N; ++i) {
+            const tex: GLTFTexture_t = texs[i];
+            const _img: HTMLImageElement = this._arrImage[tex.source];
+            const _out = new Texture(_img.width, _img.height);
+            _out.data = _img;
+            const _sampler: GLTFSampler_t = this._ref_gltf.samplers[tex.sampler];
+            _out.setParameter(glC.TEXTURE_WRAP_S, _sampler.wrapS);
+            _out.setParameter(glC.TEXTURE_WRAP_T, _sampler.wrapT);
+            _out.setParameter(glC.TEXTURE_MIN_FILTER, _sampler.minFilter);
+            _out.setParameter(glC.TEXTURE_MAG_FILTER, _sampler.magFilter);
+            this._arrTexture[i] = _out;
+        }
+    }
+
+    private async _loadGLTF(name: string): Promise<GLTFv2_t> {
         const str = await this._loader.loadText(name)
         return JSON.parse(str)
     }
 
-    private async _loadData(buffers: GLTFBuffer_t[]): Promise<void> {
+    private async _loadData(gltf: GLTFv2_t): Promise<void> {
+        const buffers: GLTFBuffer_t[] = gltf.buffers;
         for (let i = 0, N = buffers.length; i < N; ++i) {
             let _data = await this._loader.loadBinary(buffers[i].uri);
             if (!!_data) this._arrData[i] = _data;
+        }
+
+        const imgs: GLTFImage_t[] = gltf.images;
+        for (let i = 0, N = imgs?.length ?? 0; i < N; ++i) {
+            let _data = await this._loader.loadTexture(imgs[i].uri);
+            if (!!_data) this._arrImage[i] = _data;
         }
     }
 
@@ -168,8 +254,36 @@ export default class GLTFParser implements IGLTFParser {
         this._ref_gltf = gltf;
         this._ref_accessors = gltf.accessors;
         this._ref_bufferViews = gltf.bufferViews;
+        gltf.textures && this._parseTextures(gltf.textures);
+        this._parseMaterials(gltf.materials);
         gltf.meshes && this._parseMeshes(gltf.meshes);
         gltf.nodes && this._parseNodes(gltf.nodes);
+    }
+
+    private _parseMaterials(materials: GLTFMaterial_t[]): void {
+        if (materials?.length <= 0) return;
+
+        let _mat: Material;
+        let _matProp: GLTFMaterial_t;
+        for (let i = 0, N = materials.length; i < N; ++i) {
+            _matProp = materials[i];
+            _mat = new Material(_matProp.name);
+            if (_mat._albedoTexture = this._arrTexture[_matProp.pbrMetallicRoughness?.baseColorTexture?.index])
+                _mat._albedoTexture.UVIndex = _matProp.pbrMetallicRoughness?.baseColorTexture?.texCoord;
+            if (_mat._normalTexture = this._arrTexture[_matProp.normalTexture?.index])
+                _mat._normalTexture.UVIndex = _matProp.normalTexture?.texCoord;
+            _mat._normalTextureScale = _matProp.normalTexture?.scale ?? 1.0;
+            _mat._occlusionTexture = this._arrTexture[_matProp.occlusionTexture?.index];
+            _mat._occlusionTextureStrength = _matProp.occlusionTexture?.strength ?? 1.0;
+            _mat._emissiveTexture = this._arrTexture[_matProp.emissiveTexture?.index];
+            if (_matProp.emissiveFactor) {
+                _mat._emissiveTextureFactor[0] = _matProp.emissiveFactor[0];
+                _mat._emissiveTextureFactor[1] = _matProp.emissiveFactor[1];
+                _mat._emissiveTextureFactor[2] = _matProp.emissiveFactor[2];
+            }
+
+            this._output.CGMaterials[i] = _mat;
+        }
     }
 
     private _parseMeshes(meshes: GLTFMesh_t[]): void {
@@ -195,12 +309,15 @@ export default class GLTFParser implements IGLTFParser {
         let _acc;
         let _buf: IBuffer;
         let _attrib: Attribute_t;
+
+        // attributes;
         _acc = this._ref_accessors[primitive.attributes.POSITION];
         if (_acc) {
             const _bv = this._ref_bufferViews[_acc.bufferView];
             _buf = this._getBuffer(_bv, _acc);
             _attrib = this._getAttribute(_bv, _acc);
             _buf.setAttribute(ShaderLocation_e.ATTRIB_POSITION, _attrib.size, _attrib.type, _attrib.normalized, _attrib.offset);
+            _geo.addVertexBuffer(_buf);
         }
 
         _acc = this._ref_accessors[primitive.attributes.NORMAL];
@@ -209,9 +326,31 @@ export default class GLTFParser implements IGLTFParser {
             _buf = this._getBuffer(_bv, _acc);
             _attrib = this._getAttribute(_bv, _acc);
             _buf.setAttribute(ShaderLocation_e.ATTRIB_NORMAL, _attrib.size, _attrib.type, _attrib.normalized, _attrib.offset);
+            _geo.addVertexBuffer(_buf);
         }
-        _geo.addVertexBuffer(_buf);
 
+        _acc = this._ref_accessors[primitive.attributes.TANGENT];
+        if (_acc) {
+            const _bv = this._ref_bufferViews[_acc.bufferView];
+            _buf = this._getBuffer(_bv, _acc);
+            _attrib = this._getAttribute(_bv, _acc);
+            _buf.setAttribute(ShaderLocation_e.ATTRIB_TANGENT, _attrib.size, _attrib.type, _attrib.normalized, _attrib.offset);
+            _geo.addVertexBuffer(_buf);
+        }
+
+        for (let i = 0, N = 5; i < N; ++i) {
+            //@ts-ignore;
+            _acc = this._ref_accessors[primitive.attributes[`TEXCOORD_${i}`]];
+            if (_acc) {
+                const _bv = this._ref_bufferViews[_acc.bufferView];
+                _buf = this._getBuffer(_bv, _acc);
+                _attrib = this._getAttribute(_bv, _acc);
+                _buf.setAttribute(ShaderLocation_e.ATTRIB_TEXTURE_UV_0 + i, _attrib.size, _attrib.type, _attrib.normalized, _attrib.offset);
+                _geo.addVertexBuffer(_buf);
+            }
+        }
+
+        // indices;
         _acc = this._ref_accessors[primitive.indices];
         if (_acc) {
             const _bv = this._ref_bufferViews[_acc.bufferView];
@@ -226,17 +365,20 @@ export default class GLTFParser implements IGLTFParser {
             _geo.setDrawArraysParameters(primitive.mode, 0, _acc.count);
         }
         const _primitive: Primitive = new Primitive(primitive.name, _geo);
+        _primitive.material = this._output.CGMaterials[primitive.material];
         return _primitive;
     }
 
     private _getBuffer(bv: GLTFBufferView_t, accessor: GLTFAccessor_t): IBuffer {
         let _buf = this._arrBuffers[accessor.bufferView];
         if (!_buf) {
-            _buf = new GLBuffer(bv.target);
-            if (accessor.componentType === 5126) {/// float;
+            _buf = new Buffer(bv.target);
+            if (accessor.componentType === glC.FLOAT) {
                 _buf.setData(new Float32Array(this._arrData[bv.buffer], bv.byteOffset, bv.byteLength / 4));
-            } else if (accessor.componentType === 5125) {/// UNSIGNED_INT;
+            } else if (accessor.componentType === glC.UNSIGNED_INT) {
                 _buf.setData(new Uint32Array(this._arrData[bv.buffer], bv.byteOffset, bv.byteLength / 4));
+            } else if (accessor.componentType === glC.UNSIGNED_BYTE) {
+                _buf.setData(new Uint8Array(this._arrData[bv.buffer], bv.byteOffset, bv.byteLength));
             }
             _buf.setStrideAndStepMode(bv.byteStride, StepMode_e.vertex);
 
@@ -254,7 +396,6 @@ export default class GLTFParser implements IGLTFParser {
             offset: accessor.byteOffset ?? 0,
         }
     }
-
 }
 
 //@ts-ignore

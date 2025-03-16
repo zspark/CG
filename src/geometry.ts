@@ -180,7 +180,7 @@ export const geometry: {
                 .setData(vertices)
                 .setStrideAndStepMode(32, StepMode_e.vertex)
                 .setAttribute(ShaderLocation_e.ATTRIB_POSITION, 3, glC.FLOAT, false, 0)
-                .setAttribute(ShaderLocation_e.ATTRIB_TEXTURE_UV, 2, glC.FLOAT, false, 12)
+                .setAttribute(ShaderLocation_e.ATTRIB_TEXTURE_UV_0, 2, glC.FLOAT, false, 12)
                 .setAttribute(ShaderLocation_e.ATTRIB_NORMAL, 3, glC.FLOAT, false, 20)
             )
             .setIndexBuffer(new Buffer(glC.ELEMENT_ARRAY_BUFFER)
@@ -226,7 +226,7 @@ export default class Geometry implements IGeometry {
 
     private _inited = false;
     private _glVAO: WebGLVertexArrayObject;
-    private _arrBuffer: IBuffer[] = [];
+    private _bufferSet: Set<IBuffer> = new Set();
     private _gl: WebGL2RenderingContext;
     private _drawCMD: () => void;
     private _drawParameter: DrawArraysParameter | DrawElementsParameter | DrawArraysInstancedParameter;
@@ -247,7 +247,7 @@ export default class Geometry implements IGeometry {
 
     addVertexBuffer(buffer: IBuffer): IGeometry {
         this._vertexBufferLength = buffer.length;
-        this._arrBuffer.push(buffer);
+        this._bufferSet.add(buffer);
         return this;
     }
 
@@ -266,7 +266,7 @@ export default class Geometry implements IGeometry {
 
         this._glVAO = gl.createVertexArray();
         gl.bindVertexArray(this._glVAO);
-        this._arrBuffer.forEach(b => { (createBufferGPUResourceAsWell ? b.createGPUResource(gl) : b).bind(); });
+        this._bufferSet.forEach(b => { (createBufferGPUResourceAsWell ? b.createGPUResource(gl) : b).bind(); });
         if (this._indexBuffer) {
             (createBufferGPUResourceAsWell ? this._indexBuffer.createGPUResource(gl) : this._indexBuffer).bind();
         }
@@ -326,8 +326,8 @@ export default class Geometry implements IGeometry {
     destroyGLObjects(gl: any) {
         if (this._inited) {
             this._indexBuffer?.destroyGPUResource();
-            this._arrBuffer.forEach(b => { b.destroyGPUResource(); });
-            this._arrBuffer.length = 0;
+            this._bufferSet.forEach(b => { b.destroyGPUResource(); });
+            this._bufferSet.clear();
             if (!!this._glVAO) gl.deleteVertexArray(this._glVAO);
         }
         this._inited = false;

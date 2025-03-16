@@ -40,9 +40,14 @@ export enum StepMode_e {
 
 export enum ShaderLocation_e {
     ATTRIB_POSITION = 0,
-    ATTRIB_TEXTURE_UV = 1,
-    ATTRIB_NORMAL = 2,
+    ATTRIB_NORMAL = 1,
+    ATTRIB_TANGENT = 2,
     ATTRIB_COLOR = 3,
+    ATTRIB_TEXTURE_UV_0 = 5,
+    ATTRIB_TEXTURE_UV_1 = 6,
+    ATTRIB_TEXTURE_UV_2 = 7,
+    ATTRIB_TEXTURE_UV_3 = 8,
+    ATTRIB_TEXTURE_UV_4 = 9,
     ATTRIB_INSTANCED_MATRIX_COL_1 = 12,
     ATTRIB_INSTANCED_MATRIX_COL_2 = 13,
     ATTRIB_INSTANCED_MATRIX_COL_3 = 14,
@@ -73,7 +78,8 @@ export interface IProgram extends IBindableObject {
 
 export interface ITexture {
     get textureUnit(): GLint;
-    set data(data: ArrayBuffer);
+    set data(data: ArrayBuffer | HTMLImageElement);
+    UVIndex: number;
 
     createGPUResource(gl: WebGL2RenderingContext): ITexture;
     updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;

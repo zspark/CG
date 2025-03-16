@@ -6,20 +6,29 @@ import { roMat44, rgba, xyzw, Vec4, Mat44 } from "./math.js"
 import { UniformBlock } from "./device-resource.js"
 import { IUniformBlock } from "./types-interfaces.js"
 
-export interface ILight {
+export interface api_ILight {
+    /**
+     * r,g,b : [0, 1];
+     */
     setColor(r: number, g: number, b: number): void;
     color: rgba;
-    readonly UBO: IUniformBlock;
     /**
      * we use z- as light's forward direction;
      */
     setDirection(x: number, y: number, z: number): void;
+    setPosition(x: number, y: number, z: number): void;
+    position: xyzw;
     direction: xyzw;
-    update(dt: number): void;
     setAngle(value: number): void;
     angle: number;
     setCutoffDistance(value: number): void;
     cutoffDistance: number;
+}
+
+export interface ILight extends api_ILight {
+    readonly UBO: IUniformBlock;
+    readonly API: api_ILight;
+    update(dt: number): void;
 };
 
 class Light {
@@ -95,7 +104,7 @@ class Light {
 class PointLight extends Light implements ILight {
     constructor(posX: number, posY: number, posZ: number) {
         super(posX, posY, posZ);
-        this._frustum.createPerspectiveProjection(Math.PI / 2.0, 1, 1, 100);
+        this._frustum.createPerspectiveProjection(Math.PI / 3.0, 640 / 480, 1, 100);
         this._frustum.projectionMatrix.multiply(this._space.transformInv, this._lightProjectionMatrix);
     }
     get angle(): number { return 0; }
@@ -105,6 +114,8 @@ class PointLight extends Light implements ILight {
     update(dt: number): void {
         super.update(dt);
     }
+    get API(): api_ILight { return this; }
+
 }
 
 class ParallelLight extends Light implements ILight {
@@ -119,6 +130,7 @@ class ParallelLight extends Light implements ILight {
     update(dt: number) {
         super.update(dt);
     }
+    get API(): api_ILight { return this; }
 }
 
 class SpotLight extends Light implements ILight {
@@ -139,6 +151,7 @@ class SpotLight extends Light implements ILight {
     update(dt: number) {
         super.update(dt);
     }
+    get API(): api_ILight { return this; }
 }
 
 
