@@ -1,4 +1,4 @@
-import { IRenderer, IPipeline, IProgram } from "./types-interfaces.js";
+import { IMaterial, IRenderer, IPipeline, IProgram } from "./types-interfaces.js";
 import glC from "./gl-const.js";
 import { Pipeline, SubPipeline } from "./device-resource.js";
 import getProgram from "./program-manager.js"
@@ -20,7 +20,7 @@ import utils from "./utils.js";
 import Outline from "./outline.js";
 import Renderer from "./renderer.js";
 import Skybox from "./skybox.js";
-import Material from "./material.js";
+import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 
 export default class Scene {
@@ -46,37 +46,28 @@ export default class Scene {
     private _shadowMap: ShadowMap;
     private _deltaTimeInMS: number = 0;
 
-    private _pickWrapper: {
-        pickedResult: PickResult_t,
-        addTarget: typeof this._picker.addTarget,
-        removeTarget: typeof this._picker.removeTarget,
-    };
-
     constructor(canvas: HTMLCanvasElement) {
         this._renderer = new Renderer({ canvas });
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
-        this._camera = new Camera(2, 2, 2).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
+        this._camera = new Camera(2.64, 4.0, 4.37).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
         this._renderer.registerUBO(this._camera.UBO);
         this._light = new light.PointLight(2, 2, 2);
         this._light.setDirection(-1, -1, -1);
         this._renderer.registerUBO(this._light.UBO);
+        this._renderer.registerUBO(getMaterialUBO());
         this._gridFloor = new GridFloor();
         this._axis = new Axes();
         //this._skybox = new Skybox();
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
-        this._configWrapper();
 
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
         //this._renderer.addPipeline(this._skybox.pipeline);
         this._renderer.addPipeline(this._shadowMap.pipeline);
-        const _arrP = this._outline?.pipelines;
-        _arrP?.forEach(p => {
-            this._renderer.addPipeline(p);
-        });
+        this.showOutline = true;
 
         this._picker.addListener({
             notify: (event: Event_t): boolean => {
@@ -92,7 +83,7 @@ export default class Scene {
                 this._camera.setRotateCenter(this._tempVec4.x, this._tempVec4.y, this._tempVec4.z);
                 this._axis.setTarget(_meshCube);
                 this._outline?.setTarget({
-                    geometry: _out.picked.primitive.geometry,
+                    renderObject: _out.picked.primitive.geometry,
                     modelMatrix: _out.picked.mesh.modelMatrix,
                 });
                 return false;
@@ -100,17 +91,41 @@ export default class Scene {
         }, Picker.PICKED);
     }
 
-    get picker() { return this._pickWrapper; }
+    get picker() { return this._picker.API; }
     get light() { return this._light.API; }
+    get camera() { return this._camera.API; }
 
-    loadGLTF() {
-        new GLTFParser().load("./assets/gltf/skull/scene.gltf").then((data: GLTFParserOutput_t) => {
-            //new GLTFParser().load("./assets/gltf/dragon_sculpture/scene.gltf").then((data: GLTFParserOutput_t) => {
-            //new GLTFParser().load("./assets/gltf/cup_with_holder/scene.gltf").then((data: GLTFParserOutput_t) => {
-            //new GLTFParser().load("./assets/gltf/glass_bunny/scene.gltf").then((data: GLTFParserOutput_t) => {
+    private _outlineShow: boolean = false;
+    set showOutline(v: boolean) {
+        if (v && !this._outlineShow) {
+            this._outlineShow = true;
+            const _arrP = this._outline?.pipelines;
+            _arrP?.forEach(p => {
+                this._renderer.addPipeline(p);
+            });
+        } else {
+            this._outlineShow = false;
+            const _arrP = this._outline?.pipelines;
+            _arrP?.forEach(p => {
+                this._renderer.removePipeline(p);
+            });
+        }
+    }
+
+    loadGLTF(url: string) {
+        new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).scale(0.2, .2, .2)//.setPosition(-2, -2, 2)
-                this.addMesh(data.CGMeshs[i], true, getProgram({ ft_tex_normal: true, ft_shadow: true, ft_phong: true, fn_gltf: true, }));
+                //this._ctrl.setSpace(data.CGMeshs[i]).scale(3,3,3)//.setPosition(-2, -2, 2)
+                this.addMesh(data.CGMeshs[i], true
+                    , getProgram({
+                        fn_gltf: true,
+                        ft_pbr: true,
+                        ft_shadow: true,
+                        ft_tex_normal: true,
+                        ft_tex_albedo: true,
+                        ft_tex_metal_rough: true,
+                    })
+                );
             }
         });
     }
@@ -119,14 +134,16 @@ export default class Scene {
         const _p = new Pipeline(0)
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
+            //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .setProgram(program ?? getProgram({ color_vertex_attrib: true, }))
 
         mesh.getPrimitives().forEach(p => {
             _p.appendSubPipeline(new SubPipeline()
-                .setGeometry(p.geometry)
+                .setRenderObject(p)
                 .setTexture(this._shadowMap.depthTexture)
-                .setTexture(p.material?._normalTexture)
-                .setTexture(p.material?._albedoTexture)
+                .setTexture(p.material?.normalTexture)
+                .setTexture(p.material?.pbrMR_baseColorTexture)
+                .setTexture(p.material?.pbrMR_metallicRoughnessTexture)
                 .setUniformUpdaterFn(this._createUpdater(mesh, p.material, new Vec4(1, 0, 0, 1)))
                 .validate()
             );
@@ -159,7 +176,7 @@ export default class Scene {
         this._renderer.render();
     }
 
-    private _createUpdater(mesh: Mesh, material: Material, color: rgba) {
+    private _createUpdater(mesh: Mesh, material: IMaterial, color: rgba) {
         return (program: IProgram) => {
             program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
@@ -171,13 +188,19 @@ export default class Scene {
             //this._light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
             //program.uploadUniform("u_mlMatrix", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
-            if (material?._normalTexture) {
-                program.uploadUniform("u_normalTexture", material._normalTexture.textureUnit);
-                program.uploadUniform("u_normalTextureUVIndex", material._normalTexture.UVIndex);
-            }
-            if (material?._albedoTexture) {
-                program.uploadUniform("u_albedoTexture", material._albedoTexture.textureUnit);
-                program.uploadUniform("u_albedoTextureUVIndex", material._albedoTexture.UVIndex);
+            if (material) {
+                if (material.normalTexture) {
+                    program.uploadUniform("u_normalTexture", material.normalTexture.textureUnit);
+                    program.uploadUniform("u_normalTextureUVIndex", material.normalTexture.UVIndex);
+                }
+                if (material.pbrMR_baseColorTexture) {
+                    program.uploadUniform("u_albedoTexture", material.pbrMR_baseColorTexture.textureUnit);
+                    program.uploadUniform("u_albedoTextureUVIndex", material.pbrMR_baseColorTexture.UVIndex);
+                }
+                if (material.pbrMR_metallicRoughnessTexture) {
+                    program.uploadUniform("u_pbrMR_metallicRoughnessTexture", material.pbrMR_metallicRoughnessTexture.textureUnit);
+                    program.uploadUniform("u_pbrMR_metallicRoughnessTextureIndex", material.pbrMR_metallicRoughnessTexture.UVIndex);
+                }
             }
             program.uploadUniform("u_color", [color.r, color.g, color.b]);
             program.uploadUniform("u_nearFarPlane", [Scene.NEAR_PLANE, Scene.FAR_PLANE]);
@@ -188,14 +211,6 @@ export default class Scene {
             program.uploadUniform("u_debugNormalViewMatrix", this._camera.viewMatrix.data);
             program.uploadUniform("u_debugNormalSpace", 1);
             /// --------------------------------------------------------------------------------
-        };
-    }
-
-    private _configWrapper(): void {
-        this._pickWrapper = {
-            pickedResult: this._picker.pickedResult,
-            addTarget: this._picker.addTarget,
-            removeTarget: this._picker.removeTarget,
         };
     }
 }

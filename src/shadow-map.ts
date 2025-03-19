@@ -8,7 +8,7 @@ import {
     IRenderContext,
     IRenderer,
     IGeometry,
-    IBuffer, BufferData_t, BufferLayout_t, StepMode_e, ShaderLocation_e,
+    IBuffer, BufferData_t, StepMode_e, ShaderLocation_e,
     IProgram,
     ITexture, ISkyboxTexture,
     IFramebuffer,
@@ -48,7 +48,7 @@ export default class ShadowMap {
         mesh.getPrimitives().forEach(p => {
             this._shadowMapPipeline.appendSubPipeline(
                 new SubPipeline()
-                    .setGeometry(p.geometry)
+                    .setRenderObject(p.geometry)
                     .setUniformUpdaterFn((program: IProgram) => {
                         program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
                     })

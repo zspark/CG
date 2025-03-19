@@ -4,7 +4,7 @@ import {
     IRenderContext,
     IRenderer,
     IGeometry,
-    IBuffer, BufferData_t, BufferLayout_t, StepMode_e, ShaderLocation_e,
+    IBuffer, BufferData_t, StepMode_e, ShaderLocation_e,
     IProgram,
     ITexture, ISkyboxTexture,
     IFramebuffer,

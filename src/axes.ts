@@ -6,15 +6,15 @@ import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import getProgram from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
 import { Buffer, Pipeline, SubPipeline, Framebuffer } from "./device-resource.js";
-import { IPipeline, IProgram, IFramebuffer, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
+import { IPipeline, IProgram, IFramebuffer, IGeometry, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
 import { IEventDispatcher, Event_t, IEventListener } from "./event.js";
-import Primitive from "./primitive.js";
+import Geometry from "./geometry.js";
 
 export interface IAxesTarget extends IEventDispatcher {
     readonly modelMatrix: roMat44;
 };
 
-export default class Axes extends Mesh implements IEventListener {
+export default class Axes implements IEventListener {
 
     private _targetMatricesDirty = false;
     private _arrRefTarget: IAxesTarget[] = [];
@@ -28,28 +28,30 @@ export default class Axes extends Mesh implements IEventListener {
     }
 
     private _instanceMatricesBuffer = new Buffer();
-    private _primitive: Primitive;
+    private _geometry: IGeometry;
     private _pipeline: IPipeline;
 
     constructor(fbo?: IFramebuffer) {
-        super("internal-axes");
-        const _primitive = this._primitive = new Primitive("internal-axes-primitive", geometry.createAxes(2));
-        this.setPrimitive(_primitive);
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
-        this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(this._transform);
-        this._instanceMatricesBuffer
-            .setData(this._instanceMatrices, glC.DYNAMIC_DRAW)
-            .setStrideAndStepMode(64, StepMode_e.instance)
-            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_1, 4, glC.FLOAT, false, 0)
-            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_2, 4, glC.FLOAT, false, 16)
-            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_3, 4, glC.FLOAT, false, 32)
-            .setAttribute(ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_4, 4, glC.FLOAT, false, 48)
-
-        _primitive.geometry.addVertexBuffer(this._instanceMatricesBuffer)
-            .setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
+        this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(Mat44.IdentityMat44);
+        this._instanceMatricesBuffer.updateData(this._instanceMatrices, glC.DYNAMIC_DRAW)
+        const _geometry = this._geometry = geometry.createAxes(2);
+        for (let i = 0; i < 4; ++i) {
+            _geometry.addAttribute({
+                buffer: this._instanceMatricesBuffer,
+                shaderLocation: ShaderLocation_e.ATTRIB_INSTANCED_MATRIX_COL_1 + i,
+                size: 4,
+                type: glC.FLOAT,
+                normalized: false,
+                stride: 64,
+                offset: 16 * i,
+                stepMode: StepMode_e.instance,
+            })
+        }
+        _geometry.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
 
         const _subp = new SubPipeline()
-            .setGeometry(_primitive.geometry)
+            .setRenderObject(_geometry)
             .setUniformUpdaterFn((program: IProgram) => {
             });
 
@@ -76,7 +78,7 @@ export default class Axes extends Mesh implements IEventListener {
             }
             this._drawCmd.instanceCount = N + 1;
             this._instanceMatricesBuffer.updateData(this._instanceMatrices);
-            this._primitive.geometry.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
+            this._geometry.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
                 .bindDrawCMD();
             this._targetMatricesDirty = false;
         }

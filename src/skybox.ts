@@ -24,7 +24,7 @@ export default class Skybox {
         this._latlonTexture = new Texture(4096, 2048, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
         this._plane = geometry.createPlane(2, 2);
         const _subPipeCubeLatlon = new SubPipeline()
-            .setGeometry(this._plane)
+            .setRenderObject(this._plane)
             .setTexture(this._latlonTexture)
             .setUniformUpdaterFn((program: IProgram) => {
                 program.uploadUniform("u_skybox_latlon", this._latlonTexture.textureUnit);

@@ -94,13 +94,10 @@ void main() {
     gl_Position = u_vpMatrix * u_mMatrix * pos;
     #endif
 
-    #ifdef FT_PHONG
+    #ifdef FN_GLTF
     v_positionW = (u_mMatrix * pos).xyz;
     v_normalW = (u_mMatrix_dir * vec4(a_normal, 0.0)).xyz;
     v_tangentW = (u_mMatrix_dir * vec4(a_tangent.xyz, 0.0)).xyz;
-    #endif
-
-    #ifdef FN_GLTF
     v_arrayUV[0] = a_uvCoord_0;
     v_arrayUV[1] = a_uvCoord_1;
     v_arrayUV[2] = a_uvCoord_2;

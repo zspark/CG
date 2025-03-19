@@ -38,9 +38,13 @@ export type ShaderID_t = {
 
     debug_normal?: boolean,
 
+    ft_tex_metal_rough?: boolean,
     ft_tex_normal?: boolean,
+    ft_tex_albedo?: boolean,
     ft_shadow?: boolean,
     ft_phong?: boolean,
+    ft_phongs?: boolean,
+    ft_pbr?: boolean,
     color_vertex_attrib?: boolean,
     color_uniform?: boolean,
 

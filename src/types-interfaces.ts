@@ -13,11 +13,6 @@ export type AttributeLayout_t = {
     normalized: boolean,
     offset: number,
 };
-export type BufferLayout_t = {
-    attributes: AttributeLayout_t[],
-    stride: GLsizei,
-    stepMode: StepMode_e,
-};
 
 /*
 enum VertexFormat_e {
@@ -54,15 +49,23 @@ export enum ShaderLocation_e {
     ATTRIB_INSTANCED_MATRIX_COL_4 = 15,
 };
 
+export type VertexAttribute_t = {
+    buffer: IBuffer;
+    shaderLocation: ShaderLocation_e;
+    size: GLenum;
+    type: GLenum;
+    offset: GLintptr;
+    normalized?: boolean;// false;
+    stride?: number;//0
+    stepMode?: StepMode_e; //StepMode_e.vertex
+}
+
 export interface IBuffer {
     get length(): number;
     get byteLength(): number;
 
-    setData(data: BufferData_t, usage?: GLenum): IBuffer;
-    updateData(data: BufferData_t): IBuffer;
+    updateData(data: BufferData_t, usage?: GLenum): IBuffer;
     createGPUResource(gl: WebGL2RenderingContext): IBuffer;
-    setAttribute(shaderLocation: ShaderLocation_e, size: number, type: number, normalized: boolean, offset: GLintptr): IBuffer;
-    setStrideAndStepMode(stride: number, stepMode?: StepMode_e): IBuffer;
     bind(): void;
     destroyGPUResource(): void;
 }
@@ -136,30 +139,62 @@ export interface IPipeline {
 }
 
 export interface IGeometry extends IBindableObject {
-    readonly vertexBufferLength: number;
-    readonly indexBufferLength: number;
     readonly drawCMD: () => void;
 
     /**
     * create gl buffers and record to VAO.
     */
-    createGPUResource(gl: WebGL2RenderingContext, createBufferGPUResourceAsWell?: boolean): IGeometry;
+    createGPUResource(gl: WebGL2RenderingContext): IGeometry;
     destroyGLObjects(gl: WebGL2RenderingContext): IGeometry;
 
     bindDrawCMD(): IGeometry;
     setDrawArraysParameters(mode: GLenum, first: GLint, count: GLsizei): IGeometry;
     setDrawArraysInstancedParameters(mode: GLenum, first: GLint, count: GLsizei, instanceCount: GLsizei): IGeometry;
     setDrawElementsParameters(mode: GLenum, count: GLsizei, type: GLenum, offset: GLintptr): IGeometry
-    addVertexBuffer(buffer: IBuffer): IGeometry;
+    addAttribute(attribute: VertexAttribute_t): IGeometry;
     setIndexBuffer(buffer: IBuffer): IGeometry;
 }
 
-export interface ISubPipeline {
-    get geometry(): IGeometry;
+export interface IPrimitive {
+    readonly name: string;
+    readonly uuid: number;
+    readonly material: IMaterial;
+    geometry: IGeometry;
+    createGPUResource(gl: WebGL2RenderingContext): IPrimitive;
+}
 
+export interface api_IMaterial {
+    pbrMR_roughnessFactor: number;
+    pbrMR_metallicFactor: number;
+    normalTextureScale: number;
+    occlusionTextureStrength: number;
+    pbrMR_baseColorFactor: number[];
+    emissiveFactor: number[];
+
+    setPbrMR_baseColorFactor(r: number, g: number, b: number, a: number): void;
+    setEmissiveFactor(r: number, g: number, b: number): void;
+};
+
+export interface IMaterial extends api_IMaterial, IBindableObject {
+    update(dt: number): void;
+    readonly API: api_IMaterial;
+    name: string;
+    pbrMR_baseColorTexture: ITexture;
+    pbrMR_metallicRoughnessTexture: ITexture;
+    normalTexture: ITexture;
+    occlusionTexture: ITexture;
+    emissiveTexture: ITexture;
+}
+
+export interface IRenderObject extends IBindableObject {
+    readonly drawCMD: () => void;
+    createGPUResource(gl: WebGL2RenderingContext): void;
+}
+
+export interface ISubPipeline {
     createGPUResource(gl: WebGL2RenderingContext): ISubPipeline;
     setUniformUpdaterFn(updater: UniformUpdaterFn_t): ISubPipeline;
-    setGeometry(geo: IGeometry): ISubPipeline;
+    setRenderObject(target: IRenderObject): ISubPipeline;
     setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline;
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline;
     clearTextures(): ISubPipeline;

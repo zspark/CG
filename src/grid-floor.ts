@@ -8,21 +8,18 @@ import { IPipeline, IProgram, IFramebuffer, IRenderer } from "./types-interfaces
 import { ICamera } from "./camera.js";
 import getProgram from "./program-manager.js"
 
-export default class GridFloor extends Mesh {
+export default class GridFloor {
 
     private _color = [0.5, 0.5, 0.5];
     private _pipeline: IPipeline;
-    private _primitive: Primitive;
 
     constructor(fbo?: IFramebuffer) {
-        super("internal-grid-floor");
-        this._primitive = new Primitive("internal-grid-floor-primitive", geometry.createGridPlane(100));
-        this.addPrimitive(this._primitive);
+        const _geo = geometry.createGridPlane(100);
 
         const _subp = new SubPipeline()
-            .setGeometry(this._primitive.geometry)
+            .setRenderObject(_geo)
             .setUniformUpdaterFn((program: IProgram) => {
-                program.uploadUniform("u_mMatrix", this.modelMatrix.data);
+                program.uploadUniform("u_mMatrix", Mat44.IdentityMat44.data);
                 program.uploadUniform("u_color", this._color);
             })
             .validate();

@@ -9,7 +9,7 @@ import getProgram from "./program-manager.js"
 import Mesh from "./mesh.js"
 import Primitive from "./primitive.js"
 import Geometry from "./geometry.js"
-import { Event_t, default as EventDispatcher } from "./event.js";
+import { Event_t, default as EventDispatcher, IEventDispatcher } from "./event.js";
 
 export type PickResult_t = {
     lastPicked: Pickable_t,
@@ -19,6 +19,18 @@ export type PickResult_t = {
 export type Pickable_t = {
     readonly mesh: Mesh;
     readonly primitive: Primitive;
+};
+
+export interface api_IPicker extends IEventDispatcher {
+    readonly pickedResult: PickResult_t;
+    addTarget(target: Pickable_t): void;
+    removeTarget(target: Pickable_t): void;
+};
+
+export interface IPicker extends api_IPicker {
+    readonly pipeline: IPipeline;
+    readonly API: api_IPicker;
+    update(dt: number): void;
 };
 
 export default class Picker extends EventDispatcher {
@@ -73,6 +85,10 @@ export default class Picker extends EventDispatcher {
         return this;
     }
 
+    get API(): api_IPicker {
+        return this;
+    }
+
     get pipeline(): IPipeline {
         return this._pipeline;
     }
@@ -100,7 +116,7 @@ export default class Picker extends EventDispatcher {
 
     private _createSubPipeline(target: Pickable_t): ISubPipeline {
         return new SubPipeline()
-            .setGeometry(target.primitive.geometry)
+            .setRenderObject(target.primitive.geometry)
             .setUniformUpdaterFn((program: IProgram) => {
                 program.uploadUniform("u_mMatrix", target.mesh.modelMatrix.data);
                 program.uploadUniform("u_uuid", target.mesh.uuid);

@@ -6,11 +6,13 @@ import {
     IUniformBlock,
     IRenderContext,
     IGeometry,
-    IBuffer, BufferData_t, BufferLayout_t, StepMode_e, ShaderLocation_e,
+    IBuffer, BufferData_t, StepMode_e, ShaderLocation_e,
+    IRenderObject,
     IProgram,
     ITexture, ISkyboxTexture,
     IFramebuffer,
     IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
+    IPrimitive,
     IRenderer,
     IBindableObject,
 } from "./types-interfaces.js";
@@ -74,7 +76,6 @@ export const createGLContext: createContext_fn_t = (canvas: HTMLCanvasElement): 
 export class GLBuffer implements IBuffer {
 
     private _gl: WebGL2RenderingContext;
-    private _layout: BufferLayout_t;
     private _byteLength: number = -1;
     private _length: number = -1;
     private _glBuffer: WebGLBuffer;
@@ -84,39 +85,35 @@ export class GLBuffer implements IBuffer {
 
     constructor(target?: number) {
         this._target = target ?? glC.ARRAY_BUFFER;
-        this._layout = {
-            attributes: [],
-            stride: 0,
-            stepMode: StepMode_e.vertex,
-        };
     }
 
     get length(): number { return this._length; }
     get byteLength(): number { return this._byteLength; }
 
-    setData(data: BufferData_t, usage?: GLenum): IBuffer {
-        this._length = data.length;
-        this._byteLength = data.byteLength;
-        this._data = data;
-        this._usage = usage ?? glC.STATIC_DRAW;
-        return this;
-    }
-
-    updateData(data: BufferData_t): IBuffer {
+    updateData(data: BufferData_t, usage?: GLenum): IBuffer {
         const gl = this._gl;
-        if (!gl) log.warn("[Buffer] you should call 'createGPUResource' before this.");
-        //  device.queue.writeBuffer(vertexBuffer, 0, vertices, 0, vertices.length);
-        gl.bindBuffer(this._target, this._glBuffer);
-        gl.bufferData(this._target, data, this._usage);
-        gl.bindBuffer(this._target, null);
+        if (gl) {
+            //  device.queue.writeBuffer(vertexBuffer, 0, vertices, 0, vertices.length);
+            gl.bindBuffer(this._target, this._glBuffer);
+            gl.bufferSubData(this._target, 0, data);
+            gl.bindBuffer(this._target, null);
+        } else {
+            this._length = data.length;
+            this._byteLength = data.byteLength;
+            this._data = data;
+            this._usage = usage ?? glC.STATIC_DRAW;
+        }
         return this;
     }
 
     createGPUResource(gl: WebGL2RenderingContext): IBuffer {
         this._gl = gl;
-        this._glBuffer ??= gl.createBuffer();
+        if (this._glBuffer) return this;
+        this._glBuffer = gl.createBuffer();
         _wm_buffer.set(this, this._glBuffer);
-        this.updateData(this._data);
+        gl.bindBuffer(this._target, this._glBuffer);
+        gl.bufferData(this._target, this._data, this._usage);
+        gl.bindBuffer(this._target, null);
         this._data = undefined;
 
         /**
@@ -128,29 +125,10 @@ export class GLBuffer implements IBuffer {
         return this;
     }
 
-    setAttribute(shaderLocation: ShaderLocation_e, size: number, type: number, normalized: boolean, offset: GLintptr): IBuffer {
-        this._layout.attributes.push({ shaderLocation, size, type, normalized, offset });
-        return this;
-    }
-
-    setStrideAndStepMode(stride: number, stepMode?: StepMode_e): IBuffer {
-        this._layout.stride = stride;
-        this._layout.stepMode = stepMode ?? StepMode_e.vertex;
-        return this;
-    }
 
     bind(): void {
         const gl = this._gl;
-
         gl.bindBuffer(this._target, this._glBuffer);
-        this._layout.attributes.forEach(a => {
-            gl.enableVertexAttribArray(a.shaderLocation);
-            gl.vertexAttribPointer(a.shaderLocation, a.size, a.type, a.normalized, this._layout.stride, a.offset);
-            if (this._layout.stepMode === StepMode_e.instance) {
-                gl.vertexAttribDivisor(a.shaderLocation, 1); // Advance per instance
-            }
-        });
-
     }
 
     destroyGPUResource(): void {
@@ -167,6 +145,7 @@ export class GLProgram implements IProgram {
     private _mapUniformFn: Map<string, (value: any) => void> = new Map();
     private _uboCameraIndex: number;
     private _uboLightIndex: number;
+    private _uboMaterialIndex: number;
 
     static compile(gl: WebGL2RenderingContext, vsSource: string, type: GLenum): WebGLShader | undefined {
         const _shader = gl.createShader(type);
@@ -202,6 +181,8 @@ export class GLProgram implements IProgram {
             _uboIndex = this._uboCameraIndex;
         } else if (ubo.bindingPoint === BINDING_POINT.UBO_BINDING_POINT_LIGHT) {
             _uboIndex = this._uboLightIndex;
+        } else if (ubo.bindingPoint === BINDING_POINT.UBO_BINDING_POINT_MATERIAL) {
+            _uboIndex = this._uboMaterialIndex;
         }
         gl.bindBuffer(gl.UNIFORM_BUFFER, _wm_buffer.get(ubo));
         gl.uniformBlockBinding(this._glProgram, _uboIndex, ubo.bindingPoint);
@@ -242,6 +223,7 @@ export class GLProgram implements IProgram {
         }
         this._uboCameraIndex = _fn2("u_ub_camera");
         this._uboLightIndex = _fn2("u_ub_light");
+        this._uboMaterialIndex = _fn2("u_ub_material");
 
         let _fn: any;
         const uniformCount = gl.getProgramParameter(shaderProgram, gl.ACTIVE_UNIFORMS);
@@ -266,6 +248,9 @@ export class GLProgram implements IProgram {
                         _fn = gl.uniformMatrix4fv.bind(gl, _u, false);
                         break;
                     case gl.SAMPLER_2D:
+                    case gl.SAMPLER_2D_SHADOW:
+                    case gl.SAMPLER_2D_ARRAY:
+                    case gl.SAMPLER_2D_ARRAY_SHADOW:
                         _fn = gl.uniform1i.bind(gl, _u);
                         break;
                 }
@@ -638,18 +623,14 @@ export class GLPipeline implements IPipeline {
 
 export class GLSubPipeline implements ISubPipeline {
 
-    private _geometry: IGeometry;
+    private _renderObject: IRenderObject;
     private _textureSet: Set<ITexture | ISkyboxTexture> = new Set();
     private _uniformUpdaterFn: UniformUpdaterFn_t;
 
     constructor() { }
 
-    get geometry(): IGeometry {
-        return this._geometry;
-    }
-
     createGPUResource(gl: WebGL2RenderingContext): ISubPipeline {
-        this._geometry.createGPUResource(gl, true);
+        this._renderObject.createGPUResource(gl);
         this._textureSet.forEach(t => {
             t.createGPUResource(gl);
         });
@@ -666,8 +647,8 @@ export class GLSubPipeline implements ISubPipeline {
         return this;
     }
 
-    setGeometry(geo: IGeometry): ISubPipeline {
-        this._geometry = geo;
+    setRenderObject(target: IRenderObject): ISubPipeline {
+        this._renderObject = target;
         return this;
     }
 
@@ -691,8 +672,10 @@ export class GLSubPipeline implements ISubPipeline {
 
     validate(): ISubPipeline {
         //TODO: fix this, recusive referrencing.;
-        if (!(this._geometry instanceof Object))
+        /*
+        if (!(this._renderObject instanceof IRenderObject))
             log.vital('[SubPipeline] geometry is not a instance of Geometry.');
+        */
         this._textureSet.forEach((tex) => {
             if (!(tex instanceof GLTexture))
                 log.vital('[SubPipeline] textureSet has null-Texture object.');
@@ -702,7 +685,7 @@ export class GLSubPipeline implements ISubPipeline {
     }
 
     bind(context: IRenderContext): void {
-        context.bind(this._geometry);
+        context.bind(this._renderObject);
         //TODO: further improvments.
         let i = 0;
         this._textureSet.forEach(t => {
@@ -712,12 +695,12 @@ export class GLSubPipeline implements ISubPipeline {
     }
 
     draw(): void {
-        this._geometry.drawCMD();
+        this._renderObject.drawCMD();
     }
 
     clone(): ISubPipeline {
         const sub = new GLSubPipeline();
-        sub._geometry = this._geometry;
+        sub._renderObject = this._renderObject;
         this._textureSet.forEach(t => {
             sub._textureSet.add(t);
         });
@@ -824,6 +807,8 @@ export class GLFramebuffer implements IFramebuffer {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
         if (this._glFramebuffer) {
             gl.viewport(0, 0, this._width, this._height);
+        } else {
+            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
         }
         this.clear();
     }

@@ -7,30 +7,38 @@ import { MouseEvents_t, mouseEventCallback } from "./mouse-events.js"
 import { UniformBlock } from "./device-resource.js"
 import { IUniformBlock } from "./types-interfaces.js"
 import { BINDING_POINT } from "./gl-const.js"
+import { Event_t, default as EventDispatcher, IEventDispatcher } from "./event.js";
 
-export interface ICamera {
+export interface api_ICamera extends IEventDispatcher {
     readonly position: xyzw;
     readonly frustum: Frustum;
-    readonly UBO: IUniformBlock;
+    readonly viewMatrix: roMat44;
+    readonly viewProjectionMatrix: roMat44;
 
-    setMouseEvents(events: MouseEvents_t): ICamera;
-    viewMatrix: roMat44;
-    viewProjectionMatrix: roMat44;
-    update(dt: number): void;
-
-    setFrustum(frustum: Frustum): ICamera
-    moveHorizontally(deltaX: number, delta: number): ICamera
-    moveAround(pos: xyzw, dir_normalized: xyzw, theta: number): ICamera;
+    setFrustum(frustum: Frustum): api_ICamera
+    moveHorizontally(deltaX: number, delta: number): api_ICamera
+    moveAround(pos: xyzw, dir_normalized: xyzw, theta: number): api_ICamera;
     /**
     * pos must be defined under world coordinate
     */
-    lookAt(pos: xyzw): ICamera
-    setRotateCenter(posX: number, posY: number, posZ: number): ICamera;
+    lookAt(pos: xyzw): api_ICamera
+    setRotateCenter(posX: number, posY: number, posZ: number): api_ICamera;
+    setPosition(posX: number, posY: number, posZ: number): api_ICamera;
 };
 
-export default class Camera implements ICamera {
+export interface ICamera extends api_ICamera {
+    readonly UBO: IUniformBlock;
+    readonly API: api_ICamera;
+    setMouseEvents(events: MouseEvents_t): ICamera;
+    update(dt: number): void;
+};
+
+export default class Camera extends EventDispatcher implements ICamera {
     static NEAR_PLANE: number = 1;
     static FAR_PLANE: number = 100;
+
+    static CHANGED: number = 1;
+    private _event: Event_t;
 
     private _UBO: IUniformBlock;
     private _uboData: Float32Array;
@@ -46,6 +54,11 @@ export default class Camera implements ICamera {
     private _cameraDirtyFlag: boolean = true;
 
     constructor(posX: number, posY: number, posZ: number) {
+        super();
+        this._event = {
+            type: Camera.CHANGED,
+            sender: this,
+        };
         const _sizeInFloat = 5 * 16; // 5 matrices;
         this._uboData = new Float32Array(_sizeInFloat);
         this._UBO = new UniformBlock(BINDING_POINT.UBO_BINDING_POINT_CAMERA, _sizeInFloat * 4);
@@ -56,6 +69,10 @@ export default class Camera implements ICamera {
         this._frustum.createPerspectiveProjection(Math.PI / 3, 640 / 480, Camera.NEAR_PLANE, Camera.FAR_PLANE);
         this._viewProjectionMatrix = new Mat44(this._uboData, 16 * 4);
         this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+    }
+
+    get API(): api_ICamera {
+        return this;
     }
 
     get UBO(): IUniformBlock {
@@ -151,6 +168,7 @@ export default class Camera implements ICamera {
             this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
             this._UBO.uploadData(this._uboData);
             this._cameraDirtyFlag = false;
+            this._broadcast(this._event);
         }
     }
 

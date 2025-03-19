@@ -170,6 +170,10 @@ export class Vec4 implements xyzw, rgba {
         return _v;
     }
 
+    toArray(): number[] {
+        return [this.data[0], this.data[1], this.data[2], this.data[3]];
+    }
+
     clone(): Vec4 { return new Vec4(this.x, this.y, this.z, this.w); }
 
     toString(): string {

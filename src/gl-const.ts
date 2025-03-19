@@ -116,5 +116,6 @@ export default glConst;
 export const BINDING_POINT = {
     UBO_BINDING_POINT_CAMERA: 0,
     UBO_BINDING_POINT_LIGHT: 1,
+    UBO_BINDING_POINT_MATERIAL: 2,
 }
 

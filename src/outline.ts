@@ -4,15 +4,20 @@ import { Pipeline, SubPipeline } from "./device-resource.js";
 import getProgram from "./program-manager.js"
 import { GLFramebuffer_C0_r32f } from "./webgl.js"
 import { roMat44, Mat44, Vec4 } from "./math.js"
-import { IProgram, IGeometry, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
-import { ICamera } from "./camera.js";
+import { IProgram, IGeometry, IRenderObject, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
 
 export type OutlineTarget_t = {
-    geometry: IGeometry;
+    renderObject: IRenderObject;
     modelMatrix: roMat44;
 };
 
-export default class Outline {
+export interface api_IOutline {
+    readonly pipelines: IPipeline[];
+    setTarget(target: OutlineTarget_t): api_IOutline;
+    removeAllTargets(): api_IOutline;
+}
+
+export default class Outline implements api_IOutline {
 
     private _frontFBOQuad: IGeometry;
     private _pipeline: IPipeline;
@@ -26,7 +31,6 @@ export default class Outline {
         const width: number = 640;
         const height: number = 480;
         this._fbo = new GLFramebuffer_C0_r32f(width, height);
-        //.drawBuffers(gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1)
         this._backFBOPipeline = new Pipeline(100)
             .setFBO(this._fbo)
             .cullFace(true, glC.BACK)
@@ -35,7 +39,7 @@ export default class Outline {
             .validate()
 
         this._subPipeline = new SubPipeline()
-            .setGeometry(this._frontFBOQuad)
+            .setRenderObject(this._frontFBOQuad)
             .setTexture(this._fbo.colorTexture0)
             .setUniformUpdaterFn((program: IProgram) => {
                 program.uploadUniform("u_edgeThrottle", 2);
@@ -54,7 +58,7 @@ export default class Outline {
         this.removeAllTargets();
         this._backFBOPipeline.appendSubPipeline(
             new SubPipeline()
-                .setGeometry(target.geometry)
+                .setRenderObject(target.renderObject)
                 .setUniformUpdaterFn((program: IProgram) => {
                     program.uploadUniform("u_mMatrix", target.modelMatrix.data);
                 })

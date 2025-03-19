@@ -25,11 +25,18 @@ export default class Application {
         this._ctrl.setSpace(_meshCube1).setPosition(2, 2, 2)
             .setSpace(_meshCube2).setPosition(-4, -4, 3).rotateAroundSelfX(Math.PI / 3)
             .setSpace(_meshCube3).setPosition(0.5, 6, -8).rotateAroundSelfY(1.7).rotateAroundSelfZ(0.33);
-
-        //this._scene.addMesh(_meshCube1, true);
-        //this._scene.addMesh(_meshCube2, true);
-        //this._scene.addMesh(_meshCube3, true);
-        this._scene.loadGLTF();
+        //this._scene.addMesh(_meshCube1, true, p);
+        //this._scene.addMesh(_meshCube2, true, p);
+        //this._scene.addMesh(_meshCube3, true, p);
+        /*this._scene.loadGLTF(
+            //"./assets/gltf/skull/scene.gltf"
+            //"./assets/gltf/cube/scene.gltf"
+            "./assets/gltf/cup_with_holder/scene.gltf"
+            //"./assets/gltf/haunted_house/scene.gltf"
+            //"./assets/gltf/dragon_sculpture/scene.gltf"
+            //"./assets/gltf/glass_bunny/scene.gltf"
+        );
+        */
         //--------------------------------------------------------------------------------
         //
         //--------------------------------------------------------------------------------
@@ -42,63 +49,198 @@ export default class Application {
 
     createGUI() {
         {
+            const _obj = {
+                showOutline: true,
+            };
+            let f1 = this._gui.addFolder('general');
+            f1.add(_obj, "showOutline").onChange((v: boolean) => {
+                this._scene.showOutline = v;
+            });
+        }
+        {
+            const _camera = this._scene.camera;
+
+            const _obj = {
+                notify: (evt?: CG.Event_t) => {
+                    const _pos = _camera.position;
+                    _cameraObj.positionX = _pos.x;
+                    _cameraObj.positionY = _pos.y;
+                    _cameraObj.positionZ = _pos.z;
+                    return false;
+                }
+            };
+            _camera.addListener(_obj, CG.Camera.CHANGED);
+
+            const _cameraObj = {
+                positionX: 0,
+                positionY: 0,
+                positionZ: 0,
+                lookAtSelected: () => {
+                    const _r = this._scene.picker.pickedResult;
+                    _camera.lookAt(_r?.picked?.mesh.position ?? CG.Vec4.VEC4_0001);
+                },
+            }
+            _obj.notify();
+            let f1 = this._gui.addFolder('camera');
+            f1.add(_cameraObj, 'positionX').min(-10).max(10).step(0.01).onChange((v: any) => {
+                _camera.setPosition(v, _cameraObj.positionY, _cameraObj.positionZ);
+            }).listen();
+            f1.add(_cameraObj, 'positionY').min(-10).max(10).step(0.01).onChange((v: any) => {
+                _camera.setPosition(_cameraObj.positionX, v, _cameraObj.positionZ);
+            }).listen();
+            f1.add(_cameraObj, 'positionZ').min(-10).max(10).step(0.01).onChange((v: any) => {
+                _camera.setPosition(_cameraObj.positionX, _cameraObj.positionY, v);
+            }).listen();
+            f1.add(_cameraObj, 'lookAtSelected');
+        }
+        {
             const _pos = this._scene.light.position
             const _color = this._scene.light.color
             const _lightSource = {
                 color: [_color.r * 255, _color.g * 255, _color.b * 255],
+                lightIntensity: 1,
                 positionX: _pos.x,
                 positionY: _pos.y,
                 positionZ: _pos.z,
             }
-            var f1 = this._gui.addFolder('light source');
+            let f1 = this._gui.addFolder('light source');
             f1.addColor(_lightSource, 'color').onChange((v: any) => {
                 //console.log(v);
-                this._scene.light.setColor(v[0] / 255, v[1] / 255, v[2] / 255);
+                this._scene.light.setColor(v[0] * _lightSource.lightIntensity / 255, v[1] * _lightSource.lightIntensity / 255, v[2] * _lightSource.lightIntensity / 255);
             });
-            f1.add(_lightSource, 'positionX').min(-10).max(10).step(0.2).onChange((v: any) => {
+            f1.add(_lightSource, 'lightIntensity').min(0).max(10).step(0.01).onChange((v: any) => {
+                this._scene.light.setColor(_lightSource.color[0] * v / 255, _lightSource.color[1] * v / 255, _lightSource.color[2] * v / 255);
+            });
+            f1.add(_lightSource, 'positionX').min(-10).max(10).step(0.01).onChange((v: any) => {
                 this._scene.light.setPosition(v, _lightSource.positionY, _lightSource.positionZ);
             });
-            f1.add(_lightSource, 'positionY').min(-10).max(10).step(0.2).onChange((v: any) => {
+            f1.add(_lightSource, 'positionY').min(-10).max(10).step(0.01).onChange((v: any) => {
                 this._scene.light.setPosition(_lightSource.positionX, v, _lightSource.positionZ);
             });
-            f1.add(_lightSource, 'positionZ').min(-10).max(10).step(0.2).onChange((v: any) => {
+            f1.add(_lightSource, 'positionZ').min(-10).max(10).step(0.01).onChange((v: any) => {
                 this._scene.light.setPosition(_lightSource.positionX, _lightSource.positionY, v);
             });
         }
 
         {
+            this._scene.picker.addListener({
+                notify: (evt: CG.Event_t) => {
+                    //const _mesh = this._scene.picker.pickedResult.picked?.mesh;
+                    _folderTrans.show();
+                    return false;
+                }
+            }, CG.Picker.PICKED);
             let _data = [0, 0, 0, 0, 0, 0];
             const obj = {
                 rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0,
                 rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0,
             };
-            f1 = this._gui.addFolder('transformation');
-            f1.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
+            const _folderTrans = this._gui.addFolder('transformation');
+            _folderTrans.hide();
+            _folderTrans.add(obj, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
                 //console.log(v);
                 this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]));
                 _data[0] = v;
             });
-            f1.add(obj, 'rotateSlefY').min(-360).max(360).step(0.25).onChange((v: number) => {
+            _folderTrans.add(obj, 'rotateSlefY').min(-360).max(360).step(0.25).onChange((v: number) => {
                 this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundSelfY(CG.utils.deg2Rad(v - _data[1]));
                 _data[1] = v;
             });
-            f1.add(obj, 'rotateSlefZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+            _folderTrans.add(obj, 'rotateSlefZ').min(-360).max(360).step(0.25).onChange((v: number) => {
                 this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[2]));
                 _data[2] = v;
             });
-            f1.add(obj, 'rotateParentX').min(-360).max(360).step(0.25).onChange((v: number) => {
+            _folderTrans.add(obj, 'rotateParentX').min(-360).max(360).step(0.25).onChange((v: number) => {
                 this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundParentX(CG.utils.deg2Rad(v - _data[3]));
                 _data[3] = v;
             });
-            f1.add(obj, 'rotateParentY').min(-360).max(360).step(0.25).onChange((v: number) => {
+            _folderTrans.add(obj, 'rotateParentY').min(-360).max(360).step(0.25).onChange((v: number) => {
                 this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundParentY(CG.utils.deg2Rad(v - _data[4]));
                 _data[4] = v;
             });
-            f1.add(obj, 'rotateParentZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+            _folderTrans.add(obj, 'rotateParentZ').min(-360).max(360).step(0.25).onChange((v: number) => {
                 this._ctrl.setSpace(this._scene.picker.pickedResult.picked?.mesh)?.rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
                 _data[5] = v;
             });
         }
+
+        {
+            let _folderMaterial = this._gui.addFolder('material');
+            let _mat: CG.api_IMaterial;
+            this._scene.picker.addListener({
+                notify: (evt: CG.Event_t) => {
+                    _mat = this._scene.picker.pickedResult?.picked.primitive.material.API;
+                    obj.normalTextureScale = _mat.normalTextureScale;
+                    obj.occlusionTextureStrength = _mat.occlusionTextureStrength;
+                    obj.emissiveFactor = _mat.emissiveFactor.map(v => 255 * v);
+                    obj.pbrMetallicRoughness.baseColorFactor = _mat.pbrMR_baseColorFactor.map(v => 255 * v);
+                    obj.pbrMetallicRoughness.metallicFactor = _mat.pbrMR_metallicFactor;
+                    obj.pbrMetallicRoughness.roughnessFactor = _mat.pbrMR_roughnessFactor;
+                    _folderMaterial.show();
+
+                    return false;
+                }
+            }, CG.Picker.PICKED);
+
+            const obj = {
+                pbrMetallicRoughness: {
+                    baseColorFactor: [1, 1, 1, 1],
+                    roughnessFactor: 1,
+                    metallicFactor: 1,
+                },
+                normalTextureScale: 1.0,
+                occlusionTextureStrength: 1.0,
+                emissiveFactor: [0, 0, 0],
+            };
+            _folderMaterial.hide();
+            const _folderPBR = _folderMaterial.addFolder("pbr");
+            _folderPBR.open();
+            _folderPBR.addColor(obj.pbrMetallicRoughness, 'baseColorFactor').onChange((v: number[]) => {
+                _mat.pbrMR_baseColorFactor = [v[0] / 255, v[1] / 255, v[2] / 255, v[3] / 255];
+            }).listen();
+            _folderPBR.add(obj.pbrMetallicRoughness, 'metallicFactor').min(0).max(1).step(0.05).onChange((v: number) => {
+                _mat.pbrMR_metallicFactor = v;
+            }).listen();
+            _folderPBR.add(obj.pbrMetallicRoughness, 'roughnessFactor').min(0).max(1).step(0.05).onChange((v: number) => {
+                _mat.pbrMR_roughnessFactor = v;
+            }).listen();
+            _folderMaterial.add(obj, 'normalTextureScale').min(0).max(1).step(0.05).onChange((v: number) => {
+                _mat.normalTextureScale = v;
+            }).listen();
+            _folderMaterial.add(obj, 'occlusionTextureStrength').min(0).max(1).step(0.05).onChange((v: number) => {
+                _mat.occlusionTextureStrength = v;
+            }).listen();
+            _folderMaterial.addColor(obj, 'emissiveFactor').onChange((v: number[]) => {
+                _mat.emissiveFactor = [v[0] / 255, v[1] / 255, v[2] / 255];
+            }).listen();
+
+        }
+
+        const _materialDebugObj = {
+            normal: false,
+            occlusion: false,
+            emissive: false,
+            baseColor: false,
+            metallicRoughness: false,
+        };
+        let _folderDebugTexture = this._gui.addFolder('debugTextures');
+        _folderDebugTexture.show();
+        _folderDebugTexture.add(_materialDebugObj, "normal").onChange((v: boolean) => {
+            console.log("a");
+        });
+        _folderDebugTexture.add(_materialDebugObj, "occlusion").onChange((v: boolean) => {
+            console.log("a");
+        });
+        _folderDebugTexture.add(_materialDebugObj, "emissive").onChange((v: boolean) => {
+            console.log("a");
+        });
+        _folderDebugTexture.add(_materialDebugObj, "baseColor").onChange((v: boolean) => {
+            console.log("a");
+        });
+        _folderDebugTexture.add(_materialDebugObj, "metallicRoughness").onChange((v: boolean) => {
+            console.log("a");
+        });
+
     }
 }
 
