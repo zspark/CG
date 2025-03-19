@@ -1,11 +1,10 @@
 import glC from "./gl-const.js";
-import Mesh from "./mesh.js"
-import Primitive from "./primitive.js"
 import { geometry } from "./geometry.js"
-import { Mat44 } from "./math.js";
 import { Pipeline, SubPipeline } from "./device-resource.js";
-import { IPipeline, IProgram, IFramebuffer, IRenderer } from "./types-interfaces.js";
-import { ICamera } from "./camera.js";
+import {
+    IPipeline,
+    IFramebuffer
+} from "./types-interfaces.js";
 import { createProgram } from "./program-manager.js"
 
 const _vert = `#version 300 es
@@ -27,12 +26,10 @@ void main(){
 
 const _frag = `#version 300 es
 precision mediump float;
-#define FADE_DISTANCE_BEGIN 10.0
-#define FADE_DISTANCE_END 30.0
 in float v_distanceToCamera;
 out vec4 o_fragColor;
 void main() {
-    o_fragColor = vec4(.5, .5, .5, 1.0 - smoothstep(FADE_DISTANCE_BEGIN, FADE_DISTANCE_END, v_distanceToCamera));
+    o_fragColor = vec4(.5, .5, .5, 1.0 - smoothstep(10., 30., v_distanceToCamera));
 }`;
 
 export default class GridFloor {

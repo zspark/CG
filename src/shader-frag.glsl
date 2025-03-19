@@ -4,6 +4,12 @@ precision highp sampler2DShadow;
 
 //%%
 
+#define INDEX_NORMAL 0
+#define INDEX_OCCLUSION 1
+#define INDEX_EMISSIVE 2
+#define INDEX_BASE_COLOR 3
+#define INDEX_METALLIC_ROUGHNESS 4
+
 #define PI2 6.283185307179586
 #define PI 3.14159265359
 #define ONE_OVER_PI 0.3183098861837907
@@ -35,13 +41,10 @@ layout(std140) uniform u_ub_material {
     vec3 u_emissiveFactor;
 };
 uniform sampler2DShadow u_shadowMap;
-uniform sampler2D u_normalTexture;
-uniform int u_normalTextureUVIndex;
-uniform sampler2D u_albedoTexture;
-uniform int u_albedoTextureUVIndex;
-uniform sampler2D u_pbrMR_metallicRoughnessTexture;
-uniform int u_pbrMR_metallicRoughnessTextureIndex;
+uniform sampler2D u_pbrTextures[5];
+uniform int u_pbrTextureCoordIndex[5];
 
+in vec3 v_normal;
 in vec3 v_positionW;
 in vec3 v_normalW;
 in vec3 v_tangentW;
@@ -51,7 +54,6 @@ in vec2 v_arrayUV[5];
 
 out vec4 o_fragColor;
 
-#ifdef FT_PBR
 vec3 _fresnel(float ndotv, in vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - ndotv, 5.0);
 }
@@ -72,39 +74,29 @@ float _normalDistribution(float ndoth, float roughness) {
 
     return nom / max(denom, 0.001);  // Avoid division by zero
 }
-#endif
 
 vec3 _getNormalW() {
-#ifdef FT_TEX_NORMAL
+    vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_NORMAL]];
+    vec3 _normalTBN = texture(u_pbrTextures[INDEX_NORMAL], _uv).rgb * 2.0 - 1.0;
+    _normalTBN.x *= u_normalTextureScale;
+    _normalTBN.y *= u_normalTextureScale;
+
     vec3 _normalW = normalize(v_normalW);
     vec3 _tangentW = normalize(v_tangentW);
     vec3 _biTangentW = normalize(cross(_normalW, _tangentW));
     mat3 _TBN = mat3(_tangentW, _biTangentW, _normalW);
-    vec3 _normalTBN = texture(u_normalTexture, v_arrayUV[u_normalTextureUVIndex]).rgb * 2.0 - 1.0;
-    _normalTBN.x *= u_normalTextureScale;
-    _normalTBN.y *= u_normalTextureScale;
     return _TBN * normalize(_normalTBN);
-#else
-    return normalize(v_normalW);
-#endif
 }
 
 vec2 _getMetallicAndRoughtness() {
-#ifdef FT_TEX_METAL_ROUGH
-    vec2 _value = texture(u_pbrMR_metallicRoughnessTexture, v_arrayUV[u_pbrMR_metallicRoughnessTextureIndex]).zy;
+    vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_METALLIC_ROUGHNESS]];
+    vec2 _value = texture(u_pbrTextures[INDEX_METALLIC_ROUGHNESS], _uv).zy;
     return _value * vec2(u_metallicFactor, u_roughnessFactor);
-#else
-    return vec2(u_metallicFactor, u_roughnessFactor);
-#endif
 }
 
-vec4 _getAlbedoColor() {
-#ifdef FT_TEX_ALBEDO
-    vec2 _coord = v_arrayUV[u_albedoTextureUVIndex];
-    return texture(u_albedoTexture, _coord) * u_baseColorFactor;
-#else
-    return u_baseColorFactor;
-#endif
+vec4 _getBaseColor() {
+    vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_BASE_COLOR]];
+    return texture(u_pbrTextures[INDEX_BASE_COLOR], _uv) * u_baseColorFactor;
 }
 
 /**
@@ -139,8 +131,8 @@ float _calculateShadowFactor(in vec4 posProj) {
 #endif
 }
 
-vec3 _getAmbient(in vec3 albedoColor) {
-    return 0.5 * u_ambientColor * albedoColor;
+vec3 _getAmbient(in vec4 albedoColor) {
+    return 0.5 * u_ambientColor * albedoColor.rgb;
 }
 
 vec3 _getDiffuse(float ndotl, in vec3 albedoColor, float shadowMapFactor) {
@@ -180,13 +172,8 @@ vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float rou
 }
 
 void main() {
-#ifdef COLOR_VERTEX_ATTRIB
-    vec3 _color = v_color;
-    float _alpha = 1.0f;
-#elif defined(FN_GLTF)
     vec2 _metallicAndRoughness = _getMetallicAndRoughtness();
-    vec4 _albedoColor = _getAlbedoColor();
-    float _alpha = _albedoColor.a;
+    vec4 _baseColor = _getBaseColor();
     vec3 _normalW = _getNormalW();
     vec3 _lightDir = normalize(vec3(u_lInvMatrix[3][0], u_lInvMatrix[3][1], u_lInvMatrix[3][2]) - v_positionW);
     vec3 _cameraDir = normalize(vec3(u_vInvMatrix[3][0], u_vInvMatrix[3][1], u_vInvMatrix[3][2]) - v_positionW);
@@ -198,15 +185,17 @@ void main() {
     float _ndoth = max(dot(_normalW, _halfDir), 0.0);    // Normal and halfway vector dot product
     float _vdoth = max(dot(_cameraDir, _halfDir), 0.0);  // View direction and halfway vector dot product
 
-    vec3 _ambient = _getAmbient(_albedoColor.rgb);
-    vec3 _diffuse = _getDiffuse(_ndotl, _albedoColor.rgb, _shadowMapFactor);
+    vec3 _ambient = _getAmbient(_baseColor);
+    vec3 _diffuse = _getDiffuse(_ndotl, _baseColor.rgb, _shadowMapFactor);
     vec3 _highlight = _getHighlight(
         _ndotl, _ndotv, _ndoth, _vdoth,
         _metallicAndRoughness.y,
-        mix(vec3(0.04), _albedoColor.rgb, _metallicAndRoughness.x),
+        mix(vec3(0.04), _baseColor.rgb, _metallicAndRoughness.x),
         _shadowMapFactor);
     vec3 _color = _ambient + _diffuse + _highlight;
-#endif
 
+    float _alpha = _baseColor.a;
     o_fragColor = vec4(_color, _alpha);
+    o_fragColor = vec4(v_normal * .5 + .5, 1.0);
+    o_fragColor=vec4(gl_FragCoord.x/640.,0.,0.,1.);
 }

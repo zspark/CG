@@ -1,9 +1,15 @@
 import log from "./log.js"
 import glC from "./gl-const.js";
 import { BINDING_POINT } from "./gl-const.js"
-import { UniformBlock } from "./device-resource.js"
+import { Texture, UniformBlock } from "./device-resource.js"
 import { Vec4, rgba } from "./math.js"
-import { IBindableObject, IMaterial, api_IMaterial, ITexture, IUniformBlock } from "./types-interfaces.js"
+import {
+    IBindableObject,
+    IMaterial,
+    api_IMaterial,
+    ITexture,
+    IUniformBlock
+} from "./types-interfaces.js"
 
 const _sizeInFloat = 4 + 4 + 4;
 export default class Material implements IMaterial {

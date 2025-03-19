@@ -27,14 +27,8 @@ function _getShaderSource(id: ShaderID_t, source: string[], prefix: string): Sou
 }
 
 export type ShaderID_t = {
-    fn_gltf?: boolean,
-
-    ft_tex_metal_rough?: boolean,
-    ft_tex_normal?: boolean,
-    ft_tex_albedo?: boolean,
     ft_shadow?: boolean,
     ft_pbr?: boolean,
-    color_vertex_attrib?: boolean,
 };
 
 export type SourceContent_t = {

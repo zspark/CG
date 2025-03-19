@@ -33,21 +33,20 @@ layout(location = 9) in vec2 a_uvCoord_4;
 
 out vec3 v_positionW;
 out vec3 v_normalW;
+out vec3 v_normal;
 out vec3 v_tangentW;
 out vec2 v_arrayUV[5];
 out vec3 v_color;
 out vec4 v_positionLProj;
 
 void main() {
-    vec4 pos = vec4(a_position, 1.0);
-    gl_Position = u_vpMatrix * u_mMatrix * pos;
+    vec4 _pos = vec4(a_position, 1.0);
+    vec4 _posW = u_mMatrix * _pos;
+    gl_Position = u_vpMatrix * _posW;
 
-#ifdef COLOR_VERTEX_ATTRIB
     v_color = a_color;
-#endif
-
-#ifdef FN_GLTF
-    v_positionW = (u_mMatrix * pos).xyz;
+    v_normal = a_normal;
+    v_positionW = _posW.xyz;
     v_normalW = (u_mMatrix_dir * vec4(a_normal, 0.0)).xyz;
     v_tangentW = (u_mMatrix_dir * vec4(a_tangent.xyz, 0.0)).xyz;
     v_arrayUV[0] = a_uvCoord_0;
@@ -55,9 +54,8 @@ void main() {
     v_arrayUV[2] = a_uvCoord_2;
     v_arrayUV[3] = a_uvCoord_3;
     v_arrayUV[4] = a_uvCoord_4;
-#endif
 
 #ifdef FT_SHADOW
-    v_positionLProj = u_lpMatrix * u_mMatrix * pos;
+    v_positionLProj = u_lpMatrix * _posW;
 #endif
 }

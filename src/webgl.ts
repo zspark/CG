@@ -12,9 +12,11 @@ import {
     ITexture, ISkyboxTexture,
     IFramebuffer,
     IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
+    IMaterial,
     IPrimitive,
     IRenderer,
     IBindableObject,
+    PBRTextureIndex_e,
 } from "./types-interfaces.js";
 
 const _wm_buffer = new WeakMap();
@@ -68,6 +70,19 @@ export const createGLContext: createContext_fn_t = (canvas: HTMLCanvasElement): 
     } else {
         log.warn("[createGLContent] Extension not supported.");
     }
+
+    function _genTex(r: number, g: number, b: number, a: number): ITexture {
+        const _t = new GLTexture(1, 1);
+        _t.data = new Uint8Array([r, g, b, a]);
+        return _t;
+    }
+    _pbrTextures = [];
+    _pbrTextures[PBRTextureIndex_e.NORMAL] = _genTex(127, 127, 255, 0);
+    _pbrTextures[PBRTextureIndex_e.OCCLUSION] = _genTex(255, 255, 255, 255);
+    _pbrTextures[PBRTextureIndex_e.EMISSIVE] = _genTex(0, 0, 0, 0);
+    _pbrTextures[PBRTextureIndex_e.BASECOLOR] = _genTex(255, 255, 255, 255);
+    _pbrTextures[PBRTextureIndex_e.METALLICROUGHNESS] = _genTex(255, 255, 255, 255);
+
     //@ts-ignore
     window.gl = gl;// debug use;
     return gl;
@@ -215,8 +230,11 @@ export class GLProgram implements IProgram {
             if (blockIndex !== gl.INVALID_INDEX) {
                 //const sizeInBytes = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_DATA_SIZE);
                 //gl.uniformBlockBinding(shaderProgram, blockIndex, 0);
-                _uniformIndicesInBlock.concat(gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES));
-                //_uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
+                const indices = gl.getActiveUniformBlockParameter(shaderProgram, blockIndex, gl.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES);
+                indices.forEach((value: number) => {
+                    _uniformIndicesInBlock.push(value);
+                });
+                //const _uniformOffsetsInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_OFFSET);
                 //const _uniformTypesInBlock = gl.getActiveUniforms(shaderProgram, _uniformIndicesInBlock, gl.UNIFORM_TYPE);
             } else {
                 //log.warn("[GLUniformBlock] Uniform Block not found!");
@@ -235,10 +253,10 @@ export class GLProgram implements IProgram {
                 const _u = gl.getUniformLocation(shaderProgram, uniformInfo.name);
                 switch (uniformInfo.type) {
                     case gl.INT:
-                        _fn = gl.uniform1i.bind(gl, _u);
+                        _fn = uniformInfo.size <= 1 ? gl.uniform1i.bind(gl, _u) : gl.uniform1iv.bind(gl, _u);
                         break;
                     case gl.FLOAT:
-                        _fn = gl.uniform1f.bind(gl, _u);
+                        _fn = uniformInfo.size <= 1 ? gl.uniform1f.bind(gl, _u) : gl.uniform1fv.bind(gl, _u);
                         break;
                     case gl.FLOAT_VEC3:
                         _fn = gl.uniform3fv.bind(gl, _u);
@@ -253,7 +271,7 @@ export class GLProgram implements IProgram {
                     case gl.SAMPLER_2D_SHADOW:
                     case gl.SAMPLER_2D_ARRAY:
                     case gl.SAMPLER_2D_ARRAY_SHADOW:
-                        _fn = gl.uniform1i.bind(gl, _u);
+                        _fn = uniformInfo.size <= 1 ? gl.uniform1i.bind(gl, _u) : gl.uniform1iv.bind(gl, _u);
                         break;
                 }
                 this._mapUniformFn.set(uniformInfo.name, _fn);
@@ -294,7 +312,7 @@ export class GLTexture implements ITexture {
     private _type: GLenum;
     private _width: number;
     private _height: number;
-    private _data: ArrayBuffer | HTMLImageElement;
+    private _data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement;
     private _mapTextureParameter: Map<GLenum, GLenum> = new Map();
     private _UVIndex: number = 0;
 
@@ -323,7 +341,7 @@ export class GLTexture implements ITexture {
         return this._UVIndex;
     }
 
-    set data(data: ArrayBuffer | HTMLImageElement) {
+    set data(data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement) {
         if (this._glTexture) {
             this.updateData(data);
         } else {
@@ -346,6 +364,8 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter = undefined;
         this._glTexture = _texture;
         _wm_texture.set(this, _texture);
+
+        //texImage2D(target, level, internalformat, width, height, border, format, type, source)
         gl.texImage2D(gl.TEXTURE_2D, 0, this._internalFormat, this._width, this._height, 0, this._format, this._type, null);
         this.updateData(this._data);
         this._data = undefined;
@@ -626,7 +646,7 @@ export class GLPipeline implements IPipeline {
 export class GLSubPipeline implements ISubPipeline {
 
     private _renderObject: IRenderObject;
-    private _textureSet: Set<ITexture | ISkyboxTexture> = new Set();
+    private _textureSet: Array<ITexture | ISkyboxTexture> = [];
     private _uniformUpdaterFn: UniformUpdaterFn_t;
 
     constructor() { }
@@ -656,19 +676,34 @@ export class GLSubPipeline implements ISubPipeline {
 
     setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline {
         tex.forEach(t => {
-            this._textureSet.add(t);
+            this._textureSet.push(t);
         });
         return this;
     }
 
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline {
         if (!texture) return this;
-        this._textureSet.add(texture);
+        this._textureSet.push(texture);
+        return this;
+    }
+
+    setMaterial(material: IMaterial): ISubPipeline {
+        material.normalTexture ??= _pbrTextures[PBRTextureIndex_e.NORMAL];
+        material.occlusionTexture ??= _pbrTextures[PBRTextureIndex_e.OCCLUSION];
+        material.emissiveTexture ??= _pbrTextures[PBRTextureIndex_e.EMISSIVE];
+        material.pbrMR_baseColorTexture ??= _pbrTextures[PBRTextureIndex_e.BASECOLOR];
+        material.pbrMR_metallicRoughnessTexture ??= _pbrTextures[PBRTextureIndex_e.METALLICROUGHNESS];
+
+        this._textureSet.push(material.normalTexture);
+        this._textureSet.push(material.occlusionTexture);
+        this._textureSet.push(material.emissiveTexture);
+        this._textureSet.push(material.pbrMR_baseColorTexture);
+        this._textureSet.push(material.pbrMR_metallicRoughnessTexture);
         return this;
     }
 
     clearTextures(): ISubPipeline {
-        this._textureSet.clear();
+        this._textureSet.length = 0;
         return this;
     }
 
@@ -703,7 +738,7 @@ export class GLSubPipeline implements ISubPipeline {
         const sub = new GLSubPipeline();
         sub._renderObject = this._renderObject;
         this._textureSet.forEach(t => {
-            sub._textureSet.add(t);
+            sub._textureSet.push(t);
         });
         sub._uniformUpdaterFn = this._uniformUpdaterFn;
         return sub;
@@ -906,3 +941,4 @@ export class GLFramebuffer_Depth_f extends GLFramebuffer {
     }
 }
 
+let _pbrTextures: ITexture[];

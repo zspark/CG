@@ -30,8 +30,8 @@ export default class Application {
         //this._scene.addMesh(_meshCube3, true, p);
         this._scene.loadGLTF(
             //"./assets/gltf/skull/scene.gltf"
-            //"./assets/gltf/cube/scene.gltf"
-            "./assets/gltf/cup_with_holder/scene.gltf"
+            "./assets/gltf/cube/scene.gltf"
+            //"./assets/gltf/cup_with_holder/scene.gltf"
             //"./assets/gltf/haunted_house/scene.gltf"
             //"./assets/gltf/dragon_sculpture/scene.gltf"
             //"./assets/gltf/glass_bunny/scene.gltf"

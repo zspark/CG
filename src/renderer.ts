@@ -61,6 +61,7 @@ class RenderContext implements IRenderContext {
             }
         }
     }
+
     setBlend(enable: boolean, funcSF: GLenum, funcDF: GLenum, equation: GLenum) {
         const gl = this._gl;
         const _state = this._state;
@@ -80,6 +81,7 @@ class RenderContext implements IRenderContext {
             }
         }
     }
+
     setCullFace(enable: boolean, faceToCull: GLenum) {
         const gl = this._gl;
         const _state = this._state;
@@ -105,6 +107,7 @@ export interface IRenderable {
 }
 
 export default class Renderer implements IRenderer {
+
     private _defaultFBO: IFramebuffer;
     private _maxTextureUnits: number;
     private _arrPipeline: IPipeline[];

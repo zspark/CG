@@ -49,6 +49,14 @@ export enum ShaderLocation_e {
     ATTRIB_INSTANCED_MATRIX_COL_4 = 15,
 };
 
+export enum PBRTextureIndex_e {
+    NORMAL = 0,
+    OCCLUSION = 1,
+    EMISSIVE = 2,
+    BASECOLOR = 3,
+    METALLICROUGHNESS = 4,
+}
+
 export type VertexAttribute_t = {
     buffer: IBuffer;
     shaderLocation: ShaderLocation_e;
@@ -81,7 +89,7 @@ export interface IProgram extends IBindableObject {
 
 export interface ITexture {
     get textureUnit(): GLint;
-    set data(data: ArrayBuffer | HTMLImageElement);
+    set data(data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement);
     UVIndex: number;
 
     createGPUResource(gl: WebGL2RenderingContext): ITexture;
@@ -197,6 +205,7 @@ export interface ISubPipeline {
     setRenderObject(target: IRenderObject): ISubPipeline;
     setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline;
     setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline;
+    setMaterial(mterial: IMaterial): ISubPipeline;
     clearTextures(): ISubPipeline;
     validate(): ISubPipeline;
     update(program: IProgram): ISubPipeline;

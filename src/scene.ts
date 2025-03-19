@@ -16,7 +16,6 @@ import createLoader from "./assets-loader.js";
 import SpaceController from "./space-controller.js";
 import { GLTFParserOutput_t, default as GLTFParser } from "./gltf-parser.js";
 import { ILight, default as light } from "./light-source.js";
-import utils from "./utils.js";
 import Outline from "./outline.js";
 import Renderer from "./renderer.js";
 import Skybox from "./skybox.js";
@@ -58,14 +57,14 @@ export default class Scene {
         this._renderer.registerUBO(getMaterialUBO());
         this._gridFloor = new GridFloor();
         this._axis = new Axes();
-        this._skybox = new Skybox();
+        // this._skybox = new Skybox();
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
 
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
-        this._renderer.addPipeline(this._skybox.pipeline);
+        // this._renderer.addPipeline(this._skybox.pipeline);
         this._renderer.addPipeline(this._shadowMap.pipeline);
         this.showOutline = true;
 
@@ -115,15 +114,11 @@ export default class Scene {
     loadGLTF(url: string) {
         new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).scale(3,3,3)//.setPosition(-2, -2, 2)
+                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(0, 0, 0);//.scale(3,3,3)//.setPosition(-2, -2, 2)
                 this.addMesh(data.CGMeshs[i], true
                     , getProgram({
-                        fn_gltf: true,
                         ft_pbr: true,
                         ft_shadow: true,
-                        ft_tex_normal: true,
-                        ft_tex_albedo: true,
-                        ft_tex_metal_rough: true,
                     })
                 );
             }
@@ -135,15 +130,13 @@ export default class Scene {
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .setProgram(program ?? getProgram({ color_vertex_attrib: true, }))
+            .setProgram(program)
 
         mesh.getPrimitives().forEach(p => {
             _p.appendSubPipeline(new SubPipeline()
                 .setRenderObject(p)
                 .setTexture(this._shadowMap.depthTexture)
-                .setTexture(p.material?.normalTexture)
-                .setTexture(p.material?.pbrMR_baseColorTexture)
-                .setTexture(p.material?.pbrMR_metallicRoughnessTexture)
+                .setMaterial(p.material)
                 .setUniformUpdaterFn(this._createUpdater(mesh, p.material, new Vec4(1, 0, 0, 1)))
                 .validate()
             );
@@ -181,36 +174,25 @@ export default class Scene {
             program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
             program.uploadUniform("u_mMatrix_dir", this._tempMat44.data);
-            //this._light.lightMatrix.multiply(this._tempMat44, this._tempMat44);
-            //program.uploadUniform("u_mlMatrix_normal", this._tempMat44.data);
-            //this._light.lightProjectionMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            //program.uploadUniform("u_mlpMatrix", this._tempMat44.data);
-            //this._light.lightMatrix.multiply(mesh.modelMatrix, this._tempMat44);
-            //program.uploadUniform("u_mlMatrix", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
             if (material) {
-                if (material.normalTexture) {
-                    program.uploadUniform("u_normalTexture", material.normalTexture.textureUnit);
-                    program.uploadUniform("u_normalTextureUVIndex", material.normalTexture.UVIndex);
-                }
-                if (material.pbrMR_baseColorTexture) {
-                    program.uploadUniform("u_albedoTexture", material.pbrMR_baseColorTexture.textureUnit);
-                    program.uploadUniform("u_albedoTextureUVIndex", material.pbrMR_baseColorTexture.UVIndex);
-                }
-                if (material.pbrMR_metallicRoughnessTexture) {
-                    program.uploadUniform("u_pbrMR_metallicRoughnessTexture", material.pbrMR_metallicRoughnessTexture.textureUnit);
-                    program.uploadUniform("u_pbrMR_metallicRoughnessTextureIndex", material.pbrMR_metallicRoughnessTexture.UVIndex);
-                }
+                program.uploadUniform("u_pbrTextures[0]", [
+                    material.normalTexture.textureUnit,
+                    material.occlusionTexture.textureUnit,
+                    material.emissiveTexture.textureUnit,
+                    material.pbrMR_baseColorTexture.textureUnit,
+                    material.pbrMR_metallicRoughnessTexture.textureUnit,
+                ]);
+                program.uploadUniform("u_pbrTextureCoordIndex[0]", [
+                    material.normalTexture.UVIndex ?? 0,
+                    material.occlusionTexture.UVIndex ?? 0,
+                    material.emissiveTexture.UVIndex ?? 0,
+                    material.pbrMR_baseColorTexture.UVIndex ?? 0,
+                    material.pbrMR_metallicRoughnessTexture.UVIndex ?? 0,
+                ]);
             }
             program.uploadUniform("u_color", [color.r, color.g, color.b]);
             program.uploadUniform("u_nearFarPlane", [Scene.NEAR_PLANE, Scene.FAR_PLANE]);
-            /// --------------------------------------------------------------------------------
-            /// debug normals;
-            this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();
-            program.uploadUniform("u_debugNormalModelMatrix", this._tempMat44.data);
-            program.uploadUniform("u_debugNormalViewMatrix", this._camera.viewMatrix.data);
-            program.uploadUniform("u_debugNormalSpace", 1);
-            /// --------------------------------------------------------------------------------
         };
     }
 }
