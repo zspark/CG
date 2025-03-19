@@ -23,12 +23,11 @@ import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 
 export default class Scene {
-    static NEAR_PLANE = 1;
-    static FAR_PLANE = 100;
 
     private _tempMat44 = new Mat44();
     private _tempVec4 = new Vec4();
 
+    private _debugValue: number = -1;
     private _loader = createLoader("./");
     private _rootNode: SpacialNode = new SpacialNode("root");
     private _meshes: Map<string, Mesh> = new Map();
@@ -94,6 +93,10 @@ export default class Scene {
     get light() { return this._light.API; }
     get camera() { return this._camera.API; }
 
+    setDebugValue(value: number): void {
+        this._debugValue = value;
+    }
+
     private _outlineShow: boolean = false;
     set showOutline(v: boolean) {
         if (v && !this._outlineShow) {
@@ -113,12 +116,14 @@ export default class Scene {
 
     loadGLTF(url: string) {
         new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
-            for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(0, 0, 0);//.scale(3,3,3)//.setPosition(-2, -2, 2)
+            for (let i = 1, N = data.CGMeshs.length; i < N; ++i) {
+                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(48, 48, 0);//.scale(3,3,3)//.setPosition(-2, -2, 2)
                 this.addMesh(data.CGMeshs[i], true
                     , getProgram({
                         ft_pbr: true,
                         ft_shadow: true,
+                        debug: true,
+                        //gamma_correct: true,
                     })
                 );
             }
@@ -190,9 +195,10 @@ export default class Scene {
                     material.pbrMR_baseColorTexture.UVIndex ?? 0,
                     material.pbrMR_metallicRoughnessTexture.UVIndex ?? 0,
                 ]);
+                program.uploadUniform("u_textureDebug", this._debugValue);
             }
             program.uploadUniform("u_color", [color.r, color.g, color.b]);
-            program.uploadUniform("u_nearFarPlane", [Scene.NEAR_PLANE, Scene.FAR_PLANE]);
+            program.uploadUniform("u_nearFarPlane", [Camera.NEAR_PLANE, Camera.FAR_PLANE]);
         };
     }
 }

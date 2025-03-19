@@ -29,6 +29,8 @@ function _getShaderSource(id: ShaderID_t, source: string[], prefix: string): Sou
 export type ShaderID_t = {
     ft_shadow?: boolean,
     ft_pbr?: boolean,
+    gamma_correct?: boolean,
+    debug?: boolean,
 };
 
 export type SourceContent_t = {

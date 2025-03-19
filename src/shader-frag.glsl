@@ -44,6 +44,17 @@ uniform sampler2DShadow u_shadowMap;
 uniform sampler2D u_pbrTextures[5];
 uniform int u_pbrTextureCoordIndex[5];
 
+#ifdef DEBUG
+    #define DBG_INDEX_NORMAL 0
+    #define DBG_INDEX_OCCLUSION 1
+    #define DBG_INDEX_EMISSIVE 2
+    #define DBG_INDEX_BASE_COLOR 3
+    #define DBG_INDEX_METALLIC 4
+    #define DBG_INDEX_ROUGHNESS 5
+    #define DBG_INDEX_F0 6
+uniform int u_textureDebug;
+#endif
+
 in vec3 v_normal;
 in vec3 v_positionW;
 in vec3 v_normalW;
@@ -76,12 +87,15 @@ float _normalDistribution(float ndoth, float roughness) {
 }
 
 vec3 _getNormalW() {
+    vec3 _normalW = normalize(v_normalW);
+    if (dot(v_tangentW.xyz, v_tangentW.xyz) <= .9) {
+        return _normalW;
+    }
+
     vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_NORMAL]];
     vec3 _normalTBN = texture(u_pbrTextures[INDEX_NORMAL], _uv).rgb * 2.0 - 1.0;
     _normalTBN.x *= u_normalTextureScale;
     _normalTBN.y *= u_normalTextureScale;
-
-    vec3 _normalW = normalize(v_normalW);
     vec3 _tangentW = normalize(v_tangentW);
     vec3 _biTangentW = normalize(cross(_normalW, _tangentW));
     mat3 _TBN = mat3(_tangentW, _biTangentW, _normalW);
@@ -195,7 +209,44 @@ void main() {
     vec3 _color = _ambient + _diffuse + _highlight;
 
     float _alpha = _baseColor.a;
+
+#ifdef DEBUG
+    if (u_textureDebug == DBG_INDEX_NORMAL) {
+        vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_NORMAL]];
+        vec4 _normalTBN = texture(u_pbrTextures[INDEX_NORMAL], _uv);
+        _color = _normalTBN.rgb;
+        _alpha = 1.;
+    } else if (u_textureDebug == DBG_INDEX_OCCLUSION) {
+    } else if (u_textureDebug == DBG_INDEX_EMISSIVE) {
+    } else if (u_textureDebug == DBG_INDEX_BASE_COLOR) {
+        vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_BASE_COLOR]];
+        vec4 _value = texture(u_pbrTextures[INDEX_BASE_COLOR], _uv);
+        _color = _value.rgb;
+        _alpha = _value.a;
+    } else if (u_textureDebug == DBG_INDEX_METALLIC) {
+        vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_METALLIC_ROUGHNESS]];
+        float _value = texture(u_pbrTextures[INDEX_METALLIC_ROUGHNESS], _uv).z;
+        _color = vec3(_value);
+        _alpha = 1.;
+    } else if (u_textureDebug == DBG_INDEX_ROUGHNESS) {
+        vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_METALLIC_ROUGHNESS]];
+        float _value = texture(u_pbrTextures[INDEX_METALLIC_ROUGHNESS], _uv).y;
+        _color = vec3(_value);
+        _alpha = 1.;
+    } else if (u_textureDebug == DBG_INDEX_F0) {
+        vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_BASE_COLOR]];
+        vec4 _baseColor = texture(u_pbrTextures[INDEX_BASE_COLOR], _uv);
+        _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_METALLIC_ROUGHNESS]];
+        float _value = texture(u_pbrTextures[INDEX_METALLIC_ROUGHNESS], _uv).z;
+        _color = mix(vec3(0.04), _baseColor.rgb, _value);
+        _alpha = 1.;
+    }
+#endif
+
+#ifdef GAMMA_CORRECT
+    const float gammaFactor = (1.0 / 2.2);
+    _color = pow(_color, vec3(gammaFactor));
+#endif
+
     o_fragColor = vec4(_color, _alpha);
-    o_fragColor = vec4(v_normal * .5 + .5, 1.0);
-    o_fragColor=vec4(gl_FragCoord.x/640.,0.,0.,1.);
 }

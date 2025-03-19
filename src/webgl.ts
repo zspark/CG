@@ -264,6 +264,9 @@ export class GLProgram implements IProgram {
                     case gl.FLOAT_VEC4:
                         _fn = gl.uniform4fv.bind(gl, _u);
                         break;
+                    case gl.BOOL:
+                        _fn = uniformInfo.size <= 1 ? gl.uniform1i.bind(gl, _u) : gl.uniform1iv.bind(gl, _u);
+                        break;
                     case gl.FLOAT_MAT4:
                         _fn = gl.uniformMatrix4fv.bind(gl, _u, false);
                         break;

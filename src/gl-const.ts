@@ -33,6 +33,7 @@ type _glConst = {
     CULL_FACE_MODE: GLenum,
 
     RGBA: GLenum,
+    SRGB8_ALPHA8: GLenum,
 
     TEXTURE_WRAP_R: GLenum,
     TEXTURE_WRAP_S: GLenum,
@@ -83,6 +84,7 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.STATIC_DRAW = gl.STATIC_DRAW;
     glConst.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
     glConst.RGBA = gl.RGBA;
+    glConst.SRGB8_ALPHA8 = gl.SRGB8_ALPHA8;
     glConst.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
     glConst.UNSIGNED_INT = gl.UNSIGNED_INT;
 

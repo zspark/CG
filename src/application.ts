@@ -30,8 +30,8 @@ export default class Application {
         //this._scene.addMesh(_meshCube3, true, p);
         this._scene.loadGLTF(
             //"./assets/gltf/skull/scene.gltf"
-            "./assets/gltf/cube/scene.gltf"
-            //"./assets/gltf/cup_with_holder/scene.gltf"
+            //"./assets/gltf/cube/scene.gltf"
+            "./assets/gltf/cup_with_holder/scene.gltf"
             //"./assets/gltf/haunted_house/scene.gltf"
             //"./assets/gltf/dragon_sculpture/scene.gltf"
             //"./assets/gltf/glass_bunny/scene.gltf"
@@ -50,10 +50,39 @@ export default class Application {
         {
             const _obj = {
                 showOutline: true,
+                debug: "none",
             };
             let f1 = this._gui.addFolder('general');
             f1.add(_obj, "showOutline").onChange((v: boolean) => {
                 this._scene.showOutline = v;
+            });
+            f1.add(_obj, "debug", ["none", "normal", "occlusion", "emissive", "baseColor", "metallic", "roughness", "F0"]).onChange((v: string) => {
+                switch (v) {
+                    case "none":
+                        this._scene.setDebugValue(-1);
+                        break;
+                    case "normal":
+                        this._scene.setDebugValue(0);
+                        break;
+                    case "occlusion":
+                        this._scene.setDebugValue(1);
+                        break;
+                    case "emissive":
+                        this._scene.setDebugValue(2);
+                        break;
+                    case "baseColor":
+                        this._scene.setDebugValue(3);
+                        break;
+                    case "metallic":
+                        this._scene.setDebugValue(4);
+                        break;
+                    case "roughness":
+                        this._scene.setDebugValue(5);
+                        break;
+                    case "F0":
+                        this._scene.setDebugValue(6);
+                        break;
+                }
             });
         }
         {
@@ -214,32 +243,6 @@ export default class Application {
             }).listen();
 
         }
-
-        const _materialDebugObj = {
-            normal: false,
-            occlusion: false,
-            emissive: false,
-            baseColor: false,
-            metallicRoughness: false,
-        };
-        let _folderDebugTexture = this._gui.addFolder('debugTextures');
-        _folderDebugTexture.show();
-        _folderDebugTexture.add(_materialDebugObj, "normal").onChange((v: boolean) => {
-            console.log("a");
-        });
-        _folderDebugTexture.add(_materialDebugObj, "occlusion").onChange((v: boolean) => {
-            console.log("a");
-        });
-        _folderDebugTexture.add(_materialDebugObj, "emissive").onChange((v: boolean) => {
-            console.log("a");
-        });
-        _folderDebugTexture.add(_materialDebugObj, "baseColor").onChange((v: boolean) => {
-            console.log("a");
-        });
-        _folderDebugTexture.add(_materialDebugObj, "metallicRoughness").onChange((v: boolean) => {
-            console.log("a");
-        });
-
     }
 }
 
