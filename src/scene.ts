@@ -58,14 +58,14 @@ export default class Scene {
         this._renderer.registerUBO(getMaterialUBO());
         this._gridFloor = new GridFloor();
         this._axis = new Axes();
-        //this._skybox = new Skybox();
+        this._skybox = new Skybox();
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
 
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
-        //this._renderer.addPipeline(this._skybox.pipeline);
+        this._renderer.addPipeline(this._skybox.pipeline);
         this._renderer.addPipeline(this._shadowMap.pipeline);
         this.showOutline = true;
 

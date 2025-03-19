@@ -184,10 +184,12 @@ export class GLProgram implements IProgram {
         } else if (ubo.bindingPoint === BINDING_POINT.UBO_BINDING_POINT_MATERIAL) {
             _uboIndex = this._uboMaterialIndex;
         }
-        gl.bindBuffer(gl.UNIFORM_BUFFER, _wm_buffer.get(ubo));
-        gl.uniformBlockBinding(this._glProgram, _uboIndex, ubo.bindingPoint);
-        gl.bindBufferBase(gl.UNIFORM_BUFFER, ubo.bindingPoint, _wm_buffer.get(ubo));
-        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+        if (_uboIndex !== gl.INVALID_INDEX) {
+            gl.bindBuffer(gl.UNIFORM_BUFFER, _wm_buffer.get(ubo));
+            gl.uniformBlockBinding(this._glProgram, _uboIndex, ubo.bindingPoint);
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, ubo.bindingPoint, _wm_buffer.get(ubo));
+            gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+        }
         return this;
     }
 
@@ -638,7 +640,7 @@ export class GLSubPipeline implements ISubPipeline {
     }
 
     update(program: IProgram): ISubPipeline {
-        this._uniformUpdaterFn(program);
+        this._uniformUpdaterFn && this._uniformUpdaterFn(program);
         return this;
     }
 
@@ -680,7 +682,6 @@ export class GLSubPipeline implements ISubPipeline {
             if (!(tex instanceof GLTexture))
                 log.vital('[SubPipeline] textureSet has null-Texture object.');
         });
-        if (!this._uniformUpdaterFn) log.vital('[SubPipeline] uniform updater is not exist.');
         return this;
     }
 

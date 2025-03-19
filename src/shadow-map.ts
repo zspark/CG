@@ -1,21 +1,33 @@
 import glC from "./gl-const.js";
-import getProgram from "./program-manager.js"
-import { geometry } from "./geometry.js"
+import { createProgram } from "./program-manager.js"
 import Mesh from "./mesh.js"
 import { GLFramebuffer_Depth_f } from "./webgl.js";
+import { Pipeline, SubPipeline } from "./device-resource.js";
 import {
-    IUniformBlock,
-    IRenderContext,
-    IRenderer,
-    IGeometry,
-    IBuffer, BufferData_t, StepMode_e, ShaderLocation_e,
     IProgram,
-    ITexture, ISkyboxTexture,
-    IFramebuffer,
-    IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
-    IBindableObject,
+    ITexture,
+    IPipeline,
 } from "./types-interfaces.js";
-import { createContext, Framebuffer, Pipeline, SubPipeline } from "./device-resource.js";
+
+const _vert = `#version 300 es
+precision mediump float;
+uniform mat4 u_mMatrix;
+layout(std140) uniform u_ub_light {
+    mat4 u_lInvMatrix;
+    mat4 u_lMatrix;
+    mat4 u_lpMatrix;
+    vec3 u_ambientColor;
+    vec4 u_lightColor;  // w: u_specularHighlight;
+};
+layout(location = 0) in vec3 a_position;
+void main(){
+    vec4 pos = vec4(a_position, 1.0);
+    gl_Position = u_lpMatrix * u_mMatrix * pos;
+}`;
+
+const _frag = `#version 300 es
+precision mediump float;
+void main() { }`;
 
 export default class ShadowMap {
 
@@ -25,13 +37,12 @@ export default class ShadowMap {
     constructor(gl: WebGL2RenderingContext) {
 
         this._shadowMapFBO = new GLFramebuffer_Depth_f(2048, 2048);
-        //this._shadowMapFBO = new GLFramebuffer_Depth_f(640, 480);
         this._shadowMapFBO.createGPUResource(gl);
         this._shadowMapPipeline = new Pipeline(100000)
             .setFBO(this._shadowMapFBO)
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
-            .setProgram(getProgram({ fn_shadow_map: true, no_output: true }))
+            .setProgram(createProgram(_vert, _frag))
             .drawBuffers(glC.NONE)
             .validate()
     }

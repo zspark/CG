@@ -27,30 +27,14 @@ function _getShaderSource(id: ShaderID_t, source: string[], prefix: string): Sou
 }
 
 export type ShaderID_t = {
-    fn_fade_away_from_camera?: boolean,
     fn_gltf?: boolean,
-    fn_skybox_latlon?: boolean,
-    fn_shadow_map?: boolean,
-    fn_sobel_silhouette?: boolean,
-
-    instanced_matrix?: boolean,
-    position_in_ndc?: boolean,
-
-    debug_normal?: boolean,
 
     ft_tex_metal_rough?: boolean,
     ft_tex_normal?: boolean,
     ft_tex_albedo?: boolean,
     ft_shadow?: boolean,
-    ft_phong?: boolean,
-    ft_phongs?: boolean,
     ft_pbr?: boolean,
     color_vertex_attrib?: boolean,
-    color_uniform?: boolean,
-
-    no_output?: boolean,
-    r32i?: boolean,
-    r32f?: boolean,
 };
 
 export type SourceContent_t = {

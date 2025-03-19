@@ -6,29 +6,48 @@ import { Mat44 } from "./math.js";
 import { Pipeline, SubPipeline } from "./device-resource.js";
 import { IPipeline, IProgram, IFramebuffer, IRenderer } from "./types-interfaces.js";
 import { ICamera } from "./camera.js";
-import getProgram from "./program-manager.js"
+import { createProgram } from "./program-manager.js"
+
+const _vert = `#version 300 es
+precision mediump float;
+layout(std140) uniform u_ub_camera {
+    mat4 u_vInvMatrix;
+    mat4 u_vMatrix;
+    mat4 u_pMatrix;
+    mat4 u_pInvMatrix;
+    mat4 u_vpMatrix;
+};
+layout(location = 0) in vec3 a_position;
+out float v_distanceToCamera;
+void main(){
+    vec4 pos = vec4(a_position, 1.0);
+    v_distanceToCamera = -(u_vMatrix *  pos).z;
+    gl_Position = u_vpMatrix * pos;
+}`;
+
+const _frag = `#version 300 es
+precision mediump float;
+#define FADE_DISTANCE_BEGIN 10.0
+#define FADE_DISTANCE_END 30.0
+in float v_distanceToCamera;
+out vec4 o_fragColor;
+void main() {
+    o_fragColor = vec4(.5, .5, .5, 1.0 - smoothstep(FADE_DISTANCE_BEGIN, FADE_DISTANCE_END, v_distanceToCamera));
+}`;
 
 export default class GridFloor {
 
-    private _color = [0.5, 0.5, 0.5];
     private _pipeline: IPipeline;
 
     constructor(fbo?: IFramebuffer) {
         const _geo = geometry.createGridPlane(100);
-
-        const _subp = new SubPipeline()
-            .setRenderObject(_geo)
-            .setUniformUpdaterFn((program: IProgram) => {
-                program.uploadUniform("u_mMatrix", Mat44.IdentityMat44.data);
-                program.uploadUniform("u_color", this._color);
-            })
-            .validate();
+        const _subp = new SubPipeline().setRenderObject(_geo).validate();
 
         this._pipeline = new Pipeline(-999)
             .setFBO(fbo)
             .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .depthTest(true, glC.LESS)
-            .setProgram(getProgram({ fn_fade_away_from_camera: true, color_uniform: true }))
+            .setProgram(createProgram(_vert, _frag))
             .appendSubPipeline(_subp)
             .validate();
     }

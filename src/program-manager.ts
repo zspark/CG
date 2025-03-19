@@ -45,3 +45,7 @@ export default function getProgram(shaderID: ShaderID_t): IProgram {
     }
     return _program;
 }
+
+export function createProgram(vert: string, frag: string): IProgram {
+    return new Program(_gl, vert, frag);
+}

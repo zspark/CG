@@ -1,14 +1,45 @@
 import glC from "./gl-const.js";
 import engineC from "./engine-const.js";
 import OrthogonalSpace from "./orthogonal-space.js"
-import Mesh from "./mesh.js"
 import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
-import getProgram from "./program-manager.js"
+import { createProgram } from "./program-manager.js"
 import { roMat44, Mat44 } from "./math.js";
 import { Buffer, Pipeline, SubPipeline, Framebuffer } from "./device-resource.js";
 import { IPipeline, IProgram, IFramebuffer, IGeometry, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
 import { IEventDispatcher, Event_t, IEventListener } from "./event.js";
-import Geometry from "./geometry.js";
+
+const _vert = `#version 300 es
+precision mediump float;
+layout(std140) uniform u_ub_camera {
+    mat4 u_vInvMatrix;
+    mat4 u_vMatrix;
+    mat4 u_pMatrix;
+    mat4 u_pInvMatrix;
+    mat4 u_vpMatrix;
+};
+layout(location = 0) in vec3 a_position;
+layout(location = 3) in vec3 a_color;
+layout(location = 12) in vec4 a_instanceMatrix_col0;
+layout(location = 13) in vec4 a_instanceMatrix_col1;
+layout(location = 14) in vec4 a_instanceMatrix_col2;
+layout(location = 15) in vec4 a_instanceMatrix_col3;
+out vec3 v_color;
+void main(){
+    vec4 pos = vec4(a_position, 1.0);
+    v_color = a_color;
+    mat4 _instanceMatrix = mat4(
+        a_instanceMatrix_col0, a_instanceMatrix_col1,
+        a_instanceMatrix_col2, a_instanceMatrix_col3);
+    gl_Position = u_vpMatrix * _instanceMatrix * pos;
+}`;
+
+const _frag = `#version 300 es
+precision mediump float;
+in vec3 v_color;
+out vec4 o_fragColor;
+void main() {
+    o_fragColor = vec4(v_color, 1.);
+}`;
 
 export interface IAxesTarget extends IEventDispatcher {
     readonly modelMatrix: roMat44;
@@ -50,14 +81,11 @@ export default class Axes implements IEventListener {
         }
         _geometry.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
 
-        const _subp = new SubPipeline()
-            .setRenderObject(_geometry)
-            .setUniformUpdaterFn((program: IProgram) => {
-            });
+        const _subp = new SubPipeline().setRenderObject(_geometry)
 
         this._pipeline = new Pipeline(-1000)
             .setFBO(fbo)
-            .setProgram(getProgram({ instanced_matrix: true, color_vertex_attrib: true, }))
+            .setProgram(createProgram(_vert, _frag))
             .appendSubPipeline(_subp)
             .depthTest(false/*, glC.LESS*/)
             .validate();

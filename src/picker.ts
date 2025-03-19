@@ -1,15 +1,37 @@
 import log from "./log.js"
 import glC from "./gl-const.js";
-import { Mat44, roMat44 } from "./math.js";
 import { MouseEvents_t } from "./mouse-events.js"
 import { GLFramebuffer_C0_r32i } from "./webgl.js"
 import { IProgram, ISubPipeline, IPipeline, IRenderer, ITexture, IGeometry } from "./types-interfaces.js";
 import { Texture, Program, Pipeline, SubPipeline, Framebuffer } from "./device-resource.js";
-import getProgram from "./program-manager.js"
+import { createProgram } from "./program-manager.js"
 import Mesh from "./mesh.js"
 import Primitive from "./primitive.js"
-import Geometry from "./geometry.js"
 import { Event_t, default as EventDispatcher, IEventDispatcher } from "./event.js";
+
+const _vert = `#version 300 es
+precision mediump float;
+layout(std140) uniform u_ub_camera {
+    mat4 u_vInvMatrix;
+    mat4 u_vMatrix;
+    mat4 u_pMatrix;
+    mat4 u_pInvMatrix;
+    mat4 u_vpMatrix;
+};
+uniform mat4 u_mMatrix;
+layout(location = 0) in vec3 a_position;
+void main(){
+    vec4 pos = vec4(a_position, 1.0);
+    gl_Position = u_vpMatrix * u_mMatrix * pos;
+}`;
+
+const _frag = `#version 300 es
+precision mediump float;
+uniform int u_uuid;
+out int o_pickable;
+void main() {
+    o_pickable = u_uuid;
+}`;
 
 export type PickResult_t = {
     lastPicked: Pickable_t,
@@ -62,7 +84,7 @@ export default class Picker extends EventDispatcher {
         this._backFBO = new GLFramebuffer_C0_r32i(width, height);
 
         this._pipeline
-            .setProgram(getProgram({ r32i: true, }))
+            .setProgram(createProgram(_vert, _frag))
             .setFBO(this._backFBO)
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)

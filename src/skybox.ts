@@ -1,15 +1,45 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
-import Frustum from "./frustum.js";
 import { geometry } from "./geometry.js"
 import { Texture, Pipeline, SubPipeline } from "./device-resource.js";
-import getProgram from "./program-manager.js"
-import { GLFramebuffer_C0_r32f } from "./webgl.js"
-import { roMat44, Mat44, Vec4 } from "./math.js"
+import { createProgram } from "./program-manager.js"
 import { IProgram, IGeometry, IPipeline, ITexture, IRenderer, ISubPipeline } from "./types-interfaces.js";
-import { ICamera } from "./camera.js";
 import { Loader } from "./assets-loader.js";
 
+const _vert = `#version 300 es
+precision mediump float;
+layout(std140) uniform u_ub_camera {
+    mat4 u_vInvMatrix;
+    mat4 u_vMatrix;
+    mat4 u_pMatrix;
+    mat4 u_pInvMatrix;
+    mat4 u_vpMatrix;
+};
+layout(location = 0) in vec3 a_position;
+out vec3 v_rayDirection;
+void main(){
+    vec4 pos = vec4(a_position, 1.0);
+    vec4 viewPos = u_pInvMatrix * pos;
+    viewPos /= viewPos.w;
+    viewPos.w = 0.f;  // be careful direction transformation.
+    vec4 worldPos = u_vInvMatrix * viewPos;
+    v_rayDirection = worldPos.xyz;
+    gl_Position = pos;
+}`;
+
+const _frag = `#version 300 es
+precision mediump float;
+#define PI2 6.283185307179586
+#define PI 3.14159265359
+uniform sampler2D u_skybox_latlon;
+in vec3 v_rayDirection;
+out vec4 o_fragColor;
+void main() {
+    vec3 rayDir = normalize(v_rayDirection);
+    float u = 0.5 + atan(rayDir.z, rayDir.x) / PI2;
+    float v = 0.5 - asin(rayDir.y) / PI;
+    o_fragColor = texture(u_skybox_latlon, vec2(u, v));
+}`;
 
 export default class Skybox {
 
@@ -33,7 +63,7 @@ export default class Skybox {
         this._pipeline = new Pipeline(10)
             .cullFace(false, glC.BACK)
             .depthTest(false, glC.LESS)
-            .setProgram(getProgram({ position_in_ndc: true, fn_skybox_latlon: true }))
+            .setProgram(createProgram(_vert, _frag))
             .appendSubPipeline(_subPipeCubeLatlon)
             .validate()
     }

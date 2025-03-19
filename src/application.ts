@@ -28,7 +28,7 @@ export default class Application {
         //this._scene.addMesh(_meshCube1, true, p);
         //this._scene.addMesh(_meshCube2, true, p);
         //this._scene.addMesh(_meshCube3, true, p);
-        /*this._scene.loadGLTF(
+        this._scene.loadGLTF(
             //"./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
             "./assets/gltf/cup_with_holder/scene.gltf"
@@ -36,7 +36,6 @@ export default class Application {
             //"./assets/gltf/dragon_sculpture/scene.gltf"
             //"./assets/gltf/glass_bunny/scene.gltf"
         );
-        */
         //--------------------------------------------------------------------------------
         //
         //--------------------------------------------------------------------------------
