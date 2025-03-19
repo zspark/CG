@@ -112,20 +112,11 @@ export default class Camera extends EventDispatcher implements ICamera {
             let _dX = evt.movementX * -.03;
             let _dY = evt.movementY * .03;
             //log.info(_dX, _dY);
-            //this._spaceCtrl.rotateVertically(Utils.deg2Rad(_dX));
-            if (evt.ctrlKey && evt.shiftKey) {
-                let _dir = this._helperVec4_x.reset(-_dY, _dX, 0, 0);// perpedicular to {_dX,_dY};
-                let _theta = _dir.magnitude();
-                this._space.transformVec4(_dir, _dir).normalize();
-                this.moveAround(this._rotateCenterPosition, _dir, _theta);
-            } else if (evt.ctrlKey) {
-                let _dir = this._helperVec4_x.reset(-_dY, 0, 0, 0);
-                let _theta = _dir.magnitude();
-                this._space.transformVec4(_dir, _dir).normalize();
-                this.moveAround(this._rotateCenterPosition, _dir, _theta);
-            } else {
-                this.moveAround(this._rotateCenterPosition, Vec4.VEC4_0100, _dX);
-            }
+            this.moveAround(this._rotateCenterPosition, Vec4.VEC4_0100, _dX);
+            let _dir = this._helperVec4_x.reset(-_dY, 0, 0, 0);
+            let _theta = _dir.magnitude();
+            this._space.transformVec4(_dir, _dir).normalize();
+            this.moveAround(this._rotateCenterPosition, _dir, _theta);
         }
         const _onMoveLeft: mouseEventCallback = (evt) => {
             //log.info(evt);
