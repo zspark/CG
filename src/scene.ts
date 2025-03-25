@@ -124,7 +124,7 @@ export default class Scene {
         }
     }
 
-    loadGLTF(url: string) {
+    loadModel(url: string) {
         new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
                 //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(48, 48, 0);//.scale(3, 3, 3)//.setPosition(-2, -2, 2)

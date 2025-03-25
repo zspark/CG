@@ -111,8 +111,8 @@ export type GLTFMaterial_t = {
 
 export type GLTFImage_t = {
     uri?: string,
-    //bufferView?: number,// for future support
-    //mimeType?: string,// for future support
+    bufferView?: number,
+    mimeType?: string,
 };
 
 export type GLTFSampler_t = {

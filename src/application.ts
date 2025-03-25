@@ -27,7 +27,8 @@ export default class Application {
         //this._scene.addMesh(_meshCube1, true, p);
         //this._scene.addMesh(_meshCube2, true, p);
         //this._scene.addMesh(_meshCube3, true, p);
-        _scene.loadGLTF(
+        _scene.loadModel(
+            //"./assets/gltf/MetalRoughSpheres.glb"
             "./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
             //"./assets/gltf/cup_with_holder/scene.gltf"

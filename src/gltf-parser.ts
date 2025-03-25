@@ -34,7 +34,7 @@ export default class GLTFParser implements IGLTFParser {
     private _output: GLTFParserOutput_t;
     private _baseURL: string;
     private _loader: ILoader;
-    private _arrImage: HTMLImageElement[] = [];
+    private _arrImage: (HTMLImageElement | Uint8Array)[] = [];
     private _arrTexture: ITexture[] = [];
 
     constructor(deleteAfterParse: boolean = true) {
@@ -42,11 +42,75 @@ export default class GLTFParser implements IGLTFParser {
     }
 
     async load(url: string): Promise<GLTFParserOutput_t> {
-        const _lIndex = url.lastIndexOf('/');
-        this._baseURL = url.substring(0, _lIndex) + '/';
+        if (url.indexOf(".gltf") != -1) {
+            return this._loadGLTF(url);
+        } else {
+            return this._loadGLB(url);
+        }
+    }
+
+    private async _loadGLB(url: string): Promise<GLTFParserOutput_t> {
+        this._loader = createLoader('./');
+        const arrayBuffer: ArrayBuffer | void = await this._loader.loadBinary(url)
+        if (!arrayBuffer) return null;
+
+        const dataView = new DataView(arrayBuffer);
+
+        // Read header (12 bytes)
+        const magic = dataView.getUint32(0, true);
+        const version = dataView.getUint32(4, true);
+        const length = dataView.getUint32(8, true);
+
+        if (magic !== 0x46546C67) { // 'glTF' magic number
+            throw new Error("Invalid GLB file");
+        }
+
+        let offset = 12;
+        let _gltf: any = null;
+        let binaryChunk: ArrayBuffer;
+
+        while (offset < length) {
+            const chunkLength = dataView.getUint32(offset, true);
+            const chunkType = dataView.getUint32(offset + 4, true);
+            offset += 8;
+
+            const chunkData = arrayBuffer.slice(offset, offset + chunkLength);
+            offset += chunkLength;
+
+            if (chunkType === 0x4E4F534A) { // 'JSON'
+                _gltf = JSON.parse(new TextDecoder().decode(chunkData));
+            } else if (chunkType === 0x004E4942) { // 'BIN'
+                binaryChunk = chunkData;
+            }
+        }
+
+        this._arrData[0] = binaryChunk;
+        for (let i = 0, N = _gltf.images.length; i < N; ++i) {
+            let _img = _gltf.images[i];
+            let _bv = _gltf.bufferViews[_img.bufferView];
+            this._arrImage[i] = new Uint8Array(binaryChunk, _bv.byteOffset ?? 0, _bv.byteLength);
+        }
+        this._parse(_gltf);
+        return this._output;
+    }
+
+    private async _loadGLTF(url: string): Promise<GLTFParserOutput_t> {
+        const _index = url.lastIndexOf('/');
+        this._baseURL = url.substring(0, _index) + '/';
         this._loader = createLoader(this._baseURL);
-        const _gltf = await this._loadGLTF(url.substring(_lIndex));
-        await this._loadData(_gltf);
+
+        const str = await this._loader.loadText(url.substring(_index));
+        const _gltf = JSON.parse(str)
+        const buffers: spec.GLTFBuffer_t[] = _gltf.buffers;
+        for (let i = 0, N = buffers.length; i < N; ++i) {
+            let _data = await this._loader.loadBinary(buffers[i].uri);
+            if (!!_data) this._arrData[i] = _data;
+        }
+        const imgs: spec.GLTFImage_t[] = _gltf.images;
+        for (let i = 0, N = imgs?.length ?? 0; i < N; ++i) {
+            let _data = await this._loader.loadTexture(imgs[i].uri);
+            if (!!_data) this._arrImage[i] = _data;
+        }
         this._parse(_gltf);
         return this._output;
     }
@@ -99,8 +163,14 @@ export default class GLTFParser implements IGLTFParser {
     private _parseTextures(texs: spec.GLTFTexture_t[]): void {
         for (let i = 0, N = texs.length; i < N; ++i) {
             const tex: spec.GLTFTexture_t = texs[i];
-            const _img: HTMLImageElement = this._arrImage[tex.source];
-            const _out = new Texture(_img.width, _img.height);
+            const _img: HTMLImageElement | Uint8Array = this._arrImage[tex.source];
+            let _out;
+            if (_img instanceof HTMLImageElement) {
+                _out = new Texture(_img.width, _img.height);
+            } else {
+                let size = Math.sqrt(_img.length / 4);
+                _out = new Texture(size, size);
+            }
             _out.data = _img;
             const _sampler: spec.GLTFSampler_t = this._ref_gltf.samplers[tex.sampler];
             _out.setParameter(glC.TEXTURE_WRAP_S, _sampler.wrapS);
@@ -109,11 +179,6 @@ export default class GLTFParser implements IGLTFParser {
             _out.setParameter(glC.TEXTURE_MAG_FILTER, _sampler.magFilter);
             this._arrTexture[i] = _out;
         }
-    }
-
-    private async _loadGLTF(name: string): Promise<spec.GLTFv2_t> {
-        const str = await this._loader.loadText(name)
-        return JSON.parse(str)
     }
 
     private async _loadData(gltf: spec.GLTFv2_t): Promise<void> {
