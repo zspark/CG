@@ -32,6 +32,10 @@
         const _stats = new Stats();
         _stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
         document.body.appendChild(_stats.dom);
+        _stats.dom.style.position = 'absolute';
+        _stats.dom.style.left = '50%';
+        _stats.dom.style.transform = 'translateX(-50%)';
+
         const _appStartTime = Date.now();
         let _lastRenderTime = _appStartTime;
         let _currentTime;

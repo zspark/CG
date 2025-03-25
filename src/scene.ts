@@ -52,7 +52,7 @@ export default class Scene {
         this._ctrl = new SpaceController();
         this._camera = new Camera(2.64, 4.0, 4.37).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
         this._renderer.registerUBO(this._camera.UBO);
-        this._light = new light.PointLight(4, 4, 4);
+        this._light = new light.PointLight(40, 40, 40);
         this._light.setDirection(-1, -1, -1);
         this._light.intensity = 3.;
         this._renderer.registerUBO(this._light.UBO);
@@ -79,14 +79,18 @@ export default class Scene {
         this._picker.addListener({
             notify: (event: Event_t): boolean => {
                 const _out: PickResult_t = this._picker.pickedResult;
-                let _meshCube = _out.picked.mesh;
-                _meshCube.getPosition(this._tempVec4);
-                this._camera.setRotateCenter(this._tempVec4.x, this._tempVec4.y, this._tempVec4.z);
-                this._axis.setTarget(_meshCube);
-                this._outline?.setTarget({
-                    renderObject: _out.picked.primitive.geometry,
-                    modelMatrix: _out.picked.mesh.modelMatrix,
-                });
+                if (_out.picked) {
+                    let _node = _out.picked.mesh;
+                    _node.getPosition(this._tempVec4);
+                    this._camera.setRotateCenter(this._tempVec4.x, this._tempVec4.y, this._tempVec4.z);
+                    this._axis?.setTarget(_node);
+                    this._outline?.setTarget({
+                        renderObject: _out.picked.primitive.geometry,
+                        modelMatrix: _out.picked.mesh.modelMatrix,
+                    });
+                } else {
+                    this._outline?.removeAllTargets();
+                }
                 return false;
             },
         }, Picker.PICKED);
@@ -128,7 +132,7 @@ export default class Scene {
     loadModel(url: string) {
         new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                this._ctrl.setSpace(data.CGMeshs[i]).scale(.1, .1, .1)//.setPosition(-2, -2, 2)
+                //this._ctrl.setSpace(data.CGMeshs[i]).scale(20.2, 20.2, 20.2)//.setPosition(-2, -2, 2)
                 this.addMesh(data.CGMeshs[i], true);
             }
         });

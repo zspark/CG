@@ -181,20 +181,6 @@ export default class GLTFParser implements IGLTFParser {
         }
     }
 
-    private async _loadData(gltf: spec.GLTFv2_t): Promise<void> {
-        const buffers: spec.GLTFBuffer_t[] = gltf.buffers;
-        for (let i = 0, N = buffers.length; i < N; ++i) {
-            let _data = await this._loader.loadBinary(buffers[i].uri);
-            if (!!_data) this._arrData[i] = _data;
-        }
-
-        const imgs: spec.GLTFImage_t[] = gltf.images;
-        for (let i = 0, N = imgs?.length ?? 0; i < N; ++i) {
-            let _data = await this._loader.loadTexture(imgs[i].uri);
-            if (!!_data) this._arrImage[i] = _data;
-        }
-    }
-
     private _parse(gltf: spec.GLTFv2_t): void {
         this._ref_gltf = gltf;
         this._ref_accessors = gltf.accessors;

@@ -95,10 +95,12 @@ export default class Picker extends EventDispatcher {
         });
         events.onClick((evt) => {
             //log.info(evt.x, evt.y);
+            let _target: Pickable_t;
             let _value = this._backFBO.readPixel(evt.x, evt.y);
-            if (_value <= 0) return;
-            //log.info('picked uuid is', _value);
-            const _target: Pickable_t = this._uuidToPickables.get(_value)?.t;
+            if (_value > 0) {
+                //log.info('picked uuid is', _value);
+                _target = this._uuidToPickables.get(_value)?.t;
+            }
             if (_target === this._pickedResult.picked) return;
             this._pickedResult.lastPicked = this._pickedResult.picked;
             this._pickedResult.picked = _target;
