@@ -3,6 +3,7 @@ import glC from "./gl-const.js";
 import { MouseEvents_t } from "./mouse-events.js"
 import { GLFramebuffer_C0_r32i } from "./webgl.js"
 import { IProgram, ISubPipeline, IPipeline, IRenderer, ITexture, IGeometry } from "./types-interfaces.js";
+import * as windowEvents from "./window-events.js"
 import { Texture, Program, Pipeline, SubPipeline, Framebuffer } from "./device-resource.js";
 import { createProgram } from "./program-manager.js"
 import Mesh from "./mesh.js"
@@ -79,8 +80,7 @@ export default class Picker extends EventDispatcher {
         };
         this._pipeline = new Pipeline(-2000000)
 
-        const width: number = 640;
-        const height: number = 480;
+        const { width, height } = windowEvents.getWindowSize();
         this._backFBO = new GLFramebuffer_C0_r32i(width, height);
 
         this._pipeline
@@ -104,7 +104,10 @@ export default class Picker extends EventDispatcher {
             this._pickedResult.picked = _target;
             this._broadcast(this._event);
         });
-        return this;
+
+        windowEvents.onResize((w: number, h: number) => {
+            this._backFBO.resize(w, h);
+        });
     }
 
     get API(): api_IPicker {

@@ -1,5 +1,6 @@
 import glC from "./gl-const.js";
 import { geometry } from "./geometry.js"
+import * as windowEvents from "./window-events.js"
 import { Pipeline, SubPipeline } from "./device-resource.js";
 import { createProgram } from "./program-manager.js"
 import { GLFramebuffer_C0_r32f } from "./webgl.js"
@@ -99,8 +100,7 @@ export default class Outline implements api_IOutline {
     constructor() {
         this._frontFBOQuad = geometry.createFrontQuad();
 
-        const width: number = 640;
-        const height: number = 480;
+        const { width, height } = windowEvents.getWindowSize();
         this._fbo = new GLFramebuffer_C0_r32f(width, height);
         this._backFBOPipeline = new Pipeline(100)
             .setFBO(this._fbo)
@@ -122,6 +122,10 @@ export default class Outline implements api_IOutline {
             .cullFace(false)
             .appendSubPipeline(this._subPipeline)
             .validate()
+
+        windowEvents.onResize((w: number, h: number) => {
+            this._fbo.resize(w, h);
+        });
     }
 
     setTarget(target: OutlineTarget_t): Outline {

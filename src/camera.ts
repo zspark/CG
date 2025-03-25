@@ -4,6 +4,7 @@ import OrthogonalSpace from "./orthogonal-space.js"
 import Frustum from "./frustum.js"
 import SpaceController from "./space-controller.js"
 import { MouseEvents_t, mouseEventCallback } from "./mouse-events.js"
+import * as windowEvents from "./window-events.js"
 import { UniformBlock } from "./device-resource.js"
 import { IUniformBlock } from "./types-interfaces.js"
 import { BINDING_POINT } from "./gl-const.js"
@@ -65,10 +66,15 @@ export default class Camera extends EventDispatcher implements ICamera {
         this._space = new OrthogonalSpace(this._uboData, 16 * 0);
         this._space.setPosition(posX, posY, posZ);
         this._spaceCtrl = new SpaceController(this._space);
+        const { width, height } = windowEvents.getWindowSize();
         this._frustum = new Frustum(this._uboData, 16 * 2);
-        this._frustum.createPerspectiveProjection(Math.PI / 3, 640 / 480, Camera.NEAR_PLANE, Camera.FAR_PLANE);
+        this._setViewSize(width, height);
         this._viewProjectionMatrix = new Mat44(this._uboData, 16 * 4);
         this._frustum.projectionMatrix.multiply(this.viewMatrix, this._viewProjectionMatrix);
+
+        windowEvents.onResize((w: number, h: number) => {
+            this._setViewSize(w, h);
+        });
     }
 
     get API(): api_ICamera {
@@ -85,6 +91,11 @@ export default class Camera extends EventDispatcher implements ICamera {
 
     get frustum(): Frustum {
         return this._frustum;
+    }
+
+    private _setViewSize(width: number, height: number): void {
+        this._frustum.createPerspectiveProjection(Math.PI / 3, width / height, Camera.NEAR_PLANE, Camera.FAR_PLANE);
+        this._cameraDirtyFlag = true;
     }
 
     setMouseEvents(events: MouseEvents_t): Camera {
@@ -107,7 +118,7 @@ export default class Camera extends EventDispatcher implements ICamera {
             _onMoveFn = undefined;
             events.onDown(_onDown);
         }
-        const _onMoveRight: mouseEventCallback = (evt) => {
+        const _onMoveLeft: mouseEventCallback = (evt) => {
             //log.info(evt);
             let _dX = evt.movementX * -.03;
             let _dY = evt.movementY * .03;
@@ -118,7 +129,7 @@ export default class Camera extends EventDispatcher implements ICamera {
             this._space.transformVec4(_dir, _dir).normalize();
             this.moveAround(this._rotateCenterPosition, _dir, _theta);
         }
-        const _onMoveLeft: mouseEventCallback = (evt) => {
+        const _onMoveRight: mouseEventCallback = (evt) => {
             //log.info(evt);
             let _dY = evt.movementX * .03;
             let _dX = evt.movementY * .03;

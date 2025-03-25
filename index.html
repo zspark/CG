@@ -5,24 +5,30 @@
     <title>WebGL</title>
     <link rel="icon" href="./assets/favicon.png" type="image/x-icon">
     <style>
+        html,
         body {
             margin: 0;
-            background-color: #272727;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            background-color: #171717;
         }
 
         canvas {
+            margin: 0;
             display: block;
         }
     </style>
 </head>
 
 <body>
-    <canvas id="glcanvas" width="640" height="480"></canvas>
+    <canvas id="glcanvas"> </canvas>
     <script type="text/javascript" src="./third/stats.min.js"></script>
     <script type="module">
         import Application from "./dist/application.js";
         import {ShaderAssembler} from "./dist/api.js";
 
+        const canvas = document.getElementById("glcanvas");
         const _stats = new Stats();
         _stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
         document.body.appendChild(_stats.dom);
@@ -32,7 +38,7 @@
 
         let _app;
         ShaderAssembler.loadShaderSource("./").then(_ => {
-            _app = new Application();
+            _app = new Application(canvas);
             render();
         });
 

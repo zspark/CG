@@ -8,3 +8,5 @@ tmp/
 /src/**/*.js
 wxlDepthTest.html
 /third/gl-matrix-min.js
+
+/node_modules

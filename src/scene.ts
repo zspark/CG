@@ -11,7 +11,6 @@ import Axes from "./axes.js";
 import { default as Picker, Pickable_t, PickResult_t } from "./picker.js";
 import { Event_t } from "./event.js";
 import { default as registMouseEvents, MouseEvents_t } from "./mouse-events.js";
-import Frustum from "./frustum.js";
 import createLoader from "./assets-loader.js";
 import SpaceController from "./space-controller.js";
 import { GLTFParserOutput_t, default as GLTFParser } from "./gltf-parser.js";
@@ -21,6 +20,7 @@ import Renderer from "./renderer.js";
 import Skybox from "./skybox.js";
 import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
+import * as windowEvents from "./window-events.js"
 
 export default class Scene {
 
@@ -43,8 +43,10 @@ export default class Scene {
     private _skybox: Skybox;
     private _shadowMap: ShadowMap;
     private _deltaTimeInMS: number = 0;
+    private _canvas: HTMLCanvasElement;
 
     constructor(canvas: HTMLCanvasElement) {
+        this._canvas = canvas;
         this._renderer = new Renderer({ canvas });
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
@@ -87,6 +89,14 @@ export default class Scene {
                 return false;
             },
         }, Picker.PICKED);
+
+        const _resize = (w: number, h: number) => {
+            this._canvas.width = w;
+            this._canvas.height = h;
+        };
+        const { width, height } = windowEvents.getWindowSize();
+        _resize(width, height);
+        windowEvents.onResize(_resize);
     }
 
     get picker() { return this._picker.API; }
@@ -116,10 +126,10 @@ export default class Scene {
 
     loadGLTF(url: string) {
         new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
-            for (let i = 1, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(48, 48, 0);//.scale(3,3,3)//.setPosition(-2, -2, 2)
-                this.addMesh(data.CGMeshs[i], true
-                    , getProgram({
+            for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
+                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(48, 48, 0);//.scale(3, 3, 3)//.setPosition(-2, -2, 2)
+                this.addMesh(data.CGMeshs[i], true,
+                    getProgram({
                         ft_pbr: true,
                         ft_shadow: true,
                         debug: true,

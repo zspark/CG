@@ -1,5 +1,5 @@
 //@ts-ignore
-import * as dat from "../third/dat.gui.module.js";
+import * as dat from "../third/lil-gui.esm.min.js";
 import * as CG from "./api.js";
 
 export default class Application {
@@ -9,11 +9,10 @@ export default class Application {
     private _geometryCube: CG.IGeometry;
     private _scene: CG.Scene;
 
-    constructor() {
+    constructor(canvas: HTMLCanvasElement) {
         CG.registWebGL();
         CG.programManagerHint(true, true);
-        const canvas: HTMLCanvasElement = document.getElementById("glcanvas") as HTMLCanvasElement;
-        this._scene = new CG.Scene(canvas);
+        const _scene = this._scene = new CG.Scene(canvas);
 
         //--------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------
@@ -28,10 +27,11 @@ export default class Application {
         //this._scene.addMesh(_meshCube1, true, p);
         //this._scene.addMesh(_meshCube2, true, p);
         //this._scene.addMesh(_meshCube3, true, p);
-        this._scene.loadGLTF(
-            //"./assets/gltf/skull/scene.gltf"
+        _scene.loadGLTF(
+            "./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
-            "./assets/gltf/cup_with_holder/scene.gltf"
+            //"./assets/gltf/cup_with_holder/scene.gltf"
+            //"./assets/gltf/sphere/scene.gltf"
             //"./assets/gltf/haunted_house/scene.gltf"
             //"./assets/gltf/dragon_sculpture/scene.gltf"
             //"./assets/gltf/glass_bunny/scene.gltf"
@@ -125,7 +125,7 @@ export default class Application {
             const _pos = this._scene.light.position
             const _color = this._scene.light.color
             const _lightSource = {
-                color: [_color.r * 255, _color.g * 255, _color.b * 255],
+                color: [_color.r, _color.g, _color.b],
                 lightIntensity: 1,
                 positionX: _pos.x,
                 positionY: _pos.y,
@@ -134,10 +134,10 @@ export default class Application {
             let f1 = this._gui.addFolder('light source');
             f1.addColor(_lightSource, 'color').onChange((v: any) => {
                 //console.log(v);
-                this._scene.light.setColor(v[0] * _lightSource.lightIntensity / 255, v[1] * _lightSource.lightIntensity / 255, v[2] * _lightSource.lightIntensity / 255);
+                this._scene.light.setColor(v[0] * _lightSource.lightIntensity, v[1] * _lightSource.lightIntensity, v[2] * _lightSource.lightIntensity);
             });
             f1.add(_lightSource, 'lightIntensity').min(0).max(10).step(0.01).onChange((v: any) => {
-                this._scene.light.setColor(_lightSource.color[0] * v / 255, _lightSource.color[1] * v / 255, _lightSource.color[2] * v / 255);
+                this._scene.light.setColor(_lightSource.color[0] * v, _lightSource.color[1] * v, _lightSource.color[2] * v);
             });
             f1.add(_lightSource, 'positionX').min(-10).max(10).step(0.01).onChange((v: any) => {
                 this._scene.light.setPosition(v, _lightSource.positionY, _lightSource.positionZ);
@@ -200,8 +200,8 @@ export default class Application {
                     _mat = this._scene.picker.pickedResult?.picked.primitive.material.API;
                     obj.normalTextureScale = _mat.normalTextureScale;
                     obj.occlusionTextureStrength = _mat.occlusionTextureStrength;
-                    obj.emissiveFactor = _mat.emissiveFactor.map(v => 255 * v);
-                    obj.pbrMetallicRoughness.baseColorFactor = _mat.pbrMR_baseColorFactor.map(v => 255 * v);
+                    obj.emissiveFactor = _mat.emissiveFactor;
+                    obj.pbrMetallicRoughness.baseColorFactor = _mat.pbrMR_baseColorFactor;
                     obj.pbrMetallicRoughness.metallicFactor = _mat.pbrMR_metallicFactor;
                     obj.pbrMetallicRoughness.roughnessFactor = _mat.pbrMR_roughnessFactor;
                     _folderMaterial.show();
@@ -224,7 +224,7 @@ export default class Application {
             const _folderPBR = _folderMaterial.addFolder("pbr");
             _folderPBR.open();
             _folderPBR.addColor(obj.pbrMetallicRoughness, 'baseColorFactor').onChange((v: number[]) => {
-                _mat.pbrMR_baseColorFactor = [v[0] / 255, v[1] / 255, v[2] / 255, v[3] / 255];
+                _mat.pbrMR_baseColorFactor = v;
             }).listen();
             _folderPBR.add(obj.pbrMetallicRoughness, 'metallicFactor').min(0).max(1).step(0.05).onChange((v: number) => {
                 _mat.pbrMR_metallicFactor = v;
@@ -239,7 +239,7 @@ export default class Application {
                 _mat.occlusionTextureStrength = v;
             }).listen();
             _folderMaterial.addColor(obj, 'emissiveFactor').onChange((v: number[]) => {
-                _mat.emissiveFactor = [v[0] / 255, v[1] / 255, v[2] / 255];
+                _mat.emissiveFactor = v;
             }).listen();
 
         }

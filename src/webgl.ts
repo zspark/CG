@@ -5,17 +5,13 @@ import {
     createContext_fn_t,
     IUniformBlock,
     IRenderContext,
-    IGeometry,
-    IBuffer, BufferData_t, StepMode_e, ShaderLocation_e,
+    IBuffer, BufferData_t,
     IRenderObject,
     IProgram,
     ITexture, ISkyboxTexture,
     IFramebuffer,
     IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
     IMaterial,
-    IPrimitive,
-    IRenderer,
-    IBindableObject,
     PBRTextureIndex_e,
 } from "./types-interfaces.js";
 
@@ -356,6 +352,13 @@ export class GLTexture implements ITexture {
         return this._texUnit;
     }
 
+    resize(width: number, height: number): ITexture {
+        this._width = width;
+        this._height = height;
+        this.destroyGLTexture();
+        return this;
+    }
+
     createGPUResource(gl: WebGL2RenderingContext): ITexture {
         if (!!this._glTexture) return this;
         this._gl = gl;
@@ -364,7 +367,6 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter.forEach((value, key) => {
             gl.texParameteri(gl.TEXTURE_2D, key, value);
         });
-        this._mapTextureParameter = undefined;
         this._glTexture = _texture;
         _wm_texture.set(this, _texture);
 
@@ -404,7 +406,7 @@ export class GLTexture implements ITexture {
 
     destroyGLTexture(): ITexture {
         const gl = this._gl;
-        gl.deleteTexture(this._glTexture);
+        gl?.deleteTexture(this._glTexture);
         this._glTexture = undefined;
         return this;
     }
@@ -766,7 +768,24 @@ export class GLFramebuffer implements IFramebuffer {
 
     get criticalKey(): object { return GLFramebuffer; }
 
+    resize(width: number, height: number): void {
+        this._width = width;
+        this._height = height;
+
+        this._arrTexture.forEach((t, index) => {
+            if (!t) return;
+            t.resize(width, height);
+        });
+        if (this._depthTexture) {
+            this._depthTexture.resize(width, height);
+        }
+
+        this.destroy();
+        this.createGPUResource(this._gl);
+    }
+
     createGPUResource(gl: WebGL2RenderingContext): void {
+        if (!gl) return;
         this._gl = gl;
         if (this._width * this._height != 0) {
             if (this._glFramebuffer) return;

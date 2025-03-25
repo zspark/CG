@@ -92,6 +92,7 @@ export interface ITexture {
     set data(data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement);
     UVIndex: number;
 
+    resize(width: number, height: number): ITexture;
     createGPUResource(gl: WebGL2RenderingContext): ITexture;
     updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
     setParameter(name: number, value: number): ITexture;
@@ -115,6 +116,7 @@ export interface ISkyboxTexture {
 }
 
 export interface IFramebuffer extends IBindableObject {
+    resize(width: number, height: number): void;
     createGPUResource(gl: WebGL2RenderingContext): void;
     attachColorTexture(texture: ITexture, attachment: number, target?: GLenum): void;
     attachDepthTexture(texture: ITexture, target?: number): void;
