@@ -24,7 +24,7 @@ export default class Primitive implements IPrimitive, IRenderObject {
     }
     bind(): void {
         this._ref_geo.bind();
-        this._material.bind();
+        (this._material ?? _defaultMaterial).bind();
     }
 
     get name(): string {
@@ -36,7 +36,7 @@ export default class Primitive implements IPrimitive, IRenderObject {
     }
 
     get material(): IMaterial {
-        return this._material;
+        return this._material ?? _defaultMaterial;
     }
 
     set material(m: IMaterial) {
@@ -60,3 +60,5 @@ export default class Primitive implements IPrimitive, IRenderObject {
         return this;
     }
 }
+
+const _defaultMaterial = new Material('default-material');

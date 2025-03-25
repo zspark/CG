@@ -17,10 +17,10 @@ export default class Application {
         //--------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------
         this._geometryCube = CG.geometry.createCube(2);
-        const _primitive = new CG.Primitive("primitive-cube", this._geometryCube);
-        const _meshCube1 = new CG.Mesh("MeshCube1", _primitive);
-        const _meshCube2 = new CG.Mesh("MeshCube2", _primitive);
-        const _meshCube3 = new CG.Mesh("MeshCube3", _primitive);
+        let _primitive = new CG.Primitive("primitive-cube", this._geometryCube);
+        let _meshCube1 = new CG.Mesh("MeshCube1", _primitive);
+        let _meshCube2 = new CG.Mesh("MeshCube2", _primitive);
+        let _meshCube3 = new CG.Mesh("MeshCube3", _primitive);
         this._ctrl.setSpace(_meshCube1).setPosition(2, 2, 2)
             .setSpace(_meshCube2).setPosition(-4, -4, 3).rotateAroundSelfX(Math.PI / 3)
             .setSpace(_meshCube3).setPosition(0.5, 6, -8).rotateAroundSelfY(1.7).rotateAroundSelfZ(0.33);
@@ -29,14 +29,20 @@ export default class Application {
         //this._scene.addMesh(_meshCube3, true, p);
         _scene.loadModel(
             //"./assets/gltf/MetalRoughSpheres.glb"
-            "./assets/gltf/skull/scene.gltf"
+            //"./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
             //"./assets/gltf/cup_with_holder/scene.gltf"
             //"./assets/gltf/sphere/scene.gltf"
+            //"./assets/gltf/stanford_dragon_vrip/scene.gltf"
+            //"./assets/gltf/metal_dragon/scene.gltf"
+            "./assets/gltf/vintage_metal_ashtray/scene.gltf"
             //"./assets/gltf/haunted_house/scene.gltf"
             //"./assets/gltf/dragon_sculpture/scene.gltf"
             //"./assets/gltf/glass_bunny/scene.gltf"
         );
+        const _geometryPlane = CG.geometry.createPlane(10, 10);
+        let _meshPlane = new CG.Mesh("MeshPlane", new CG.Primitive("primitive-plane", _geometryPlane));
+        _scene.addMesh(_meshPlane, false);
         //--------------------------------------------------------------------------------
         //
         //--------------------------------------------------------------------------------
@@ -127,7 +133,7 @@ export default class Application {
             const _color = this._scene.light.color
             const _lightSource = {
                 color: [_color.r, _color.g, _color.b],
-                lightIntensity: 1,
+                intensity: this._scene.light.intensity,
                 positionX: _pos.x,
                 positionY: _pos.y,
                 positionZ: _pos.z,
@@ -135,18 +141,18 @@ export default class Application {
             let f1 = this._gui.addFolder('light source');
             f1.addColor(_lightSource, 'color').onChange((v: any) => {
                 //console.log(v);
-                this._scene.light.setColor(v[0] * _lightSource.lightIntensity, v[1] * _lightSource.lightIntensity, v[2] * _lightSource.lightIntensity);
+                this._scene.light.setColor(v[0], v[1], v[2]);
             });
-            f1.add(_lightSource, 'lightIntensity').min(0).max(10).step(0.01).onChange((v: any) => {
-                this._scene.light.setColor(_lightSource.color[0] * v, _lightSource.color[1] * v, _lightSource.color[2] * v);
+            f1.add(_lightSource, 'intensity').min(0).max(10).step(0.01).onChange((v: number) => {
+                this._scene.light.intensity = v;
             });
-            f1.add(_lightSource, 'positionX').min(-10).max(10).step(0.01).onChange((v: any) => {
+            f1.add(_lightSource, 'positionX').min(0).max(100).step(0.01).onChange((v: number) => {
                 this._scene.light.setPosition(v, _lightSource.positionY, _lightSource.positionZ);
             });
-            f1.add(_lightSource, 'positionY').min(-10).max(10).step(0.01).onChange((v: any) => {
+            f1.add(_lightSource, 'positionY').min(0).max(100).step(0.01).onChange((v: number) => {
                 this._scene.light.setPosition(_lightSource.positionX, v, _lightSource.positionZ);
             });
-            f1.add(_lightSource, 'positionZ').min(-10).max(10).step(0.01).onChange((v: any) => {
+            f1.add(_lightSource, 'positionZ').min(0).max(100).step(0.01).onChange((v: number) => {
                 this._scene.light.setPosition(_lightSource.positionX, _lightSource.positionY, v);
             });
         }

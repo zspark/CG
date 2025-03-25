@@ -693,6 +693,7 @@ export class GLSubPipeline implements ISubPipeline {
     }
 
     setMaterial(material: IMaterial): ISubPipeline {
+        if (!material) return this;
         material.normalTexture ??= _pbrTextures[PBRTextureIndex_e.NORMAL];
         material.occlusionTexture ??= _pbrTextures[PBRTextureIndex_e.OCCLUSION];
         material.emissiveTexture ??= _pbrTextures[PBRTextureIndex_e.EMISSIVE];

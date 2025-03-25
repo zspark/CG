@@ -333,16 +333,16 @@ export const geometry: {
         width *= .5;
         height *= .5;
         const vertices = new Float32Array([
-            width, height, 0,
+            width, 0, -height,
             0.0, 0.0,
             0, 0, 1,
-            -width, height, 0,
+            -width, 0, -height,
             1.0, 0.0,
             0, 0, 1,
-            -width, -height, 0,
+            -width, 0, height,
             1.0, 1.0,
             0, 0, 1,
-            width, -height, 0,
+            width, 0, height,
             0.0, 1.0,
             0, 0, 1,
         ]);

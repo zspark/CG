@@ -23,6 +23,7 @@ export interface api_ILight {
     angle: number;
     setCutoffDistance(value: number): void;
     cutoffDistance: number;
+    intensity: number;
 }
 
 export interface ILight extends api_ILight {
@@ -41,7 +42,7 @@ class Light {
     protected _UBO: IUniformBlock;
     protected _space: OrthogonalSpace;
     protected _lightProjectionMatrix: Mat44;
-    protected _specularHighlight: number = 40;
+    protected _intensity: number = 1.0;
     protected _transformDirty: boolean = true;
 
     constructor(posX: number, posY: number, posZ: number) {
@@ -53,11 +54,15 @@ class Light {
         this._ctrl.setSpace(this._space);
         this._lightProjectionMatrix = new Mat44(this._uboData, 16 * 2);
         this._ambientColor = new Vec4(1, 1, 1, 1, this._uboData, 16 * 3)
-        this._color = new Vec4(1, 1, 1, this._specularHighlight, this._uboData, 16 * 3 + 4)
+        this._color = new Vec4(1, 1, 1, this._intensity, this._uboData, 16 * 3 + 4)
     }
 
     get UBO(): IUniformBlock {
         return this._UBO;
+    }
+
+    get intensity(): number {
+        return this._intensity;
     }
 
     get color(): rgba {
@@ -81,8 +86,14 @@ class Light {
         return this._space.transformInv;
     }
 
+    set intensity(value: number) {
+        this._intensity = value;
+        this._color.w = value;
+        this._transformDirty = true;
+    }
+
     setColor(r: number, g: number, b: number): void {
-        this._color.reset(r, g, b, this._specularHighlight);
+        this._color.reset(r, g, b, this._intensity);
         this._transformDirty = true;
     }
 

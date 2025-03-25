@@ -52,8 +52,9 @@ export default class Scene {
         this._ctrl = new SpaceController();
         this._camera = new Camera(2.64, 4.0, 4.37).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
         this._renderer.registerUBO(this._camera.UBO);
-        this._light = new light.PointLight(2, 2, 2);
+        this._light = new light.PointLight(4, 4, 4);
         this._light.setDirection(-1, -1, -1);
+        this._light.intensity = 3.;
         this._renderer.registerUBO(this._light.UBO);
         this._renderer.registerUBO(getMaterialUBO());
         this._gridFloor = new GridFloor();
@@ -127,15 +128,8 @@ export default class Scene {
     loadModel(url: string) {
         new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).setPosition(48, 48, 0);//.scale(3, 3, 3)//.setPosition(-2, -2, 2)
-                this.addMesh(data.CGMeshs[i], true,
-                    getProgram({
-                        ft_pbr: true,
-                        ft_shadow: true,
-                        debug: true,
-                        //gamma_correct: true,
-                    })
-                );
+                this._ctrl.setSpace(data.CGMeshs[i]).scale(.1, .1, .1)//.setPosition(-2, -2, 2)
+                this.addMesh(data.CGMeshs[i], true);
             }
         });
     }
@@ -145,7 +139,13 @@ export default class Scene {
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .setProgram(program)
+            .setProgram(program ??
+                getProgram({
+                    ft_pbr: true,
+                    ft_shadow: true,
+                    debug: true,
+                    //gamma_correct: true,
+                }));
 
         mesh.getPrimitives().forEach(p => {
             _p.appendSubPipeline(new SubPipeline()

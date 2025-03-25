@@ -30,7 +30,7 @@ layout(std140) uniform u_ub_light {
     mat4 u_lMatrix;
     mat4 u_lpMatrix;
     vec3 u_ambientColor;
-    vec4 u_lightColor;  // w: u_specularHighlight;
+    vec4 u_lightColor;  // w: intensity;
 };
 layout(std140) uniform u_ub_material {
     float u_roughnessFactor;
@@ -122,7 +122,7 @@ float _linearizeDepth(float depth) {
             (depth * 2. - 1.) * (u_nearFarPlane.y - u_nearFarPlane.x));
 }
  */
-float _calculateShadowFactor(in vec4 posProj) {
+float _calculateShadowFactor(const in vec4 posProj) {
 #ifdef FT_SHADOW
     vec3 _pos = posProj.xyz / posProj.w;
     _pos = _pos * .5 + .5;
@@ -145,27 +145,27 @@ float _calculateShadowFactor(in vec4 posProj) {
 #endif
 }
 
-vec3 _getAmbient(in vec4 albedoColor) {
+vec3 _getAmbient(const in vec4 albedoColor) {
     return 0.5 * u_ambientColor * albedoColor.rgb;
 }
 
-vec3 _getDiffuse(float ndotl, in vec3 albedoColor, float shadowMapFactor) {
+vec3 _getDiffuse(float ndotl, const in vec3 albedoColor, const in vec3 F0, float shadowMapFactor) {
 #ifdef FT_PBR
     if (ndotl <= 0.0) {
         return vec3(.0);
     } else {
-        return ndotl * ONE_OVER_PI * albedoColor * u_lightColor.xyz * shadowMapFactor;
+        return ndotl * ONE_OVER_PI * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F0);
     }
 #else
     if (ndotl <= 0.0) {
         return vec3(.0);
     } else {
-        return ndotl * albedoColor * u_lightColor.xyz * shadowMapFactor;
+        return ndotl * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F0);
     }
 #endif
 }
 
-vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float roughness, in vec3 F0, float shadowMapFactor) {
+vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float roughness, const in vec3 F0, float shadowMapFactor) {
 #ifdef FT_PBR
     vec3 F = _fresnel(ndotv, F0);
     // return vec3(F);
@@ -174,7 +174,7 @@ vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float rou
     float G = _geometry(ndotv, roughness) * _geometry(ndotl, roughness);
     // return vec3(G);
     vec3 specular = (D * F * G) / max(4.0 * ndotv * ndotl, 0.001);
-    return max(specular, .0001) * shadowMapFactor;
+    return max(specular, .0001) * u_lightColor.rgb * u_lightColor.w * shadowMapFactor;
 #else
     if (ndotl <= 0.0) {
         return vec3(.0);
@@ -199,15 +199,15 @@ void main() {
     float _ndoth = max(dot(_normalW, _halfDir), 0.0);    // Normal and halfway vector dot product
     float _vdoth = max(dot(_cameraDir, _halfDir), 0.0);  // View direction and halfway vector dot product
 
+    vec3 _F0 = mix(vec3(0.04), _baseColor.rgb, _metallicAndRoughness.x);
     vec3 _ambient = _getAmbient(_baseColor);
-    vec3 _diffuse = _getDiffuse(_ndotl, _baseColor.rgb, _shadowMapFactor);
+    vec3 _diffuse = _getDiffuse(_ndotl, _baseColor.rgb, _F0, _shadowMapFactor);
     vec3 _highlight = _getHighlight(
         _ndotl, _ndotv, _ndoth, _vdoth,
         _metallicAndRoughness.y,
-        mix(vec3(0.04), _baseColor.rgb, _metallicAndRoughness.x),
+        _F0,
         _shadowMapFactor);
     vec3 _color = _ambient + _diffuse + _highlight;
-
     float _alpha = _baseColor.a;
 
 #ifdef DEBUG
