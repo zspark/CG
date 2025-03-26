@@ -22,10 +22,10 @@ export default class OrthogonalSpace extends EventDispatcher {
         this._transform = new Mat44(storage, index);
         this._transformInv = new Mat44(storage, index + 16).setIdentity();
         const _data = this._transform.data;
-        this._axisX = new Vec4(1, 0, 0, 0, _data.subarray(0, 4));
-        this._axisY = new Vec4(0, 1, 0, 0, _data.subarray(4, 8));
-        this._axisZ = new Vec4(0, 0, 1, 0, _data.subarray(8, 12));
-        this._axisW = new Vec4(0, 0, 0, 1, _data.subarray(12, 16));
+        this._axisX = new Vec4(1, 0, 0, 0, _data, 0);
+        this._axisY = new Vec4(0, 1, 0, 0, _data, 4);
+        this._axisZ = new Vec4(0, 0, 1, 0, _data, 8);
+        this._axisW = new Vec4(0, 0, 0, 1, _data, 12);
         this._event = {
             type: OrthogonalSpace.TRANSFORM_CHANGED,
             sender: this,

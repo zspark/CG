@@ -20,6 +20,7 @@ export type GLTFParserOutput_t = {
     CGMeshs: Mesh[],
     SpacialNodes: SpacialNode[],
     CGMaterials: Material[],
+    rootNode: SpacialNode,
 }
 
 export default class GLTFParser implements IGLTFParser {
@@ -38,18 +39,20 @@ export default class GLTFParser implements IGLTFParser {
     private _arrTexture: ITexture[] = [];
 
     constructor(deleteAfterParse: boolean = true) {
-        this._output = { SpacialNodes: [], geometrys: [], CGMeshs: [], CGMaterials: [] };
+        this._output = { rootNode: undefined, SpacialNodes: [], geometrys: [], CGMeshs: [], CGMaterials: [] };
     }
 
     async load(url: string): Promise<GLTFParserOutput_t> {
         if (url.indexOf(".gltf") != -1) {
-            return this._loadGLTF(url);
+            await this._loadGLTF(url);
         } else {
-            return this._loadGLB(url);
+            await this._loadGLB(url);
         }
+        this._output.rootNode = this._output.SpacialNodes[this._ref_gltf.scene];
+        return this._output;
     }
 
-    private async _loadGLB(url: string): Promise<GLTFParserOutput_t> {
+    private async _loadGLB(url: string): Promise<void> {
         this._loader = createLoader('./');
         const arrayBuffer: ArrayBuffer | void = await this._loader.loadBinary(url)
         if (!arrayBuffer) return null;
@@ -58,13 +61,15 @@ export default class GLTFParser implements IGLTFParser {
 
         // Read header (12 bytes)
         const magic = dataView.getUint32(0, true);
-        const version = dataView.getUint32(4, true);
-        const length = dataView.getUint32(8, true);
-
         if (magic !== 0x46546C67) { // 'glTF' magic number
-            throw new Error("Invalid GLB file");
+            log.vital("[GLTFParser] Invalid GLB file.");
+        }
+        const version = dataView.getUint32(4, true);
+        if (version === 1) {
+            log.vital("[GLTFParser] version mismatch.");
         }
 
+        const length = dataView.getUint32(8, true);
         let offset = 12;
         let _gltf: any = null;
         let binaryChunk: ArrayBuffer;
@@ -91,10 +96,9 @@ export default class GLTFParser implements IGLTFParser {
             this._arrImage[i] = new Uint8Array(binaryChunk, _bv.byteOffset ?? 0, _bv.byteLength);
         }
         this._parse(_gltf);
-        return this._output;
     }
 
-    private async _loadGLTF(url: string): Promise<GLTFParserOutput_t> {
+    private async _loadGLTF(url: string): Promise<void> {
         const _index = url.lastIndexOf('/');
         this._baseURL = url.substring(0, _index) + '/';
         this._loader = createLoader(this._baseURL);
@@ -112,7 +116,6 @@ export default class GLTFParser implements IGLTFParser {
             if (!!_data) this._arrImage[i] = _data;
         }
         this._parse(_gltf);
-        return this._output;
     }
 
     private _parseNodes(nodes: spec.GLTFNode_t[]): void {
@@ -145,13 +148,13 @@ export default class GLTFParser implements IGLTFParser {
             _CGNode.transform.reset(node.matrix, 0, 16);
         } else {
             if (node.translation) {
-                Mat44.createTranslate(node.scale[0], node.scale[1], node.scale[2], this._helperMat4);
+                Mat44.createTranslate(node.translation[0], node.translation[1], node.translation[2], this._helperMat4);
                 _CGNode.transformSelf(this._helperMat4);
             }
             if (node.rotation) {
                 this._quat_rotate.reset(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]);
                 //TODO:
-                _CGNode.transformSelf(this._helperMat4);
+                //_CGNode.transformSelf(this._helperMat4);
             }
             if (node.scale) {
                 Mat44.createScale(node.scale[0], node.scale[1], node.scale[2], this._helperMat4);
@@ -243,6 +246,8 @@ export default class GLTFParser implements IGLTFParser {
 
     private _parsePrimitive(primitive: spec.GLTFPrimitive_t): Primitive {
         const _geo: IGeometry = new Geometry();
+        const _primitive: Primitive = new Primitive(primitive.name, _geo);
+        _primitive.material = this._output.CGMaterials[primitive.material];
         let _acc: spec.GLTFAccessor_t;
         let _gltfAttrib: spec.Attribute_t;
         let _buf: IBuffer;
@@ -261,6 +266,11 @@ export default class GLTFParser implements IGLTFParser {
                 stride: _bv.byteStride,
                 offset: _gltfAttrib.offset,
             });
+            if (_acc.min && _acc.max) {
+                _primitive.aabb
+                    .setMin(_acc.min[0], _acc.min[1], _acc.min[2])
+                    .setMax(_acc.max[0], _acc.max[1], _acc.max[2]);
+            }
         }
 
         _acc = this._ref_accessors[primitive.attributes.NORMAL];
@@ -330,8 +340,6 @@ export default class GLTFParser implements IGLTFParser {
         } else {
             _geo.setDrawArraysParameters(primitive.mode ?? glC.TRIANGLES, 0, _acc.count);
         }
-        const _primitive: Primitive = new Primitive(primitive.name, _geo);
-        _primitive.material = this._output.CGMaterials[primitive.material];
         return _primitive;
     }
 

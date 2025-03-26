@@ -26,23 +26,33 @@ export default class Application {
         //this._scene.addMesh(_meshCube1, true, p);
         //this._scene.addMesh(_meshCube2, true, p);
         //this._scene.addMesh(_meshCube3, true, p);
-        _scene.loadModel(
+
+        const _url =
             //"./assets/gltf/MetalRoughSpheres.glb"
             //"./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
-            //"./assets/gltf/cup_with_holder/scene.gltf"
-            //"./assets/gltf/sphere/scene.gltf"
-            //"./assets/gltf/stanford_dragon_vrip/scene.gltf"
-            //"./assets/gltf/metal_dragon/scene.gltf"
-            //"./assets/gltf/vintage_metal_ashtray/scene.gltf"
-            "./assets/gltf/material_ball_in_3d-coat/scene.gltf"
-            //"./assets/gltf/haunted_house/scene.gltf"
-            //"./assets/gltf/dragon_sculpture/scene.gltf"
-            //"./assets/gltf/glass_bunny/scene.gltf"
-        );
+            "./assets/gltf/cup_with_holder/scene.gltf"
+        //"./assets/gltf/sphere/scene.gltf"
+        //"./assets/gltf/stanford_dragon_vrip/scene.gltf"
+        //"./assets/gltf/metal_dragon/scene.gltf"
+        //"./assets/gltf/vintage_metal_ashtray/scene.gltf"
+        //"./assets/gltf/material_ball_in_3d-coat/scene.gltf"
+        //"./assets/gltf/rapid_punching_animation/scene.gltf"
+        //"./assets/gltf/haunted_house/scene.gltf"
+        //"./assets/gltf/dragon_sculpture/scene.gltf"
+        //"./assets/gltf/glass_bunny/scene.gltf"
+
+        new CG.GLTFParser().load(_url).then((data: CG.GLTFParserOutput_t) => {
+            for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
+                let _mesh = data.CGMeshs[i];
+                //this._ctrl.setSpace(_mesh).scale(10.2, 10.2, 10.2).moveForward(i == 0 ? -4 : 4);
+                _mesh.enablePick = true;
+                this._scene.addMesh(_mesh);
+            }
+        });
         const _geometryPlane = CG.geometry.createPlane(10, 10);
         let _meshPlane = new CG.Mesh("MeshPlane", new CG.Primitive("primitive-plane", _geometryPlane));
-        //_scene.addMesh(_meshPlane, false);
+        _scene.addMesh(_meshPlane);
         //--------------------------------------------------------------------------------
         //
         //--------------------------------------------------------------------------------
@@ -186,7 +196,7 @@ export default class Application {
 
         {
 
-            let _node: CG.SpacialNode;
+            let _node: CG.Mesh;
             let _mat: CG.api_IMaterial;
             this._scene.picker.addListener({
                 notify: (evt: CG.Event_t) => {
@@ -214,12 +224,9 @@ export default class Application {
             }, CG.Picker.PICKED);
 
             const obj = {
-                selectParent: () => {
-                    if (_node) {
-                        _node = _node.parentNode;
-                    }
-                },
                 transform: {
+                    rotateAround: "center",
+                    rotateCenterX: 0, rotateCenterY: 0, rotateCenterZ: 0,
                     rotateSlefX: 0, rotateSlefY: 0, rotateSlefZ: 0,
                     rotateParentX: 0, rotateParentY: 0, rotateParentZ: 0,
                 },
@@ -234,37 +241,99 @@ export default class Application {
                     emissiveFactor: [0, 0, 0],
                 }
             };
-            let _gui = new dat.GUI();
-            _gui.add(obj, "selectParent").hide();
+            let _gui = new dat.GUI().hide();
 
 
-            let _data = [0, 0, 0, 0, 0, 0];
             const _folderTrans = _gui.addFolder('transformation');
-            _folderTrans.add(obj.transform, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
+            _folderTrans.add(obj.transform, "rotateAround", ["center", "self", "parent"]).onChange((v: string) => {
+                if (v === "center") {
+                    this._scene.setAxesMode(CG.AxesMode_e.CENTER);
+                    _ctrlCenter.forEach((c) => {
+                        c.show();
+                    });
+                    _ctrlSelf.forEach((c) => {
+                        c.hide();
+                    });
+                    _ctrlParent.forEach((c) => {
+                        c.hide();
+                    });
+                } else if (v === "self") {
+                    this._scene.setAxesMode(CG.AxesMode_e.SELF);
+                    _ctrlCenter.forEach((c) => {
+                        c.hide();
+                    });
+                    _ctrlSelf.forEach((c) => {
+                        c.show();
+                    });
+                    _ctrlParent.forEach((c) => {
+                        c.hide();
+                    });
+                } else if (v === "parent") {
+                    this._scene.setAxesMode(CG.AxesMode_e.PARENT);
+                    _ctrlCenter.forEach((c) => {
+                        c.hide();
+                    });
+                    _ctrlSelf.forEach((c) => {
+                        c.hide();
+                    });
+                    _ctrlParent.forEach((c) => {
+                        c.show();
+                    });
+                }
+            });
+
+            let _data = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+            const _ctrlCenter: any[] = [];
+            _ctrlCenter.push(_folderTrans.add(obj.transform, 'rotateCenterX').min(-360).max(360).step(0.25).onChange((v: number) => {
+                if (_node) {
+                    let p = _node.aabb.center;
+                    this._ctrl.setSpace(_node).rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]), p, true);
+                    _data[0] = v;
+                }
+            }).show());
+            _ctrlCenter.push(_folderTrans.add(obj.transform, 'rotateCenterY').min(-360).max(360).step(0.25).onChange((v: number) => {
+                if (_node) {
+                    let p = _node.aabb.center;
+                    this._ctrl.setSpace(_node).rotateAroundSelfY(CG.utils.deg2Rad(v - _data[1]), p, true);
+                    _data[1] = v;
+                }
+            }).show());
+            _ctrlCenter.push(_folderTrans.add(obj.transform, 'rotateCenterZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+                if (_node) {
+                    let p = _node.aabb.center;
+                    this._ctrl.setSpace(_node).rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[2]), p, true);
+                    _data[2] = v;
+                }
+            }).show());
+
+            const _ctrlSelf: any[] = [];
+            _ctrlSelf.push(_folderTrans.add(obj.transform, 'rotateSlefX').min(-360).max(360).step(0.25).onChange((v: number) => {
                 //console.log(v);
-                this._ctrl.setSpace(_node)?.rotateAroundSelfX(CG.utils.deg2Rad(v - _data[0]));
-                _data[0] = v;
-            });
-            _folderTrans.add(obj.transform, 'rotateSlefY').min(-360).max(360).step(0.25).onChange((v: number) => {
-                this._ctrl.setSpace(_node)?.rotateAroundSelfY(CG.utils.deg2Rad(v - _data[1]));
-                _data[1] = v;
-            });
-            _folderTrans.add(obj.transform, 'rotateSlefZ').min(-360).max(360).step(0.25).onChange((v: number) => {
-                this._ctrl.setSpace(_node)?.rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[2]));
-                _data[2] = v;
-            });
-            _folderTrans.add(obj.transform, 'rotateParentX').min(-360).max(360).step(0.25).onChange((v: number) => {
-                this._ctrl.setSpace(_node)?.rotateAroundParentX(CG.utils.deg2Rad(v - _data[3]));
+                this._ctrl.setSpace(_node)?.rotateAroundSelfX(CG.utils.deg2Rad(v - _data[3]));
                 _data[3] = v;
-            });
-            _folderTrans.add(obj.transform, 'rotateParentY').min(-360).max(360).step(0.25).onChange((v: number) => {
-                this._ctrl.setSpace(_node)?.rotateAroundParentY(CG.utils.deg2Rad(v - _data[4]));
+            }).hide());
+            _ctrlSelf.push(_folderTrans.add(obj.transform, 'rotateSlefY').min(-360).max(360).step(0.25).onChange((v: number) => {
+                this._ctrl.setSpace(_node)?.rotateAroundSelfY(CG.utils.deg2Rad(v - _data[4]));
                 _data[4] = v;
-            });
-            _folderTrans.add(obj.transform, 'rotateParentZ').min(-360).max(360).step(0.25).onChange((v: number) => {
-                this._ctrl.setSpace(_node)?.rotateAroundParentZ(CG.utils.deg2Rad(v - _data[5]));
+            }).hide());
+            _ctrlSelf.push(_folderTrans.add(obj.transform, 'rotateSlefZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+                this._ctrl.setSpace(_node)?.rotateAroundSelfZ(CG.utils.deg2Rad(v - _data[5]));
                 _data[5] = v;
-            });
+            }).hide());
+
+            const _ctrlParent: any[] = [];
+            _ctrlParent.push(_folderTrans.add(obj.transform, 'rotateParentX').min(-360).max(360).step(0.25).onChange((v: number) => {
+                this._ctrl.setSpace(_node)?.rotateAroundParentX(CG.utils.deg2Rad(v - _data[6]));
+                _data[6] = v;
+            }).hide());
+            _ctrlParent.push(_folderTrans.add(obj.transform, 'rotateParentY').min(-360).max(360).step(0.25).onChange((v: number) => {
+                this._ctrl.setSpace(_node)?.rotateAroundParentY(CG.utils.deg2Rad(v - _data[7]));
+                _data[7] = v;
+            }).hide());
+            _ctrlParent.push(_folderTrans.add(obj.transform, 'rotateParentZ').min(-360).max(360).step(0.25).onChange((v: number) => {
+                this._ctrl.setSpace(_node)?.rotateAroundParentZ(CG.utils.deg2Rad(v - _data[8]));
+                _data[8] = v;
+            }).hide());
 
 
             let _folderMaterial = _gui.addFolder('material');

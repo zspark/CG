@@ -27,7 +27,7 @@ export { default as Primitive } from "./primitive.js";
 export { default as registMouseEvents, mouseEventCallback, MouseEvents_t } from "./mouse-events.js";
 export { default as OrthogonalSpace } from "./orthogonal-space.js";
 export { default as SpaceController } from "./space-controller.js";
-export { default as Axes } from "./axes.js";
+export { default as Axes, AxesMode_e } from "./axes.js";
 export { default as GridFloor } from "./grid-floor.js";
 export { default as Outline } from "./outline.js";
 export { default as Picker, api_IPicker, PickResult_t, Pickable_t } from "./picker.js";

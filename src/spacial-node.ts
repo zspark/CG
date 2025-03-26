@@ -24,6 +24,10 @@ export default class SpacialNode extends OrthogonalSpace {
         }
     }
 
+    get parentModelMatrix(): roMat44 {
+        return this._parentNode?.modelMatrix ?? Mat44.IdentityMat44;
+    }
+
     addChildNode(mesh: SpacialNode): void {
         this._childrenNodes.add(mesh);
         mesh._parentNode = this;

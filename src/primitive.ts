@@ -1,11 +1,14 @@
 import log from "./log.js"
-import { roMat44, xyzw, Mat44, Vec4 } from "./math.js"
-import { IPrimitive, IMaterial, IRenderObject, ISubPipeline, IGeometry, IProgram } from "./types-interfaces.js"
-import { Pickable_t } from "./picker.js";
+import {
+    IPrimitive,
+    IMaterial,
+    IRenderObject,
+    IGeometry,
+} from "./types-interfaces.js"
 import utils from "./utils.js";
 import Material from "./material.js";
 import Geometry from "./geometry.js";
-import { SubPipeline } from "./device-resource.js";
+import AABB from "./aabb.js";
 
 export default class Primitive implements IPrimitive, IRenderObject {
 
@@ -13,6 +16,7 @@ export default class Primitive implements IPrimitive, IRenderObject {
     protected _uuid: number = utils.uuid();
     protected _material: IMaterial;
     private _name: string;
+    private _aabb: AABB = new AABB();
 
     constructor(name?: string, geometry?: IGeometry) {
         this._name = name;
@@ -22,6 +26,11 @@ export default class Primitive implements IPrimitive, IRenderObject {
     get criticalKey(): object {
         return Geometry;
     }
+
+    get aabb(): AABB {
+        return this._aabb;
+    }
+
     bind(): void {
         this._ref_geo.bind();
         (this._material ?? _defaultMaterial).bind();

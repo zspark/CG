@@ -1,9 +1,10 @@
 import glC from "./gl-const.js";
 import engineC from "./engine-const.js";
 import OrthogonalSpace from "./orthogonal-space.js"
+import AABB from "./aabb.js"
 import { DrawArraysInstancedParameter, geometry } from "./geometry.js"
 import { createProgram } from "./program-manager.js"
-import { roMat44, Mat44 } from "./math.js";
+import { roMat44, Mat44, Vec4 } from "./math.js";
 import { Buffer, Pipeline, SubPipeline, Framebuffer } from "./device-resource.js";
 import { IPipeline, IProgram, IFramebuffer, IGeometry, IRenderer, ShaderLocation_e, StepMode_e } from "./types-interfaces.js";
 import { IEventDispatcher, Event_t, IEventListener } from "./event.js";
@@ -43,9 +44,19 @@ void main() {
 
 export interface IAxesTarget extends IEventDispatcher {
     readonly modelMatrix: roMat44;
+    readonly parentModelMatrix: roMat44;
+    readonly aabb: AABB;
 };
 
+export enum AxesMode_e {
+    CENTER = 1,
+    SELF = 2,
+    PARENT = 3,
+}
+
 export default class Axes implements IEventListener {
+
+    private _hpMat4 = new Mat44();
 
     private _targetMatricesDirty = false;
     private _arrRefTarget: IAxesTarget[] = [];
@@ -56,8 +67,9 @@ export default class Axes implements IEventListener {
         first: 0,
         count: 30,
         instanceCount: 1
-    }
+    };
 
+    private _mode = AxesMode_e.CENTER;
     private _instanceMatricesBuffer = new Buffer();
     private _geometry: IGeometry;
     private _pipeline: IPipeline;
@@ -102,12 +114,27 @@ export default class Axes implements IEventListener {
             const N = this._arrRefTarget.length;
             for (let i = 0; i < N; ++i) {
                 _m.remap(this._instanceMatrices, 16 * (i + 1));
-                _m.copyFrom(this._arrRefTarget[i].modelMatrix);
+                switch (this._mode) {
+                    case AxesMode_e.CENTER:
+                        let _c = this._arrRefTarget[i].aabb.center;
+                        Mat44.createTranslate(_c.x, _c.y, _c.z, this._hpMat4);
+                        _m.copyFrom(this._arrRefTarget[i].modelMatrix);
+                        _m.multiply(this._hpMat4, _m);
+                        break;
+                    case AxesMode_e.SELF:
+                        _m.copyFrom(this._arrRefTarget[i].modelMatrix);
+                        break;
+                    case AxesMode_e.PARENT:
+                        _m.copyFrom(this._arrRefTarget[i].parentModelMatrix);
+                        break;
+                }
             }
-            this._drawCmd.instanceCount = N + 1;
             this._instanceMatricesBuffer.updateData(this._instanceMatrices);
-            this._geometry.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
-                .bindDrawCMD();
+            if (this._drawCmd.instanceCount != N + 1) {
+                this._drawCmd.instanceCount = N + 1;
+                this._geometry.setDrawArraysInstancedParameters(this._drawCmd.mode, this._drawCmd.first, this._drawCmd.count, this._drawCmd.instanceCount)
+                    .bindDrawCMD();
+            }
             this._targetMatricesDirty = false;
         }
     }
@@ -129,7 +156,13 @@ export default class Axes implements IEventListener {
             t.removeListener(this, OrthogonalSpace.TRANSFORM_CHANGED);
         });
         this._arrRefTarget.length = 0;
+        this._targetMatricesDirty = true;
         return this;
+    }
+
+    set axesMode(m: AxesMode_e) {
+        this._mode = m;
+        this._targetMatricesDirty = true;
     }
 
     notify(event: Event_t): boolean {

@@ -62,7 +62,7 @@ export class Vec4 implements xyzw, rgba {
 
     constructor(x: number = 0, y: number = 0, z: number = 0, w: number = 0, storage?: Float32Array, index: number = 0) {
         if (storage) {
-            this.data = storage.subarray(index, index + 4);
+            this.remap(storage, index);
         } else {
             this.data = new Float32Array(4);
         }
@@ -87,6 +87,11 @@ export class Vec4 implements xyzw, rgba {
         this.data[1] = y;
         this.data[2] = z;
         this.data[3] = w;
+        return this;
+    }
+
+    remap(storage: Float32Array, startIndex: number): Vec4 {
+        this.data = storage.subarray(startIndex, startIndex + 4);
         return this;
     }
 
@@ -570,6 +575,12 @@ export class Mat44 {
         a[14] = (a31 * b01 - a30 * b03 - a32 * b00) * _det;
         a[15] = (a20 * b03 - a21 * b01 + a22 * b00) * _det;
         return this;
+    }
+
+    mapColumn(col: 0 | 1 | 2 | 3, out: Vec4): Vec4 {
+        out ??= new Vec4();
+        out.remap(this.data, col * 4);
+        return out;
     }
 
     setColumn(col: 0 | 1 | 2 | 3, x: number, y: number, z: number, w: number): Mat44 {

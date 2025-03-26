@@ -1,5 +1,5 @@
 import log from "./log.js"
-import { xyzw, Mat44, Vec4, Quat } from "./math.js"
+import { xyzw, roMat44, Mat44, Vec4, Quat } from "./math.js"
 import OrthogonalSpace from "./orthogonal-space.js"
 
 
@@ -31,6 +31,7 @@ export default class SpaceController {
         this._helperMat44R.setIdentity();
         this._helperMat44T.setIdentity();
     }
+
     setSpace(space: OrthogonalSpace): SpaceController | undefined {
         if (space) {
             this._space = space;
@@ -72,6 +73,18 @@ export default class SpaceController {
         return this;
     }
 
+    moveInParent(x: number, y: number, z: number): SpaceController {
+        const _space = this._space;
+        let _w = this._helperVec4_w;
+        _space.getPosition(_w).add(x, y, z, 0);
+        this.setPositionVec(_w);
+        return this;
+    }
+
+    moveInParentVec(dir: xyzw): SpaceController {
+        return this.moveInParent(dir.x, dir.y, dir.z);
+    }
+
     setPositionVec(posInParentSpace: xyzw): SpaceController {
         this._space.setPositionVec(posInParentSpace);
         return this;
@@ -101,19 +114,55 @@ export default class SpaceController {
         this._space.transformSelf(this._helperMat44);
         return this;
     }
-    rotateAroundSelfX(deltaX: number): SpaceController {
+    rotateAroundSelfX(deltaX: number, dir?: xyzw, inverseDir: boolean = false): SpaceController {
+        if (dir) {
+            Mat44.createTranslate(dir.x, dir.y, dir.z, this._helperMat44T);
+            Mat44.createTranslate(-dir.x, -dir.y, -dir.z, this._helperMat44S);
+        } else {
+            this._helperMat44T.copyFrom(Mat44.IdentityMat44);
+            this._helperMat44S.copyFrom(Mat44.IdentityMat44);
+        }
         Mat44.craeteRotateOfZYX_static(deltaX, 0, 0, this._helperMat44R);
-        this._space.transformSelf(this._helperMat44R);
+        if (inverseDir) {
+            this._helperMat44T.multiply(this._helperMat44R.multiply(this._helperMat44S, this._helperMat44), this._helperMat44);
+        } else {
+            this._helperMat44S.multiply(this._helperMat44R.multiply(this._helperMat44T, this._helperMat44), this._helperMat44);
+        }
+        this._space.transformSelf(this._helperMat44);
         return this;
     }
-    rotateAroundSelfY(deltaY: number): SpaceController {
+    rotateAroundSelfY(deltaY: number, dir?: xyzw, inverseDir: boolean = false): SpaceController {
+        if (dir) {
+            Mat44.createTranslate(dir.x, dir.y, dir.z, this._helperMat44T);
+            Mat44.createTranslate(-dir.x, -dir.y, -dir.z, this._helperMat44S);
+        } else {
+            this._helperMat44T.copyFrom(Mat44.IdentityMat44);
+            this._helperMat44S.copyFrom(Mat44.IdentityMat44);
+        }
         Mat44.craeteRotateOfZYX_static(0, deltaY, 0, this._helperMat44R);
-        this._space.transformSelf(this._helperMat44R);
+        if (inverseDir) {
+            this._helperMat44T.multiply(this._helperMat44R.multiply(this._helperMat44S, this._helperMat44), this._helperMat44);
+        } else {
+            this._helperMat44S.multiply(this._helperMat44R.multiply(this._helperMat44T, this._helperMat44), this._helperMat44);
+        }
+        this._space.transformSelf(this._helperMat44);
         return this;
     }
-    rotateAroundSelfZ(deltaZ: number): SpaceController {
+    rotateAroundSelfZ(deltaZ: number, dir?: xyzw, inverseDir: boolean = false): SpaceController {
+        if (dir) {
+            Mat44.createTranslate(dir.x, dir.y, dir.z, this._helperMat44T);
+            Mat44.createTranslate(-dir.x, -dir.y, -dir.z, this._helperMat44S);
+        } else {
+            this._helperMat44T.copyFrom(Mat44.IdentityMat44);
+            this._helperMat44S.copyFrom(Mat44.IdentityMat44);
+        }
         Mat44.craeteRotateOfZYX_static(0, 0, deltaZ, this._helperMat44R);
-        this._space.transformSelf(this._helperMat44R);
+        if (inverseDir) {
+            this._helperMat44T.multiply(this._helperMat44R.multiply(this._helperMat44S, this._helperMat44), this._helperMat44);
+        } else {
+            this._helperMat44S.multiply(this._helperMat44R.multiply(this._helperMat44T, this._helperMat44), this._helperMat44);
+        }
+        this._space.transformSelf(this._helperMat44);
         return this;
     }
 
@@ -149,11 +198,7 @@ export default class SpaceController {
      * move this space origin that projected to parent's XOZ plane as (x,z) to new pos(x+deltaX, z+deltaZ);
      */
     moveHorizontally(deltaX: number, deltaZ: number): SpaceController {
-        const _space = this._space;
-        let _w = this._helperVec4_w;
-        _space.getPosition(_w).add(deltaX, 0, deltaZ, 0);
-        _space.setPositionVec(_w);
-        return this;
+        return this.moveInParent(deltaX, 0, deltaZ);
     }
 
     rotateVertically(delta: number): SpaceController {

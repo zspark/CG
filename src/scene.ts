@@ -7,7 +7,7 @@ import Mesh from "./mesh.js";
 import { default as Camera, ICamera } from "./camera.js";
 import { Mat44, Vec4, xyzw, rgba } from "./math.js";
 import GridFloor from "./grid-floor.js";
-import Axes from "./axes.js";
+import { default as Axes, AxesMode_e } from "./axes.js";
 import { default as Picker, Pickable_t, PickResult_t } from "./picker.js";
 import { Event_t } from "./event.js";
 import { default as registMouseEvents, MouseEvents_t } from "./mouse-events.js";
@@ -30,7 +30,6 @@ export default class Scene {
     private _debugValue: number = -1;
     private _loader = createLoader("./");
     private _rootNode: SpacialNode = new SpacialNode("root");
-    private _meshes: Map<string, Mesh> = new Map();
     private _camera: ICamera;
     private _light: ILight;
     private _gridFloor: GridFloor;
@@ -44,6 +43,7 @@ export default class Scene {
     private _shadowMap: ShadowMap;
     private _deltaTimeInMS: number = 0;
     private _canvas: HTMLCanvasElement;
+    private _pipeline: IPipeline;
 
     constructor(canvas: HTMLCanvasElement) {
         this._canvas = canvas;
@@ -64,6 +64,18 @@ export default class Scene {
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
 
+        this._pipeline = new Pipeline(0)
+            .cullFace(true, glC.BACK)
+            .depthTest(true, glC.LESS)
+            //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
+            .setProgram(getProgram({
+                ft_pbr: true,
+                ft_shadow: true,
+                debug: true,
+                //gamma_correct: true,
+            }));
+        this._renderer.addPipeline(this._pipeline);
+
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
         // this._renderer.addPipeline(this._skybox.pipeline);
@@ -81,14 +93,17 @@ export default class Scene {
                 const _out: PickResult_t = this._picker.pickedResult;
                 if (_out.picked) {
                     let _node = _out.picked.mesh;
-                    _node.getPosition(this._tempVec4);
-                    this._camera.setRotateCenter(this._tempVec4.x, this._tempVec4.y, this._tempVec4.z);
+                    const _c = _node.aabb.center;
+                    _node.modelMatrix.multiplyVec4(_c, this._tempVec4);
+                    this._camera.setRotateCenterVec(this._tempVec4);
                     this._axis?.setTarget(_node);
                     this._outline?.setTarget({
                         renderObject: _out.picked.primitive.geometry,
                         modelMatrix: _out.picked.mesh.modelMatrix,
                     });
                 } else {
+                    this._camera.setRotateCenterVec(Vec4.VEC4_0000);
+                    this._axis?.removeAllTargets();
                     this._outline?.removeAllTargets();
                 }
                 return false;
@@ -107,6 +122,10 @@ export default class Scene {
     get picker() { return this._picker.API; }
     get light() { return this._light.API; }
     get camera() { return this._camera.API; }
+
+    setAxesMode(mode: AxesMode_e): void {
+        this._axis && (this._axis.axesMode = mode);
+    }
 
     setDebugValue(value: number): void {
         this._debugValue = value;
@@ -129,40 +148,17 @@ export default class Scene {
         }
     }
 
-    loadModel(url: string) {
-        new GLTFParser().load(url).then((data: GLTFParserOutput_t) => {
-            for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
-                //this._ctrl.setSpace(data.CGMeshs[i]).scale(20.2, 20.2, 20.2)//.setPosition(-2, -2, 2)
-                this.addMesh(data.CGMeshs[i], true);
-            }
-        });
-    }
-
-    addMesh(mesh: Mesh, enablePick: boolean = false, program?: IProgram): Scene {
-        const _p = new Pipeline(0)
-            .cullFace(true, glC.BACK)
-            .depthTest(true, glC.LESS)
-            //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .setProgram(program ??
-                getProgram({
-                    ft_pbr: true,
-                    ft_shadow: true,
-                    debug: true,
-                    //gamma_correct: true,
-                }));
-
+    addMesh(mesh: Mesh): Scene {
         mesh.getPrimitives().forEach(p => {
-            _p.appendSubPipeline(new SubPipeline()
+            this._pipeline.appendSubPipeline(new SubPipeline()
                 .setRenderObject(p)
                 .setTexture(this._shadowMap.depthTexture)
                 .setMaterial(p.material)
-                .setUniformUpdaterFn(this._createUpdater(mesh, p.material, new Vec4(1, 0, 0, 1)))
+                .setUniformUpdaterFn(this._createUpdater(mesh, p.material))
                 .validate()
             );
         });
-        this._renderer.addPipeline(_p);
-        this._meshes.set(mesh.name, mesh);
-        if (enablePick && this._picker) {
+        if (mesh.enablePick && this._picker) {
             this._addToPicker(mesh.getPickables());
         }
         this._shadowMap.addTarget(mesh);
@@ -188,7 +184,7 @@ export default class Scene {
         this._renderer.render();
     }
 
-    private _createUpdater(mesh: Mesh, material: IMaterial, color: rgba) {
+    private _createUpdater(mesh: Mesh, material: IMaterial) {
         return (program: IProgram) => {
             program.uploadUniform("u_mMatrix", mesh.modelMatrix.data);
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
@@ -211,7 +207,6 @@ export default class Scene {
                 ]);
                 program.uploadUniform("u_textureDebug", this._debugValue);
             }
-            program.uploadUniform("u_color", [color.r, color.g, color.b]);
             program.uploadUniform("u_nearFarPlane", [Camera.NEAR_PLANE, Camera.FAR_PLANE]);
         };
     }

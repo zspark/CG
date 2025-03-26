@@ -23,6 +23,7 @@ export interface api_ICamera extends IEventDispatcher {
     * pos must be defined under world coordinate
     */
     lookAt(pos: xyzw): api_ICamera
+    setRotateCenterVec(pos: xyzw): api_ICamera;
     setRotateCenter(posX: number, posY: number, posZ: number): api_ICamera;
     setPosition(posX: number, posY: number, posZ: number): api_ICamera;
 };
@@ -172,6 +173,10 @@ export default class Camera extends EventDispatcher implements ICamera {
             this._cameraDirtyFlag = false;
             this._broadcast(this._event);
         }
+    }
+
+    setRotateCenterVec(pos: xyzw): api_ICamera {
+        return this.setRotateCenter(pos.x, pos.y, pos.z);
     }
 
     setRotateCenter(posX: number, posY: number, posZ: number): Camera {

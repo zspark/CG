@@ -521,6 +521,7 @@ export class GLPipeline implements IPipeline {
     FBO: IFramebuffer;
     program: IProgram;
 
+    private _device: WebGL2RenderingContext;
     private _arrSubPipeline: ISubPipeline[] = [];
     private _arrOneTimeSubPipeline: ISubPipeline[] = [];
     private _enableCullFace = false;
@@ -558,6 +559,7 @@ export class GLPipeline implements IPipeline {
     }
 
     createGPUResource(gl: WebGL2RenderingContext): IPipeline {
+        this._device = gl;
         this.FBO.createGPUResource(gl);
         this._arrSubPipeline.forEach((sp: ISubPipeline) => {
             sp.createGPUResource(gl);
@@ -568,6 +570,11 @@ export class GLPipeline implements IPipeline {
     appendSubPipeline(subp: ISubPipeline, option?: SubPipelineOption_t): IPipeline {
         let _renderOnce = (option?.renderOnce) ? true : false;
         _renderOnce ? this._arrOneTimeSubPipeline.push(subp) : this._arrSubPipeline.push(subp);
+        if (this._device) {
+            this._arrSubPipeline.forEach((sp: ISubPipeline) => {
+                sp.createGPUResource(this._device);
+            });
+        }
         return this;
     }
 

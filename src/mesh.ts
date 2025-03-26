@@ -5,6 +5,7 @@ import { Pickable_t } from "./picker.js";
 import utils from "./utils.js";
 import SpacialNode from "./spacial-node.js";
 import Primitive from "./primitive.js";
+import AABB from "./aabb.js";
 
 /*
 export interface IMesh extends OrthogonalSpace{
@@ -29,6 +30,8 @@ export default class Mesh extends SpacialNode {
 
     protected _primitiveSet: Set<Primitive> = new Set();
     protected _uuid: number = utils.uuid();
+    protected _enablePick: boolean = false;
+    protected _aabb: AABB = new AABB();
 
     constructor(name?: string, primitive?: Primitive) {
         super(name);
@@ -39,17 +42,35 @@ export default class Mesh extends SpacialNode {
         return this._uuid;
     }
 
+    get aabb(): AABB {
+        return this._aabb;
+    }
+
+    get enablePick(): boolean {
+        return this._enablePick;
+    }
+
+    set enablePick(value: boolean) {
+        this._enablePick = value;
+    }
+
     addPrimitive(p: Primitive): void {
         this._primitiveSet.add(p);
+        this._aabb.append(p.aabb);
     }
 
     setPrimitive(p: Primitive): void {
-        this._primitiveSet.clear();
+        this.removePrimitives();
         this.addPrimitive(p);
     }
 
     removePrimitive(p: Primitive): boolean {
         return this._primitiveSet.delete(p);
+    }
+
+    removePrimitives(): void {
+        this._primitiveSet.clear();
+        this._aabb.reset();
     }
 
     getPickables(): Pickable_t[] {
