@@ -29,7 +29,6 @@ layout(std140) uniform u_ub_light {
     mat4 u_lInvMatrix;
     mat4 u_lMatrix;
     mat4 u_lpMatrix;
-    vec3 u_ambientColor;
     vec4 u_lightColor;  // w: intensity;
 };
 layout(std140) uniform u_ub_material {
@@ -146,7 +145,7 @@ float _calculateShadowFactor(const in vec4 posProj) {
 }
 
 vec3 _getAmbient(const in vec4 albedoColor) {
-    return 0.5 * u_ambientColor * albedoColor.rgb;
+    return 0.5 * albedoColor.rgb;
 }
 
 vec3 _getDiffuse(float ndotl, const in vec3 albedoColor, const in vec3 F0, float shadowMapFactor) {

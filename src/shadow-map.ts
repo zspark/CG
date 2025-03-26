@@ -16,8 +16,7 @@ layout(std140) uniform u_ub_light {
     mat4 u_lInvMatrix;
     mat4 u_lMatrix;
     mat4 u_lpMatrix;
-    vec3 u_ambientColor;
-    vec4 u_lightColor;  // w: u_specularHighlight;
+    vec4 u_lightColor;  // w: intensity;
 };
 layout(location = 0) in vec3 a_position;
 void main(){

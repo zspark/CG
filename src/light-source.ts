@@ -36,7 +36,6 @@ class Light {
     protected _hpVec4 = new Vec4();
     protected _frustum = new Frustum();
     protected _ctrl = new SpaceController();
-    protected _ambientColor: Vec4;
     protected _color: Vec4;
     protected _uboData: Float32Array;
     protected _UBO: IUniformBlock;
@@ -46,15 +45,14 @@ class Light {
     protected _transformDirty: boolean = true;
 
     constructor(posX: number, posY: number, posZ: number) {
-        const _sizeInFloat = 16 * 3 + 4 + 4;
+        const _sizeInFloat = 16 * 3 + 4;
         this._uboData = new Float32Array(_sizeInFloat);
         this._UBO = new UniformBlock(BINDING_POINT.UBO_BINDING_POINT_LIGHT, _sizeInFloat * 4);
         this._space = new OrthogonalSpace(this._uboData, 16 * 0);
         this._space.setPosition(posX, posY, posZ);
         this._ctrl.setSpace(this._space);
         this._lightProjectionMatrix = new Mat44(this._uboData, 16 * 2);
-        this._ambientColor = new Vec4(1, 1, 1, 1, this._uboData, 16 * 3)
-        this._color = new Vec4(1, 1, 1, this._intensity, this._uboData, 16 * 3 + 4)
+        this._color = new Vec4(1, 1, 1, this._intensity, this._uboData, 16 * 3)
     }
 
     get UBO(): IUniformBlock {
