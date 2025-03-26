@@ -335,16 +335,16 @@ export const geometry: {
         const vertices = new Float32Array([
             width, 0, -height,
             0.0, 0.0,
-            0, 0, 1,
+            0, 1, 0,
             -width, 0, -height,
             1.0, 0.0,
-            0, 0, 1,
+            0, 1, 0,
             -width, 0, height,
             1.0, 1.0,
-            0, 0, 1,
+            0, 1, 0,
             width, 0, height,
             0.0, 1.0,
-            0, 0, 1,
+            0, 1, 0,
         ]);
         const indices = new Uint16Array([
             0, 1, 2,

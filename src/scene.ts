@@ -52,9 +52,10 @@ export default class Scene {
         this._ctrl = new SpaceController();
         this._camera = new Camera(2.64, 4.0, 4.37).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
         this._renderer.registerUBO(this._camera.UBO);
-        this._light = new light.PointLight(40, 40, 40);
+        this._light = new light.PointLight(4, 4, 4);
         this._light.setDirection(-1, -1, -1);
         this._light.intensity = 3.;
+        this._renderer.addPipeline(this._light.createDebugPipeline());
         this._renderer.registerUBO(this._light.UBO);
         this._renderer.registerUBO(getMaterialUBO());
         this._gridFloor = new GridFloor();
