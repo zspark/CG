@@ -270,6 +270,7 @@ export class GLProgram implements IProgram {
                     case gl.SAMPLER_2D_SHADOW:
                     case gl.SAMPLER_2D_ARRAY:
                     case gl.SAMPLER_2D_ARRAY_SHADOW:
+                    case gl.SAMPLER_CUBE:
                         _fn = uniformInfo.size <= 1 ? gl.uniform1i.bind(gl, _u) : gl.uniform1iv.bind(gl, _u);
                         break;
                 }

@@ -1,36 +1,30 @@
 import log from "./log.js"
 import createLoader from "./assets-loader.js"
 
+type ShaderSource_t = {
+    vertHead: string,
+    vertBody: string,
+    fragHead: string,
+    fragBody: string,
+};
+
 const SEPARATOR = "//%%";
-const VERTEX_SHADER: string[] = [];
-const FRAGMENT_SHADER: string[] = [];
+const _sources: Map<string, ShaderSource_t> = new Map();
 
 let _shaderSourceLoadPromise: Promise<boolean>;
 
-function _separateShader(source: string, out: string[]): void {
-    let _arr: string[] = source.split(SEPARATOR);
-    out[0] = _arr[0].trim();
-    out[1] = _arr[1].trim();
-}
-
-function _getShaderSource(id: ShaderID_t, source: string[], prefix: string): SourceContent_t {
+function _getShaderMacro(config: ShaderConfig_t): string {
     let _macroString: string = '';
-    const _arrMacros = Object.getOwnPropertyNames(id);
+    const _arrMacros = Object.getOwnPropertyNames(config);
     _arrMacros.sort();// to alphabet order;
     for (let i = 0, N = _arrMacros.length; i < N; ++i) {
         _macroString += `#define ${_arrMacros[i].toUpperCase()}\n`;
     }
-    return {
-        id: prefix + _macroString,
-        source: `${source[0]}\n${_macroString}\n${source[1]}`,
-    };
+    return _macroString;
 }
 
-export type ShaderID_t = {
-    ft_shadow?: boolean,
-    ft_pbr?: boolean,
-    gamma_correct?: boolean,
-    debug?: boolean,
+export type ShaderConfig_t = {
+    [key: string]: boolean,
 };
 
 export type SourceContent_t = {
@@ -38,16 +32,27 @@ export type SourceContent_t = {
     source: string,
 }
 
+function _registSource(name: string, vert: string, frag: string) {
+    let _arrVert: string[] = vert.split(SEPARATOR);
+    let _arrFrag: string[] = frag.split(SEPARATOR);
+    _sources.set(name, {
+        vertHead: _arrVert[0].trim(),
+        vertBody: _arrVert[1].trim(),
+        fragHead: _arrFrag[0].trim(),
+        fragBody: _arrFrag[1].trim()
+    });
+}
+
 const ShaderAssembler: {
-    loadShaderSource: (root?: string) => Promise<boolean>,
-    assembleVertexSource: (id: ShaderID_t) => SourceContent_t,
-    assembleFragmentSource: (id: ShaderID_t) => SourceContent_t,
+    loadShaderSource: (name: string, root?: string) => Promise<boolean>,
+    registShaderSource: (name: string, sourceVert: string | string[], sourceFrag?: string) => void,
+    assembleVertexSource: (name: string, config: ShaderConfig_t) => SourceContent_t,
+    assembleFragmentSource: (name: string, config: ShaderConfig_t) => SourceContent_t,
 } = {
-    loadShaderSource: (root?: string): Promise<boolean> => {
+    loadShaderSource: (name: string, root?: string): Promise<boolean> => {
         if (!_shaderSourceLoadPromise) {
             _shaderSourceLoadPromise = createLoader(root ?? './').loadShader("src/shader").then((sources) => {
-                _separateShader(sources[0], VERTEX_SHADER);
-                _separateShader(sources[1], FRAGMENT_SHADER);
+                _registSource(name, sources[0], sources[1]);
                 return true;
             }, _ => {
                 log.vital("[ShaderAssembler] shader souce load failed!");
@@ -57,12 +62,24 @@ const ShaderAssembler: {
         return _shaderSourceLoadPromise;
     },
 
-    assembleVertexSource: (id: ShaderID_t): SourceContent_t => {
-        return _getShaderSource(id, VERTEX_SHADER, 'vert-');
+    registShaderSource: _registSource,
+
+    assembleVertexSource: (name: string, config: ShaderConfig_t): SourceContent_t => {
+        const _macro = _getShaderMacro(config);
+        const _source = _sources.get(name);
+        return {
+            id: `${name}-vert:${_macro}`,
+            source: `${_source.vertHead}\n${_macro}\n${_source.vertBody}`,
+        }
     },
 
-    assembleFragmentSource: (id: ShaderID_t): SourceContent_t => {
-        return _getShaderSource(id, FRAGMENT_SHADER, 'frag-');
+    assembleFragmentSource: (name: string, config: ShaderConfig_t): SourceContent_t => {
+        const _macro = _getShaderMacro(config);
+        const _source = _sources.get(name);
+        return {
+            id: `${name}-frag:${_macro}`,
+            source: `${_source.fragHead}\n${_macro}\n${_source.fragBody}`,
+        }
     },
 
 };

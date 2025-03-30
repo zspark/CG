@@ -41,7 +41,7 @@
         let _currentTime;
 
         let _app;
-        ShaderAssembler.loadShaderSource("./").then(_ => {
+        ShaderAssembler.loadShaderSource("pbr", "./").then(_ => {
             _app = new Application(canvas);
             render();
         });

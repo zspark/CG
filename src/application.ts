@@ -12,7 +12,8 @@ export default class Application {
         CG.registWebGL();
         CG.programManagerHint(true, true);
         const _scene = this._scene = new CG.Scene(canvas);
-        _scene.setSkybox("./assets/skybox/quarry_01_1k.jpg");
+        _scene.setSkybox("./assets/skybox/latlon2.jpg");
+        //_scene.setSkybox("./assets/uv-grid.webp");
 
         //--------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------

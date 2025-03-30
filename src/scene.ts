@@ -21,7 +21,7 @@ import Skybox from "./skybox.js";
 import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 import * as windowEvents from "./window-events.js"
-import IrradianceBaker from "./irradiance-baker.js"
+import { default as IrradianceBaker, SourceType_e } from "./irradiance-baker.js"
 import EquirectangularToSkybox from "./equirectangular-to-skybox.js";
 
 export default class Scene {
@@ -74,7 +74,7 @@ export default class Scene {
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
-        this._baker = new IrradianceBaker("./assets/skybox/quarry_01_1k.jpg", 512, 256);
+        this._baker = new IrradianceBaker(512, 256);
 
 
         this._pbrPipeline = new Pipeline(0)
@@ -83,7 +83,7 @@ export default class Scene {
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .setProgram(getProgram({
+            .setProgram(getProgram("pbr", {
                 ft_pbr: true,
                 ft_shadow: true,
                 debug: true,
@@ -145,6 +145,9 @@ export default class Scene {
                 _that._skybox ??= new Skybox();
                 _that._skybox.texture = _v.skyboxTexture;
                 _that._renderer.addPipeline(_that._skybox.pipeline, { repeat: false });
+
+                _that._baker.setTexture(_v.skyboxTexture, SourceType_e.CUBE);
+                _that._renderer.addPipeline(_that._baker.pipeline, { renderOnce: true });
                 return true;
             }
         }, EquirectangularToSkybox.FILE_LOADED);
@@ -211,9 +214,6 @@ export default class Scene {
         this._skybox?.update(dt);
         this._outline?.update(dt);
         this._renderer.render();
-        if (this._baker.ready) {
-            this._renderer.addPipeline(this._baker.pipeline, { renderOnce: true });
-        }
     }
 
     private _createUpdater(mesh: Mesh, material: IMaterial) {

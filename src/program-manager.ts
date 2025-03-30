@@ -1,5 +1,5 @@
 import log from "./log.js"
-import { default as ShaderAssembler, ShaderID_t } from "./shader-assembler.js";
+import { default as ShaderAssembler, ShaderConfig_t } from "./shader-assembler.js";
 import { Program } from "./device-resource.js";
 import { IProgram } from "./types-interfaces.js";
 
@@ -18,9 +18,9 @@ export function initProgram(gl: WebGL2RenderingContext): void {
     _gl = gl;
 }
 
-export default function getProgram(shaderID: ShaderID_t): IProgram {
-    let _out = ShaderAssembler.assembleVertexSource(shaderID);
-    let _out2 = ShaderAssembler.assembleFragmentSource(shaderID);
+export default function getProgram(name: string, config: ShaderConfig_t): IProgram {
+    let _out = ShaderAssembler.assembleVertexSource(name, config);
+    let _out2 = ShaderAssembler.assembleFragmentSource(name, config);
     const _id = _out.id + _out2.id;
     let _program: IProgram = _mapProgram.get(_id);
     if (!_program) {

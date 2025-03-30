@@ -31,7 +31,7 @@ export { default as GridFloor } from "./grid-floor.js";
 export { default as Outline } from "./outline.js";
 export { default as Picker, api_IPicker, PickResult_t, Pickable_t } from "./picker.js";
 export { default as getProgram, programManagerHint } from "./program-manager.js";
-export { default as ShaderAssembler, SourceContent_t, ShaderID_t } from "./shader-assembler.js";
+export { default as ShaderAssembler, SourceContent_t } from "./shader-assembler.js";
 export { GLTFParserOutput_t, default as GLTFParser } from "./gltf-parser.js";
 export { default as Skybox } from "./skybox.js";
 export { default as Renderer, RendererOptions_t, IRenderable } from "./renderer.js";

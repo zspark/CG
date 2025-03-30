@@ -162,6 +162,10 @@ export default class EquirectangularToSkybox extends EventDispatcher {
         return this._skyboxTexture;
     }
 
+    get equirectangularTexture(): ITexture {
+        return this._latlonTexture;
+    }
+
     update(dt: number): void {
     }
 }
