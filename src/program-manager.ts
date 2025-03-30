@@ -46,6 +46,11 @@ export default function getProgram(shaderID: ShaderID_t): IProgram {
     return _program;
 }
 
-export function createProgram(vert: string, frag: string): IProgram {
-    return new Program(_gl, vert, frag);
+export function createProgram(vert: string | string[], frag?: string): IProgram {
+    if (typeof (vert) === "string") {
+        return new Program(_gl, vert, frag);
+    } else {
+        return new Program(_gl, vert[0], vert[1]);
+    }
+
 }

@@ -1,4 +1,5 @@
-import log from "./log.js"
+import log from "./log.js";
+import _loadHDR from "./HDR-loader.js";
 
 //export type BinaryLoader = (url: string) => Promise<ArrayBuffer>;
 type TextLoader = (url: string) => Promise<string>;
@@ -7,8 +8,7 @@ export type ILoader = {
     loadText: (sourceName: string) => Promise<string>;
     loadShader_separate: (urlVert: string, urlFrag: string) => Promise<[string, string]>,
     loadShader: (url: string) => Promise<[string, string]>,
-    loadTexture: (url: string) => Promise<HTMLImageElement>,
-    loadSkyboxTextures: (url_1: string, url_2: string, url_3: string, url_4: string, url_5: string, url_6: string) => Promise<[HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement, HTMLImageElement]>,
+    loadTexture: (url: string) => Promise<TextureData_t>,
     loadBinary: (url: string) => Promise<void | ArrayBuffer>,
 }
 
@@ -45,18 +45,34 @@ error: ${error}`);
     });
 };
 
-function _loadTexture(combinedURL: string): Promise<HTMLImageElement> {
-    return new Promise((d, f) => {
-        const _image = new Image();
-        _image.onload = () => {
-            d(_image);
-        };
-        _image.onerror = (err: any) => {
-            f(err);
-        };
-        _image.src = combinedURL;
-    });
+function _loadTexture(combinedURL: string): Promise<TextureData_t> {
+    if (combinedURL.indexOf(".hdr") > 0) {
+        return new Promise((res, rej) => {
+            _loadHDR(combinedURL, (data: Uint8Array, width: number, height: number) => {
+                res({ data, width, height })
+            }, () => {
+                rej();
+            });
+        });
+    } else {
+        return new Promise((d, f) => {
+            const _image = new Image();
+            _image.onload = () => {
+                d({ data: _image, width: _image.width, height: _image.height });
+            };
+            _image.onerror = (err: any) => {
+                f(err);
+            };
+            _image.src = combinedURL;
+        });
+    }
 }
+
+export type TextureData_t = {
+    data: Uint8Array | HTMLImageElement;
+    width: number;
+    height: number;
+};
 
 /**
 * baseURL should ended up with '\'
@@ -71,9 +87,6 @@ export default function createLoader(baseURL: string): ILoader {
         },
         loadText: (sourceName: string) => {
             return _loadFile(`${baseURL}${sourceName}`);
-        },
-        loadSkyboxTextures: (url_1: string, url_2: string, url_3: string, url_4: string, url_5: string, url_6: string) => {
-            return Promise.all([_loadTexture(`${baseURL}${url_1}`), _loadTexture(`${baseURL}${url_2}`), _loadTexture(`${baseURL}${url_3}`), _loadTexture(`${baseURL}${url_4}`), _loadTexture(`${baseURL}${url_5}`), _loadTexture(`${baseURL}${url_6}`)]);
         },
         loadTexture: (url: string) => {
             return _loadTexture(`${baseURL}${url}`);

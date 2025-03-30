@@ -87,36 +87,30 @@ export interface IProgram extends IBindableObject {
     destroy(): void;
 }
 
+export type TextureData_t = Uint8Array | Uint16Array | Float32Array | HTMLImageElement;
+
 export interface ITexture {
-    get textureUnit(): GLint;
-    set data(data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement);
+    target: GLenum;
     UVIndex: number;
+    readonly textureUnit: GLint;
+    set genMipmap(value: boolean);
+    set data(data: TextureData_t | TextureData_t[]);
 
     resize(width: number, height: number): ITexture;
     createGPUResource(gl: WebGL2RenderingContext): ITexture;
-    updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
+
+    /**
+     * data[0-5]: x+,x-,y+, y-, z+,z-
+     */
+    updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
     setParameter(name: number, value: number): ITexture;
     bind(textureUnit: number): ITexture;
     destroyGLTexture(): ITexture;
 }
 
-export interface ISkyboxTexture {
-
-    set data(data: ArrayBuffer[]);
-    get textureUnit(): GLint;
-
-    createGPUResource(gl: WebGL2RenderingContext): ISkyboxTexture;
-    /**
-     * data[0-5]: x+,x-,y+, y-, z+,z-
-     */
-    updateData(data: any[], xoffset?: number, yoffset?: number, width?: number, height?: number): ISkyboxTexture;
-    setParameter(name: number, value: number): ISkyboxTexture;
-    bind(textureUnit: number): ISkyboxTexture;
-    destroyGLTexture(): ISkyboxTexture;
-}
-
 export interface IFramebuffer extends IBindableObject {
     resize(width: number, height: number): void;
+    readPixels(): Uint8Array;
     createGPUResource(gl: WebGL2RenderingContext): void;
     attachColorTexture(texture: ITexture, attachment: number, target?: GLenum): void;
     attachDepthTexture(texture: ITexture, target?: number): void;
@@ -126,6 +120,7 @@ export interface IFramebuffer extends IBindableObject {
 }
 
 export type SubPipelineOption_t = {
+    repeat?: boolean;
     renderOnce?: boolean;
 };
 
@@ -134,6 +129,7 @@ export interface IPipeline {
     get priority(): number;
     get program(): IProgram;
 
+    addTexture(texture: ITexture): IPipeline;
     setFBO(fbo: IFramebuffer): IPipeline;
     setProgram(program: IProgram): IPipeline;
     createGPUResource(gl: WebGL2RenderingContext): IPipeline;
@@ -205,8 +201,9 @@ export interface ISubPipeline {
     createGPUResource(gl: WebGL2RenderingContext): ISubPipeline;
     setUniformUpdaterFn(updater: UniformUpdaterFn_t): ISubPipeline;
     setRenderObject(target: IRenderObject): ISubPipeline;
-    setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline;
-    setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline;
+    setTextures(...tex: Array<ITexture>): ISubPipeline;
+    setTexture(texture: ITexture): ISubPipeline;
+    addTexture(texture: ITexture): ISubPipeline;
     setMaterial(mterial: IMaterial): ISubPipeline;
     clearTextures(): ISubPipeline;
     validate(): ISubPipeline;

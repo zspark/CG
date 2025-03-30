@@ -9,7 +9,6 @@ import {
     GLPipeline,
     GLSubPipeline,
     GLTexture,
-    GLSkyboxTexture,
     GLFramebuffer,
     GLUniformBlock,
     createGLContext,
@@ -20,7 +19,6 @@ let Program: typeof GLProgram;
 let Pipeline: typeof GLPipeline;
 let SubPipeline: typeof GLSubPipeline;
 let Texture: typeof GLTexture;
-let SkyboxTexture: typeof GLSkyboxTexture;
 let Framebuffer: typeof GLFramebuffer;
 let UniformBlock: typeof GLUniformBlock;
 let createContext: createContext_fn_t;
@@ -31,10 +29,9 @@ function registWebGL(): void {
     Pipeline = GLPipeline;
     SubPipeline = GLSubPipeline;
     Texture = GLTexture;
-    SkyboxTexture = GLSkyboxTexture;
     Framebuffer = GLFramebuffer;
     UniformBlock = GLUniformBlock;
     createContext = createGLContext;
 }
 
-export { registWebGL, createContext, UniformBlock, Buffer, Program, Pipeline, SubPipeline, Texture, SkyboxTexture, Framebuffer };
+export { registWebGL, createContext, UniformBlock, Buffer, Program, Pipeline, SubPipeline, Texture, Framebuffer };

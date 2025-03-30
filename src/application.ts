@@ -12,6 +12,7 @@ export default class Application {
         CG.registWebGL();
         CG.programManagerHint(true, true);
         const _scene = this._scene = new CG.Scene(canvas);
+        _scene.setSkybox("./assets/skybox/quarry_01_1k.jpg");
 
         //--------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------
@@ -31,8 +32,8 @@ export default class Application {
             //"./assets/gltf/MetalRoughSpheres.glb"
             //"./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
-            "./assets/gltf/cup_with_holder/scene.gltf"
-        //"./assets/gltf/sphere/scene.gltf"
+            //"./assets/gltf/cup_with_holder/scene.gltf"
+            "./assets/gltf/sphere/scene.gltf"
         //"./assets/gltf/stanford_dragon_vrip/scene.gltf"
         //"./assets/gltf/metal_dragon/scene.gltf"
         //"./assets/gltf/vintage_metal_ashtray/scene.gltf"
@@ -45,13 +46,14 @@ export default class Application {
         new CG.GLTFParser().load(_url).then((data: CG.GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
                 let _mesh = data.CGMeshs[i];
-                //this._ctrl.setSpace(_mesh).scale(10.2, 10.2, 10.2).moveForward(i == 0 ? -4 : 4);
+                this._ctrl.setSpace(_mesh).scale(0.1, 0.1, 0.1).moveForward(i == 0 ? -4 : 4);
                 _mesh.enablePick = true;
                 this._scene.addMesh(_mesh);
             }
         });
         const _geometryPlane = CG.geometry.createPlane(10, 10);
         let _meshPlane = new CG.Mesh("MeshPlane", new CG.Primitive("primitive-plane", _geometryPlane));
+        this._ctrl.setSpace(_meshPlane).moveUp(-1);
         _scene.addMesh(_meshPlane);
         //--------------------------------------------------------------------------------
         //
@@ -97,6 +99,7 @@ export default class Application {
                 debug: {
                     showOutline: true,
                     debugTexture: "none",
+                    debugColor: "none",
                 },
                 _lightSource: {
                     color: [_color.r, _color.g, _color.b],
@@ -132,6 +135,22 @@ export default class Application {
             const _debugFolder = _gui.addFolder("debug").close();
             _debugFolder.add(_obj.debug, "showOutline").onChange((v: boolean) => {
                 this._scene.showOutline = v;
+            });
+            _debugFolder.add(_obj.debug, "debugColor", ["none", "ambient", "diffuse", "specular"]).onChange((v: string) => {
+                switch (v) {
+                    case "none":
+                        this._scene.setDebugColorValue(-1);
+                        break;
+                    case "ambient":
+                        this._scene.setDebugColorValue(0);
+                        break;
+                    case "diffuse":
+                        this._scene.setDebugColorValue(1);
+                        break;
+                    case "specular":
+                        this._scene.setDebugColorValue(2);
+                        break;
+                }
             });
             _debugFolder.add(_obj.debug, "debugTexture", ["none", "normal", "occlusion", "emissive", "baseColor", "metallic", "roughness", "F0"]).onChange((v: string) => {
                 switch (v) {

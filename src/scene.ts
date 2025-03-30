@@ -1,6 +1,6 @@
-import { IMaterial, IRenderer, IPipeline, IProgram } from "./types-interfaces.js";
+import { IMaterial, IRenderer, IPipeline, IProgram, ITexture } from "./types-interfaces.js";
 import glC from "./gl-const.js";
-import { Pipeline, SubPipeline } from "./device-resource.js";
+import { Pipeline, SubPipeline, Texture } from "./device-resource.js";
 import getProgram from "./program-manager.js"
 import SpacialNode from "./spacial-node.js";
 import Mesh from "./mesh.js";
@@ -21,6 +21,8 @@ import Skybox from "./skybox.js";
 import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 import * as windowEvents from "./window-events.js"
+import IrradianceBaker from "./irradiance-baker.js"
+import EquirectangularToSkybox from "./equirectangular-to-skybox.js";
 
 export default class Scene {
 
@@ -28,6 +30,7 @@ export default class Scene {
     private _tempVec4 = new Vec4();
 
     private _debugValue: number = -1;
+    private _debugColorValue: number = -1;
     private _loader = createLoader("./");
     private _rootNode: SpacialNode = new SpacialNode("root");
     private _camera: ICamera;
@@ -37,17 +40,25 @@ export default class Scene {
     private _picker: Picker;
     private _ctrl: SpaceController;
     private _mouseEvents: MouseEvents_t;
+    private _baker: IrradianceBaker;
     private _outline: Outline;
     private _renderer: Renderer;
     private _skybox: Skybox;
     private _shadowMap: ShadowMap;
     private _deltaTimeInMS: number = 0;
     private _canvas: HTMLCanvasElement;
-    private _pipeline: IPipeline;
+    private _pbrPipeline: IPipeline;
+    private _lutTexture: ITexture;
 
     constructor(canvas: HTMLCanvasElement) {
         this._canvas = canvas;
         this._renderer = new Renderer({ canvas });
+        this._loader.loadTexture("./assets/lut/brdf-lut.png").then(img => {
+            this._lutTexture = new Texture(img.width, img.height);
+            this._lutTexture.data = img.data;
+            this._lutTexture.createGPUResource(this._renderer.gl);
+            this._pbrPipeline.addTexture(this._lutTexture)
+        });
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
         this._camera = new Camera(2.64, 4.0, 4.37).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
@@ -60,12 +71,15 @@ export default class Scene {
         this._renderer.registerUBO(getMaterialUBO());
         this._gridFloor = new GridFloor();
         this._axis = new Axes();
-        // this._skybox = new Skybox();
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
+        this._baker = new IrradianceBaker("./assets/skybox/quarry_01_1k.jpg", 512, 256);
 
-        this._pipeline = new Pipeline(0)
+
+        this._pbrPipeline = new Pipeline(0)
+            .addTexture(this._shadowMap.depthTexture)
+            .addTexture(this._baker.irradianceTexture)
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
@@ -75,11 +89,9 @@ export default class Scene {
                 debug: true,
                 //gamma_correct: true,
             }));
-        this._renderer.addPipeline(this._pipeline);
-
+        this._renderer.addPipeline(this._pbrPipeline);
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
-        // this._renderer.addPipeline(this._skybox.pipeline);
         this._renderer.addPipeline(this._shadowMap.pipeline);
         this.showOutline = true;
 
@@ -124,12 +136,29 @@ export default class Scene {
     get light() { return this._light.API; }
     get camera() { return this._camera.API; }
 
+    setSkybox(url: string, width: number = 512, height: number = 512) {
+        const _that = this;
+        const _v = new EquirectangularToSkybox(url, width, height);
+        _v.addListener({
+            notify: (e: Event_t): boolean => {
+                _that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
+                _that._skybox ??= new Skybox();
+                _that._skybox.texture = _v.skyboxTexture;
+                _that._renderer.addPipeline(_that._skybox.pipeline, { repeat: false });
+                return true;
+            }
+        }, EquirectangularToSkybox.FILE_LOADED);
+    }
+
     setAxesMode(mode: AxesMode_e): void {
         this._axis && (this._axis.axesMode = mode);
     }
 
     setDebugValue(value: number): void {
         this._debugValue = value;
+    }
+    setDebugColorValue(value: number): void {
+        this._debugColorValue = value;
     }
 
     private _outlineShow: boolean = false;
@@ -151,9 +180,8 @@ export default class Scene {
 
     addMesh(mesh: Mesh): Scene {
         mesh.getPrimitives().forEach(p => {
-            this._pipeline.appendSubPipeline(new SubPipeline()
+            this._pbrPipeline.appendSubPipeline(new SubPipeline()
                 .setRenderObject(p)
-                .setTexture(this._shadowMap.depthTexture)
                 .setMaterial(p.material)
                 .setUniformUpdaterFn(this._createUpdater(mesh, p.material))
                 .validate()
@@ -183,6 +211,9 @@ export default class Scene {
         this._skybox?.update(dt);
         this._outline?.update(dt);
         this._renderer.render();
+        if (this._baker.ready) {
+            this._renderer.addPipeline(this._baker.pipeline, { renderOnce: true });
+        }
     }
 
     private _createUpdater(mesh: Mesh, material: IMaterial) {
@@ -191,6 +222,8 @@ export default class Scene {
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
             program.uploadUniform("u_mMatrix_dir", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
+            this._lutTexture && program.uploadUniform("u_pbrLutTexture", this._lutTexture.textureUnit);
+            program.uploadUniform("u_irradianceTexture", this._baker.irradianceTexture.textureUnit);
             if (material) {
                 program.uploadUniform("u_pbrTextures[0]", [
                     material.normalTexture.textureUnit,
@@ -207,6 +240,7 @@ export default class Scene {
                     material.pbrMR_metallicRoughnessTexture.UVIndex ?? 0,
                 ]);
                 program.uploadUniform("u_textureDebug", this._debugValue);
+                program.uploadUniform("u_colorDebug", this._debugColorValue);
             }
             program.uploadUniform("u_nearFarPlane", [Camera.NEAR_PLANE, Camera.FAR_PLANE]);
         };

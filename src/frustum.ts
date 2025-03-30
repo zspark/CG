@@ -48,10 +48,7 @@ export default class Frustum {
         if (near <= 0 || far <= near) log.vital("[frustum] 'far' and 'near' should bigger than 0, and 'far' must bigger than 'near'");
         this._type = ProjectionType_e.PERSPECTIVE;
         let Vfov = Hfov / aspectRatio;
-        this._projectionMatrix.reset(new Float32Array([1.0 / Math.tan(Hfov * .5), 0, 0, 0,
-            0, 1.0 / Math.tan(Vfov * .5), 0, 0,
-            0, 0, (rightHanded ? -1 : 1) * (far + near) / (far - near), -2 * far * near / (far - near),
-            0, 0, (rightHanded ? -1 : 1) * 1, 0]), 0, 16).transpose();
+        Mat44.createPerspectiveProjection(this._projectionMatrix, Hfov, aspectRatio, near, far, rightHanded);
         this._pInvMatrix.copyFrom(this._projectionMatrix).invert();
 
         const _nX = Math.tan(Hfov * .5) * near;

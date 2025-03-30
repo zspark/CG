@@ -194,7 +194,15 @@ const _identityMat44Data = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 export class Mat44 {
     static IdentityMat44 = Object.freeze(new Mat44().reset(_identityMat44Data, 0, 16));
 
-    static createRotateAroundX(theta: number, outMat: Mat44): Mat44 {
+    static createPerspectiveProjection(outMat: Mat44, Hfov: number, aspectRatio: number, near: number, far: number, rightHanded: boolean = true): void {
+        let Vfov = Hfov / aspectRatio;
+        outMat.reset(new Float32Array([1.0 / Math.tan(Hfov * .5), 0, 0, 0,
+            0, 1.0 / Math.tan(Vfov * .5), 0, 0,
+            0, 0, (rightHanded ? -1 : 1) * (far + near) / (far - near), -2 * far * near / (far - near),
+            0, 0, (rightHanded ? -1 : 1) * 1, 0]), 0, 16).transpose();
+    }
+
+    static createRotateAroundX(theta: number, outMat?: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
         outMat.data[5] = Math.cos(theta);
         outMat.data[9] = -Math.sin(theta);
@@ -202,7 +210,7 @@ export class Mat44 {
         outMat.data[10] = Math.cos(theta);
         return outMat;
     }
-    static createRotateAroundY(theta: number, outMat: Mat44): Mat44 {
+    static createRotateAroundY(theta: number, outMat?: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
         outMat.data[0] = Math.cos(theta);
         outMat.data[8] = Math.sin(theta);
@@ -210,7 +218,7 @@ export class Mat44 {
         outMat.data[10] = Math.cos(theta);
         return outMat;
     }
-    static createRotateAroundZ(theta: number, outMat: Mat44): Mat44 {
+    static createRotateAroundZ(theta: number, outMat?: Mat44): Mat44 {
         (outMat ??= new Mat44()).setIdentity();
         outMat.data[0] = Math.cos(theta);
         outMat.data[4] = -Math.sin(theta);

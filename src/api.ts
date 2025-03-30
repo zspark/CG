@@ -1,11 +1,10 @@
 export { default as log } from "./log.js";
 export { default as utils } from "./utils.js";
-export { registWebGL, createContext, Buffer, Program, Texture, SkyboxTexture, Framebuffer, Pipeline, SubPipeline } from "./device-resource.js";
+export { registWebGL, createContext, Buffer, Program, Texture, Framebuffer, Pipeline, SubPipeline } from "./device-resource.js";
 export {
     IBuffer,
     IProgram,
     ITexture,
-    ISkyboxTexture,
     IFramebuffer,
     IPipeline,
     ISubPipeline,
@@ -40,3 +39,4 @@ export { default as EventSender, Event_t, IEventDispatcher, IEventListener } fro
 export { default as glConst } from "./gl-const.js";
 export { default as Scene } from "./scene.js";
 export { default as Material } from "./material.js";
+export { default as irradianceBaker } from "./irradiance-baker.js";

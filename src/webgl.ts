@@ -8,7 +8,7 @@ import {
     IBuffer, BufferData_t,
     IRenderObject,
     IProgram,
-    ITexture, ISkyboxTexture,
+    ITexture, TextureData_t,
     IFramebuffer,
     IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
     IMaterial,
@@ -311,9 +311,11 @@ export class GLTexture implements ITexture {
     private _type: GLenum;
     private _width: number;
     private _height: number;
-    private _data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement;
+    private _data: TextureData_t | TextureData_t[];
     private _mapTextureParameter: Map<GLenum, GLenum> = new Map();
     private _UVIndex: number = 0;
+    private _target: GLenum;
+    private _genMipmap: boolean = true;
 
     /**
     * internalFormat defaults to gl.RGBA
@@ -326,10 +328,23 @@ export class GLTexture implements ITexture {
         this._internalFormat = internalFormat ?? glC.RGBA;
         this._format = format ?? glC.RGBA;
         this._type = type ?? glC.UNSIGNED_BYTE;
+        this._target = glC.TEXTURE_2D;
         this._mapTextureParameter.set(glC.TEXTURE_WRAP_S, glC.CLAMP_TO_EDGE);
         this._mapTextureParameter.set(glC.TEXTURE_WRAP_T, glC.CLAMP_TO_EDGE);
         this._mapTextureParameter.set(glC.TEXTURE_MIN_FILTER, glC.NEAREST);
         this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
+    }
+
+    set genMipmap(value: boolean) {
+        this._genMipmap = value;
+    }
+
+    set target(value: GLenum) {
+        this._target = value;
+    }
+
+    get target(): GLenum {
+        return this._target;
     }
 
     set UVIndex(index: number) {
@@ -340,7 +355,7 @@ export class GLTexture implements ITexture {
         return this._UVIndex;
     }
 
-    set data(data: Uint8Array | Uint16Array | Float32Array | HTMLImageElement) {
+    set data(data: TextureData_t | TextureData_t[]) {
         if (this._glTexture) {
             this.updateData(data);
         } else {
@@ -363,33 +378,51 @@ export class GLTexture implements ITexture {
         if (!!this._glTexture) return this;
         this._gl = gl;
         const _texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, _texture);
+        gl.bindTexture(this._target, _texture);
         this._mapTextureParameter.forEach((value, key) => {
-            gl.texParameteri(gl.TEXTURE_2D, key, value);
+            gl.texParameteri(this._target, key, value);
         });
         this._glTexture = _texture;
         _wm_texture.set(this, _texture);
 
-        //texImage2D(target, level, internalformat, width, height, border, format, type, source)
-        gl.texImage2D(gl.TEXTURE_2D, 0, this._internalFormat, this._width, this._height, 0, this._format, this._type, null);
+        if (this._target === glC.TEXTURE_CUBE_MAP) {
+            for (let i = 0; i < 6; ++i) {
+                gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, this._internalFormat, this._width, this._height, 0,
+                    this._format, this._type, null);
+            }
+        } else {
+            //texImage2D(target, level, internalformat, width, height, border, format, type, source)
+            gl.texImage2D(this._target, 0, this._internalFormat, this._width, this._height, 0,
+                this._format, this._type, null);
+        }
         this.updateData(this._data);
         this._data = undefined;
         return this;
     }
 
-    updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture {
+    updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture {
         if (!this._glTexture) return this;
         if (!data) return this;
         const gl = this._gl;
-        gl.bindTexture(gl.TEXTURE_2D, this._glTexture);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height, this._format, this._type, data);
-        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.bindTexture(this._target, this._glTexture);
+        if (this._target === glC.TEXTURE_CUBE_MAP) {
+            for (let i = 0; i < 6; ++i) {
+                gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                    0, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
+                    this._format, this._type, (data as Array<TextureData_t>)[i] as any);
+            }
+        } else {
+            gl.texSubImage2D(this._target,
+                0, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
+                this._format, this._type, data as any);
+        }
+        this._genMipmap && gl.generateMipmap(this._target);
         return this;
     }
 
     setParameter(name: number, value: number): ITexture {
         if (this._glTexture) {
-            this._gl.texParameteri(this._gl.TEXTURE_2D, name, value);
+            this._gl.texParameteri(this._target, name, value);
         } else {
             this._mapTextureParameter.set(name, value);
         }
@@ -399,7 +432,7 @@ export class GLTexture implements ITexture {
     bind(textureUnit: number): ITexture {
         const gl = this._gl;
         gl.activeTexture(gl.TEXTURE0 + textureUnit);
-        gl.bindTexture(gl.TEXTURE_2D, this._glTexture);
+        gl.bindTexture(this._target, this._glTexture);
         this._texUnit = textureUnit;
         return this;
     }
@@ -407,111 +440,6 @@ export class GLTexture implements ITexture {
     destroyGLTexture(): ITexture {
         const gl = this._gl;
         gl?.deleteTexture(this._glTexture);
-        this._glTexture = undefined;
-        return this;
-    }
-}
-
-export class GLSkyboxTexture implements ISkyboxTexture {
-
-    private _glTexture: WebGLTexture;
-    private _gl: WebGL2RenderingContext;
-    private _texUnit: GLint = -1;
-    private _genMipmap: boolean;
-    private _width: number;
-    private _height: number;
-    private _data: ArrayBuffer[];
-    private _mapTextureParameter: Map<GLenum, GLenum> = new Map();
-
-    constructor(width: number, height: number, genMipmap = true) {
-        this._width = width;
-        this._height = height;
-        this._mapTextureParameter.set(glC.TEXTURE_WRAP_S, glC.CLAMP_TO_EDGE);
-        this._mapTextureParameter.set(glC.TEXTURE_WRAP_T, glC.CLAMP_TO_EDGE);
-        this._mapTextureParameter.set(glC.TEXTURE_MIN_FILTER, glC.NEAREST);
-        this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
-        this._genMipmap = genMipmap;
-    }
-
-    set data(data: ArrayBuffer[]) {
-        if (this._glTexture) {
-            this.updateData(data);
-        } else {
-            this._data = data;
-        }
-    }
-
-    get textureUnit(): GLint {
-        return this._texUnit;
-    }
-
-    /**
-     * data[0-5]: x+,x-,y+, y-, z+,z-
-     */
-    createGPUResource(gl: WebGL2RenderingContext): ISkyboxTexture {
-        if (!!this._glTexture) return this;
-        this._gl = gl;
-        const _texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, _texture);
-        this._mapTextureParameter.forEach((value, key) => {
-            gl.texParameteri(gl.TEXTURE_CUBE_MAP, key, value);
-        });
-        this._mapTextureParameter = undefined;
-        this._glTexture = _texture;
-        _wm_texture.set(this, _texture);
-        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.RGBA, this._width, this._height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.RGBA, this._width, this._height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.RGBA, this._width, this._height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.RGBA, this._width, this._height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGBA, this._width, this._height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, this._width, this._height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        this.updateData(this._data);
-        this._genMipmap && gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-        this._data = undefined;
-        return this;
-    }
-
-    /**
-     * data[0-5]: x+,x-,y+, y-, z+,z-
-     */
-    updateData(data: any[], xoffset?: number, yoffset?: number, width?: number, height?: number): ISkyboxTexture {
-        if (!this._glTexture) return this;
-        if (!data) return this;
-        const gl = this._gl;
-        xoffset ??= 0;
-        yoffset ??= 0;
-        width ??= this._width;
-        height ??= this._height;
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._glTexture);
-        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[0]);
-        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[1]);
-        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[2]);
-        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[3]);
-        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[4]);
-        gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, xoffset, yoffset, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data[5]);
-        return this;
-    }
-
-    setParameter(name: number, value: number): ISkyboxTexture {
-        if (this._glTexture) {
-            this._gl.texParameteri(this._gl.TEXTURE_BINDING_CUBE_MAP, name, value);
-        } else {
-            this._mapTextureParameter.set(name, value);
-        }
-        return this;
-    }
-
-    bind(textureUnit: number): ISkyboxTexture {
-        const gl = this._gl;
-        gl.activeTexture(gl.TEXTURE0 + textureUnit);
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this._glTexture);
-        this._texUnit = textureUnit;
-        return this;
-    }
-
-    destroyGLTexture(): ISkyboxTexture {
-        const gl = this._gl;
-        gl.deleteTexture(this._glTexture);
         this._glTexture = undefined;
         return this;
     }
@@ -526,6 +454,7 @@ export class GLPipeline implements IPipeline {
     private _arrOneTimeSubPipeline: ISubPipeline[] = [];
     private _enableCullFace = false;
     private _culledFace: GLenum;
+    private _textureSet: Array<ITexture> = [];
 
     private _enableDepthTest = false;
     private _depthTestFunc: GLenum;
@@ -561,8 +490,20 @@ export class GLPipeline implements IPipeline {
     createGPUResource(gl: WebGL2RenderingContext): IPipeline {
         this._device = gl;
         this.FBO.createGPUResource(gl);
+        this._textureSet.forEach(t => {
+            t.createGPUResource(gl);
+        });
         this._arrSubPipeline.forEach((sp: ISubPipeline) => {
             sp.createGPUResource(gl);
+        });
+        return this;
+    }
+
+    addTexture(texture: ITexture): IPipeline {
+        if (!texture) return this;
+        this._textureSet.push(texture);
+        this._arrSubPipeline.forEach((sp: ISubPipeline) => {
+            sp.addTexture(texture);
         });
         return this;
     }
@@ -570,10 +511,11 @@ export class GLPipeline implements IPipeline {
     appendSubPipeline(subp: ISubPipeline, option?: SubPipelineOption_t): IPipeline {
         let _renderOnce = (option?.renderOnce) ? true : false;
         _renderOnce ? this._arrOneTimeSubPipeline.push(subp) : this._arrSubPipeline.push(subp);
+        this._textureSet.forEach(t => {
+            subp.addTexture(t);
+        });
         if (this._device) {
-            this._arrSubPipeline.forEach((sp: ISubPipeline) => {
-                sp.createGPUResource(this._device);
-            });
+            subp.createGPUResource(this._device);
         }
         return this;
     }
@@ -658,7 +600,7 @@ export class GLPipeline implements IPipeline {
 export class GLSubPipeline implements ISubPipeline {
 
     private _renderObject: IRenderObject;
-    private _textureSet: Array<ITexture | ISkyboxTexture> = [];
+    private _textureSet: Array<ITexture> = [];
     private _uniformUpdaterFn: UniformUpdaterFn_t;
 
     constructor() { }
@@ -686,14 +628,22 @@ export class GLSubPipeline implements ISubPipeline {
         return this;
     }
 
-    setTextures(...tex: Array<ITexture | ISkyboxTexture>): ISubPipeline {
+    setTextures(...tex: Array<ITexture>): ISubPipeline {
+        this._textureSet.length = 0;
         tex.forEach(t => {
             this._textureSet.push(t);
         });
         return this;
     }
 
-    setTexture(texture: ITexture | ISkyboxTexture): ISubPipeline {
+    setTexture(texture: ITexture): ISubPipeline {
+        if (!texture) return this;
+        this._textureSet.length = 0;
+        this._textureSet.push(texture);
+        return this;
+    }
+
+    addTexture(texture: ITexture): ISubPipeline {
         if (!texture) return this;
         this._textureSet.push(texture);
         return this;
@@ -776,6 +726,53 @@ export class GLFramebuffer implements IFramebuffer {
 
     get criticalKey(): object { return GLFramebuffer; }
 
+    readPixels(attachment: number = 0): Uint8Array {
+        const gl = this._gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
+        gl.readBuffer(gl.COLOR_ATTACHMENT0 + attachment);
+        let _pixel = new Uint8Array(this._width * this._height * 4);
+        gl.readPixels(0, 0, this._width, this._height, glC.RGBA, glC.UNSIGNED_BYTE, _pixel);
+        return _pixel;
+    }
+
+    saveTexture(attachment: number): void {
+        const width = this._width;
+        const height = this._height;
+
+        // Create an off-screen canvas to read texture into
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = width;
+        offscreenCanvas.height = height;
+
+        const offscreenContext = offscreenCanvas.getContext('2d');
+
+        // Create an ImageData object
+        const imageData = offscreenContext.createImageData(width, height);
+
+        // Read the pixels from the WebGL context into a buffer
+        const pixels = this.readPixels(attachment);
+
+        // Copy the pixel data to ImageData
+        for (let i = 0; i < width * height; i++) {
+            imageData.data[i * 4] = pixels[i * 4];     // R
+            imageData.data[i * 4 + 1] = pixels[i * 4 + 1]; // G
+            imageData.data[i * 4 + 2] = pixels[i * 4 + 2]; // B
+            imageData.data[i * 4 + 3] = pixels[i * 4 + 3]; // A
+        }
+
+        // Put the ImageData into the offscreen canvas context
+        offscreenContext.putImageData(imageData, 0, 0);
+
+        // Create an image URL from the canvas
+        const imageURL = offscreenCanvas.toDataURL('image/png');
+
+        // Create a download link for the image
+        const link = document.createElement('a');
+        link.href = imageURL;
+        link.download = 'texture.png';  // Set the filename
+        link.click();  // Trigger the download
+    }
+
     resize(width: number, height: number): void {
         this._width = width;
         this._height = height;
@@ -806,8 +803,12 @@ export class GLFramebuffer implements IFramebuffer {
                 if (!t) return;
                 t.createGPUResource(gl);
                 const _glTex = _wm_texture.get(t);
-                gl.bindTexture(target, _glTex);
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, target, _glTex, 0);
+                gl.bindTexture(t.target, _glTex);
+                if (t.target === glC.TEXTURE_CUBE_MAP) {
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, glC.TEXTURE_CUBE_MAP_POSITIVE_X + index, _glTex, 0);
+                } else {
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, t.target, _glTex, 0);
+                }
             });
 
             if (this._depthTexture) {

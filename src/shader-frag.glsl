@@ -15,9 +15,6 @@ precision highp sampler2DShadow;
 #define ONE_OVER_PI 0.3183098861837907
 #define PI_2 1.5707963267948966
 
-// uniform sampler2D u_depthTexture_r32f;
-// uniform sampler2D u_skybox_latlon;
-
 layout(std140) uniform u_ub_camera {
     mat4 u_vInvMatrix;
     mat4 u_vMatrix;
@@ -40,6 +37,8 @@ layout(std140) uniform u_ub_material {
     vec3 u_emissiveFactor;
 };
 uniform sampler2DShadow u_shadowMap;
+uniform sampler2D u_pbrLutTexture;
+uniform sampler2D u_irradianceTexture;
 uniform sampler2D u_pbrTextures[5];
 uniform int u_pbrTextureCoordIndex[5];
 
@@ -51,7 +50,12 @@ uniform int u_pbrTextureCoordIndex[5];
     #define DBG_INDEX_METALLIC 4
     #define DBG_INDEX_ROUGHNESS 5
     #define DBG_INDEX_F0 6
+
+    #define DBG_COLOR_AMBIENT 0
+    #define DBG_COLOR_DIFFUSE 1
+    #define DBG_COLOR_SPECULAR 2
 uniform int u_textureDebug;
+uniform int u_colorDebug;
 #endif
 
 in vec3 v_normal;
@@ -144,8 +148,20 @@ float _calculateShadowFactor(const in vec4 posProj) {
 #endif
 }
 
-vec3 _getAmbient(const in vec4 albedoColor) {
-    return 0.5 * albedoColor.rgb;
+vec3 _latlonColor(const in vec3 dir) {
+    float u = 0.5 + atan(dir.z, dir.x) / PI2;
+    float v = 0.5 + asin(dir.y) / PI;
+    return texture(u_irradianceTexture, vec2(u, v)).rgb;
+}
+
+vec3 _getAmbient(const in vec3 baseColor, const in vec3 r, const in vec3 F0, float roughness, float ndotv) {
+#ifdef FT_PBR
+    vec3 _light = _latlonColor(r);
+    vec2 _lut = texture(u_pbrLutTexture, vec2(roughness, ndotv)).xy;
+    return _light * ((1. - F0) * _lut.x + vec3(_lut.y));
+#else
+    return .5 * (1. - F0) * baseColor;
+#endif
 }
 
 vec3 _getDiffuse(float ndotl, const in vec3 albedoColor, const in vec3 F0, float shadowMapFactor) {
@@ -191,6 +207,8 @@ void main() {
     vec3 _lightDir = normalize(vec3(u_lInvMatrix[3][0], u_lInvMatrix[3][1], u_lInvMatrix[3][2]) - v_positionW);
     vec3 _cameraDir = normalize(vec3(u_vInvMatrix[3][0], u_vInvMatrix[3][1], u_vInvMatrix[3][2]) - v_positionW);
     vec3 _halfDir = normalize(_cameraDir + _lightDir);
+    vec3 _reflectDir = reflect(_lightDir, _normalW);
+    vec3 _cameraReflectDir = reflect(_cameraDir, _normalW);
     float _shadowMapFactor = _calculateShadowFactor(v_positionLProj);
 
     float _ndotl = max(dot(_normalW, _lightDir), 0.0);   // Normal and light direction dot product
@@ -199,7 +217,7 @@ void main() {
     float _vdoth = max(dot(_cameraDir, _halfDir), 0.0);  // View direction and halfway vector dot product
 
     vec3 _F0 = mix(vec3(0.04), _baseColor.rgb, _metallicAndRoughness.x);
-    vec3 _ambient = _getAmbient(_baseColor);
+    vec3 _ambient = _getAmbient(_baseColor.rgb, _cameraReflectDir, _F0, _metallicAndRoughness.y, _ndotv);
     vec3 _diffuse = _getDiffuse(_ndotl, _baseColor.rgb, _F0, _shadowMapFactor);
     vec3 _highlight = _getHighlight(
         _ndotl, _ndotv, _ndoth, _vdoth,
@@ -210,6 +228,14 @@ void main() {
     float _alpha = _baseColor.a;
 
 #ifdef DEBUG
+    if (u_colorDebug == DBG_COLOR_AMBIENT) {
+        _color = _ambient;
+    } else if (u_colorDebug == DBG_COLOR_DIFFUSE) {
+        _color = _diffuse;
+    } else if (u_colorDebug == DBG_COLOR_SPECULAR) {
+        _color = _highlight;
+    }
+
     if (u_textureDebug == DBG_INDEX_NORMAL) {
         vec2 _uv = v_arrayUV[u_pbrTextureCoordIndex[INDEX_NORMAL]];
         vec4 _normalTBN = texture(u_pbrTextures[INDEX_NORMAL], _uv);

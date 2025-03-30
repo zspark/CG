@@ -23,6 +23,7 @@ import { createProgram } from "./program-manager.js"
 import { geometry } from "./geometry.js";
 
 const _vert = `#version 300 es
+#define SHADER_NAME light_frustum
 precision mediump float;
 layout(std140) uniform u_ub_camera {
     mat4 u_vInvMatrix;
@@ -39,6 +40,7 @@ void main(){
 }`;
 
 const _frag = `#version 300 es
+#define SHADER_NAME light_frustum
 precision mediump float;
 out vec4 o_color;
 void main() {

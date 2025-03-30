@@ -166,7 +166,7 @@ export const geometry: {
     createCube: (length: number) => IGeometry,
     createPlane: (width: number, height: number) => IGeometry,
     createGridPlane: (length: number) => IGeometry,
-    createFrontQuad: () => IGeometry,
+    createFrontQuad: (z?: number) => IGeometry,
     createTriangle: (scale: number) => IGeometry,
 } = {
     createAxes: (length: number = 1): IGeometry => {
@@ -386,15 +386,15 @@ export const geometry: {
             })
     },
 
-    createFrontQuad: (): IGeometry => {
+    createFrontQuad: (z: number = 0): IGeometry => {
         const vertices = new Float32Array([
-            1, 1, 0,
-            -1, 1, 0,
-            -1, -1, 0,
+            1, 1, z,
+            -1, 1, z,
+            -1, -1, z,
             //
-            -1, -1, 0,
-            1, -1, 0,
-            1, 1, 0,
+            -1, -1, z,
+            1, -1, z,
+            1, 1, z,
         ]);
         const _buf = new Buffer().updateData(vertices);
         return new Geometry()

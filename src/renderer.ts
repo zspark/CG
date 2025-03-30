@@ -6,7 +6,7 @@ import {
     IGeometry,
     IBuffer, BufferData_t, StepMode_e, ShaderLocation_e,
     IProgram,
-    ITexture, ISkyboxTexture,
+    ITexture,
     IFramebuffer,
     IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
     IBindableObject,
@@ -152,12 +152,19 @@ export default class Renderer implements IRenderer {
 
     addPipeline(p: IPipeline, option?: PipelineOption_t): IRenderer {
         let _onlyOnce = (option?.renderOnce) ? true : false;
+        let _repeat = (option?.repeat) ? true : false;
+
+        const _list = _onlyOnce ? this._arrOneTimePipeline : this._arrPipeline;
+        if (_list.indexOf(p) >= 0 && !_repeat) {
+            return this;
+        }
+
         p.FBO ??= this._defaultFBO;
-        _onlyOnce ? this._arrOneTimePipeline.push(p) : this._arrPipeline.push(p);
         p.createGPUResource(this._device);
         this._arrBindingPointsToUBO.forEach(ubo => {
             p.program.setUBO(ubo);
         });
+        _list.push(p);
         this._sortPipline();
         return this;
     }

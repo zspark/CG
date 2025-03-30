@@ -1,7 +1,7 @@
 import log from "./log.js";
 import * as spec from "./gltf2_spec.js";
 import glC from "./gl-const.js";
-import { default as createLoader, ILoader } from "./assets-loader.js"
+import { default as createLoader, ILoader, TextureData_t } from "./assets-loader.js"
 import { default as Geometry } from "./geometry.js"
 import { ITexture, IGeometry, IBuffer, VertexAttribute_t, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
 import { Buffer } from "./device-resource.js"
@@ -35,7 +35,7 @@ export default class GLTFParser implements IGLTFParser {
     private _output: GLTFParserOutput_t;
     private _baseURL: string;
     private _loader: ILoader;
-    private _arrImage: (HTMLImageElement | Uint8Array)[] = [];
+    private _arrImage: TextureData_t[] = [];
     private _arrTexture: ITexture[] = [];
 
     constructor(deleteAfterParse: boolean = true) {
@@ -93,7 +93,10 @@ export default class GLTFParser implements IGLTFParser {
         for (let i = 0, N = _gltf.images.length; i < N; ++i) {
             let _img = _gltf.images[i];
             let _bv = _gltf.bufferViews[_img.bufferView];
-            this._arrImage[i] = new Uint8Array(binaryChunk, _bv.byteOffset ?? 0, _bv.byteLength);
+
+            let data = new Uint8Array(binaryChunk, _bv.byteOffset ?? 0, _bv.byteLength);
+            let _size = Math.sqrt(_bv.byteLength / 4);
+            this._arrImage[i] = { data, width: _size, height: _size };
         }
         this._parse(_gltf);
     }
@@ -166,15 +169,9 @@ export default class GLTFParser implements IGLTFParser {
     private _parseTextures(texs: spec.GLTFTexture_t[]): void {
         for (let i = 0, N = texs.length; i < N; ++i) {
             const tex: spec.GLTFTexture_t = texs[i];
-            const _img: HTMLImageElement | Uint8Array = this._arrImage[tex.source];
-            let _out;
-            if (_img instanceof HTMLImageElement) {
-                _out = new Texture(_img.width, _img.height);
-            } else {
-                let size = Math.sqrt(_img.length / 4);
-                _out = new Texture(size, size);
-            }
-            _out.data = _img;
+            const _img: TextureData_t = this._arrImage[tex.source];
+            let _out = new Texture(_img.width, _img.height);
+            _out.data = _img.data;
             const _sampler: spec.GLTFSampler_t = this._ref_gltf.samplers[tex.sampler];
             _out.setParameter(glC.TEXTURE_WRAP_S, _sampler.wrapS);
             _out.setParameter(glC.TEXTURE_WRAP_T, _sampler.wrapT);

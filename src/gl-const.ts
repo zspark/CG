@@ -32,9 +32,19 @@ type _glConst = {
     CULL_FACE: GLenum,
     CULL_FACE_MODE: GLenum,
 
+    RGB: GLenum,
     RGBA: GLenum,
+    RGB32F: GLenum,
+    RGBA32F: GLenum,
+    RGB9_E5: GLenum,
     SRGB8_ALPHA8: GLenum,
 
+    COLOR_ATTACHMENT0: GLenum,
+
+    TEXTURE_2D: GLenum,
+    TEXTURE_3D: GLenum,
+    TEXTURE_CUBE_MAP: GLenum,
+    TEXTURE_CUBE_MAP_POSITIVE_X: GLenum,
     TEXTURE_WRAP_R: GLenum,
     TEXTURE_WRAP_S: GLenum,
     TEXTURE_WRAP_T: GLenum,
@@ -84,6 +94,10 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.STATIC_DRAW = gl.STATIC_DRAW;
     glConst.DYNAMIC_DRAW = gl.DYNAMIC_DRAW;
     glConst.RGBA = gl.RGBA;
+    glConst.RGB = gl.RGB;
+    glConst.RGB9_E5 = gl.RGB9_E5;
+    glConst.RGB32F = gl.RGB32F;
+    glConst.RGBA32F = gl.RGBA32F;
     glConst.SRGB8_ALPHA8 = gl.SRGB8_ALPHA8;
     glConst.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
     glConst.UNSIGNED_INT = gl.UNSIGNED_INT;
@@ -111,6 +125,12 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.INT = gl.INT;
 
     glConst.NONE = gl.NONE;
+    glConst.TEXTURE_2D = gl.TEXTURE_2D;
+    glConst.TEXTURE_3D = gl.TEXTURE_3D;
+    glConst.TEXTURE_CUBE_MAP = gl.TEXTURE_CUBE_MAP;
+    glConst.TEXTURE_CUBE_MAP_POSITIVE_X = gl.TEXTURE_CUBE_MAP_POSITIVE_X;
+
+    glConst.COLOR_ATTACHMENT0 = gl.COLOR_ATTACHMENT0;
 }
 
 export default glConst;
