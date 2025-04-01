@@ -12,6 +12,7 @@ export default class Application {
         CG.registWebGL();
         CG.programManagerHint(true, true);
         const _scene = this._scene = new CG.Scene(canvas);
+        //_scene.setSkybox("./assets/environment/quarry_01_1k.hdr");
         _scene.setSkybox("./assets/skybox/latlon2.jpg");
         //_scene.setSkybox("./assets/uv-grid.webp");
 
@@ -31,10 +32,10 @@ export default class Application {
 
         const _url =
             //"./assets/gltf/MetalRoughSpheres.glb"
-            //"./assets/gltf/skull/scene.gltf"
+            "./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
             //"./assets/gltf/cup_with_holder/scene.gltf"
-            "./assets/gltf/sphere/scene.gltf"
+            //"./assets/gltf/sphere/scene.gltf"
         //"./assets/gltf/stanford_dragon_vrip/scene.gltf"
         //"./assets/gltf/metal_dragon/scene.gltf"
         //"./assets/gltf/vintage_metal_ashtray/scene.gltf"
@@ -47,7 +48,7 @@ export default class Application {
         new CG.GLTFParser().load(_url).then((data: CG.GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
                 let _mesh = data.CGMeshs[i];
-                this._ctrl.setSpace(_mesh).scale(0.1, 0.1, 0.1).moveForward(i == 0 ? -4 : 4);
+                //this._ctrl.setSpace(_mesh).scale(0.1, 0.1, 0.1).moveForward(i == 0 ? -4 : 4);
                 _mesh.enablePick = true;
                 this._scene.addMesh(_mesh);
             }
@@ -83,12 +84,10 @@ export default class Application {
                     input.accept = '.gltf, .glb'; // You can specify file types here (e.g., txt, json)
                     input.multiple = true;
                     input.onchange = (event: Event) => {
-                        debugger;
                         const file = (event.target as HTMLInputElement).files[0];
                         if (file) {
                             const reader = new FileReader();
                             reader.onload = function (e: ProgressEvent) {
-                                debugger;
                                 console.log('File content:', (e.target as FileReader).result);
                                 // Do something with the file content
                             };
@@ -137,7 +136,7 @@ export default class Application {
             _debugFolder.add(_obj.debug, "showOutline").onChange((v: boolean) => {
                 this._scene.showOutline = v;
             });
-            _debugFolder.add(_obj.debug, "debugColor", ["none", "ambient", "diffuse", "specular"]).onChange((v: string) => {
+            _debugFolder.add(_obj.debug, "debugColor", ["none", "ambient", "specular"]).onChange((v: string) => {
                 switch (v) {
                     case "none":
                         this._scene.setDebugColorValue(-1);
@@ -145,11 +144,8 @@ export default class Application {
                     case "ambient":
                         this._scene.setDebugColorValue(0);
                         break;
-                    case "diffuse":
-                        this._scene.setDebugColorValue(1);
-                        break;
                     case "specular":
-                        this._scene.setDebugColorValue(2);
+                        this._scene.setDebugColorValue(1);
                         break;
                 }
             });

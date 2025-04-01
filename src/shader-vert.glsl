@@ -1,8 +1,7 @@
 #version 300 es
 precision mediump float;
-
+#define SHADER_NAME pbr
 //%%
-
 layout(std140) uniform u_ub_camera {
     mat4 u_vInvMatrix;
     mat4 u_vMatrix;

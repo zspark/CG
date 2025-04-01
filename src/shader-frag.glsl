@@ -1,7 +1,7 @@
 #version 300 es
 precision mediump float;
 precision highp sampler2DShadow;
-
+#define SHADER_NAME pbr
 //%%
 
 #define INDEX_NORMAL 0
@@ -37,7 +37,7 @@ layout(std140) uniform u_ub_material {
     vec3 u_emissiveFactor;
 };
 uniform sampler2DShadow u_shadowMap;
-uniform sampler2D u_pbrLutTexture;
+uniform sampler2D u_brdfLutTexture;
 uniform sampler2D u_irradianceTexture;
 uniform sampler2D u_pbrTextures[5];
 uniform int u_pbrTextureCoordIndex[5];
@@ -52,8 +52,7 @@ uniform int u_pbrTextureCoordIndex[5];
     #define DBG_INDEX_F0 6
 
     #define DBG_COLOR_AMBIENT 0
-    #define DBG_COLOR_DIFFUSE 1
-    #define DBG_COLOR_SPECULAR 2
+    #define DBG_COLOR_SPECULAR 1
 uniform int u_textureDebug;
 uniform int u_colorDebug;
 #endif
@@ -68,13 +67,19 @@ in vec2 v_arrayUV[5];
 
 out vec4 o_fragColor;
 
-vec3 _fresnel(float ndotv, in vec3 F0) {
-    return F0 + (1.0 - F0) * pow(1.0 - ndotv, 5.0);
+vec3 _fresnel(float ndotv, const in vec3 F0, float roughness) {
+    // return F0 + (1.0 - F0) * pow(1.0 - ndotv, 5.0);
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - ndotv, 5.0);
 }
 
 float _geometry(float ndotv, float roughness) {
     float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+    // float k = (roughness) * (roughness) / 2.0;
     return ndotv / (ndotv * (1.0 - k) + k);
+}
+
+float G_Smith(float roughness, float ndotv, float ndotl) {
+    return _geometry(ndotv, roughness) * _geometry(ndotl, roughness);
 }
 
 float _normalDistribution(float ndoth, float roughness) {
@@ -132,7 +137,7 @@ float _calculateShadowFactor(const in vec4 posProj) {
     _pos.z -= 0.005;
 
     float shadow = 0.0;
-    float samples = 3.0;
+    float samples = 9.0;
     float offset = 0.002;  // Small offset for sampling nearby texels
 
     for (float x = -1.0; x <= 1.0; x += 1.0) {
@@ -142,51 +147,53 @@ float _calculateShadowFactor(const in vec4 posProj) {
         }
     }
 
-    return shadow / (samples * samples);
+    return shadow / samples;
 #else
     return 1.;
 #endif
 }
 
+const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
 vec3 _latlonColor(const in vec3 dir) {
-    float u = 0.5 + atan(dir.z, dir.x) / PI2;
-    float v = 0.5 + asin(dir.y) / PI;
-    return texture(u_irradianceTexture, vec2(u, v)).rgb;
+    vec2 uv = vec2(atan(dir.z, dir.x), asin(dir.y));
+    uv *= invAtan;
+    uv.x += .5;
+    uv.y = .5 - uv.y;
+    return texture(u_irradianceTexture, uv).rgb;
 }
 
-vec3 _getAmbient(const in vec3 baseColor, const in vec3 r, const in vec3 F0, float roughness, float ndotv) {
+vec3 _getAmbient(const in vec4 baseColor, const in vec3 r, const in vec3 F, float roughness, float ndotv) {
 #ifdef FT_PBR
-    vec3 _light = _latlonColor(r);
-    vec2 _lut = texture(u_pbrLutTexture, vec2(roughness, ndotv)).xy;
-    return _light * ((1. - F0) * _lut.x + vec3(_lut.y));
+    vec3 _prefilteredColor = _latlonColor(r);
+    vec2 _lut = texture(u_brdfLutTexture, vec2(ndotv, roughness)).xy;
+    return (1. - F) * baseColor.rgb * ONE_OVER_PI + _prefilteredColor * (F * _lut.x + _lut.y);
 #else
-    return .5 * (1. - F0) * baseColor;
+    return .5 * F * baseColor;
 #endif
 }
 
-vec3 _getDiffuse(float ndotl, const in vec3 albedoColor, const in vec3 F0, float shadowMapFactor) {
+vec3 _getDiffuse(float ndotl, const in vec3 albedoColor, const in vec3 F, float shadowMapFactor) {
 #ifdef FT_PBR
     if (ndotl <= 0.0) {
         return vec3(.0);
     } else {
-        return ndotl * ONE_OVER_PI * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F0);
+        return ndotl * ONE_OVER_PI * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F);
     }
 #else
     if (ndotl <= 0.0) {
         return vec3(.0);
     } else {
-        return ndotl * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F0);
+        return ndotl * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F);
     }
 #endif
 }
 
-vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float roughness, const in vec3 F0, float shadowMapFactor) {
+vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float roughness, const in vec3 F, float shadowMapFactor) {
 #ifdef FT_PBR
-    vec3 F = _fresnel(ndotv, F0);
     // return vec3(F);
     float D = _normalDistribution(ndoth, roughness);
     // return vec3(D);
-    float G = _geometry(ndotv, roughness) * _geometry(ndotl, roughness);
+    float G = G_Smith(roughness, ndotv, ndotl);
     // return vec3(G);
     vec3 specular = (D * F * G) / max(4.0 * ndotv * ndotl, 0.001);
     return max(specular, .0001) * u_lightColor.rgb * u_lightColor.w * shadowMapFactor;
@@ -207,8 +214,8 @@ void main() {
     vec3 _lightDir = normalize(vec3(u_lInvMatrix[3][0], u_lInvMatrix[3][1], u_lInvMatrix[3][2]) - v_positionW);
     vec3 _cameraDir = normalize(vec3(u_vInvMatrix[3][0], u_vInvMatrix[3][1], u_vInvMatrix[3][2]) - v_positionW);
     vec3 _halfDir = normalize(_cameraDir + _lightDir);
-    vec3 _reflectDir = reflect(_lightDir, _normalW);
-    vec3 _cameraReflectDir = reflect(_cameraDir, _normalW);
+    vec3 _reflectDir = reflect(-_lightDir, _normalW);
+    vec3 _cameraReflectDir = reflect(-_cameraDir, _normalW);
     float _shadowMapFactor = _calculateShadowFactor(v_positionLProj);
 
     float _ndotl = max(dot(_normalW, _lightDir), 0.0);   // Normal and light direction dot product
@@ -217,23 +224,22 @@ void main() {
     float _vdoth = max(dot(_cameraDir, _halfDir), 0.0);  // View direction and halfway vector dot product
 
     vec3 _F0 = mix(vec3(0.04), _baseColor.rgb, _metallicAndRoughness.x);
-    vec3 _ambient = _getAmbient(_baseColor.rgb, _cameraReflectDir, _F0, _metallicAndRoughness.y, _ndotv);
-    vec3 _diffuse = _getDiffuse(_ndotl, _baseColor.rgb, _F0, _shadowMapFactor);
-    vec3 _highlight = _getHighlight(
+    vec3 _F = _fresnel(_vdoth, _F0, _metallicAndRoughness.y);
+    vec3 _ambient = _getAmbient(_baseColor, _cameraReflectDir, _F, _metallicAndRoughness.y, _ndotv);
+    vec3 _directDiffuse = _getDiffuse(_ndotl, _baseColor.rgb, _F, _shadowMapFactor);
+    vec3 _directSpecular = _getHighlight(
         _ndotl, _ndotv, _ndoth, _vdoth,
         _metallicAndRoughness.y,
-        _F0,
+        _F,
         _shadowMapFactor);
-    vec3 _color = _ambient + _diffuse + _highlight;
+    vec3 _color = _ambient + _directDiffuse + _directSpecular;
     float _alpha = _baseColor.a;
 
 #ifdef DEBUG
     if (u_colorDebug == DBG_COLOR_AMBIENT) {
         _color = _ambient;
-    } else if (u_colorDebug == DBG_COLOR_DIFFUSE) {
-        _color = _diffuse;
     } else if (u_colorDebug == DBG_COLOR_SPECULAR) {
-        _color = _highlight;
+        _color = _directDiffuse + _directSpecular;
     }
 
     if (u_textureDebug == DBG_INDEX_NORMAL) {

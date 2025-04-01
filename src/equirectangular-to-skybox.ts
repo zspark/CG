@@ -60,8 +60,6 @@ vec2 directionToUV(const in vec3 dir){
     vec2 uv = vec2(atan(dir.z, dir.x), asin(dir.y));
     uv *= invAtan;
     uv += .5;
-    //uv.x += .5;
-    //uv.y = .5 - uv.y;
     return uv;
 }
 

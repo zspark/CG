@@ -48,17 +48,10 @@ export default class Scene {
     private _deltaTimeInMS: number = 0;
     private _canvas: HTMLCanvasElement;
     private _pbrPipeline: IPipeline;
-    private _lutTexture: ITexture;
 
     constructor(canvas: HTMLCanvasElement) {
         this._canvas = canvas;
         this._renderer = new Renderer({ canvas });
-        this._loader.loadTexture("./assets/lut/brdf-lut.png").then(img => {
-            this._lutTexture = new Texture(img.width, img.height);
-            this._lutTexture.data = img.data;
-            this._lutTexture.createGPUResource(this._renderer.gl);
-            this._pbrPipeline.addTexture(this._lutTexture)
-        });
         const _evts = this._mouseEvents = registMouseEvents(canvas);
         this._ctrl = new SpaceController();
         this._camera = new Camera(2.64, 4.0, 4.37).setMouseEvents(_evts).lookAt(Vec4.VEC4_0001);
@@ -80,6 +73,7 @@ export default class Scene {
         this._pbrPipeline = new Pipeline(0)
             .addTexture(this._shadowMap.depthTexture)
             .addTexture(this._baker.irradianceTexture)
+            .addTexture(this._baker.lutTexture)
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
@@ -222,7 +216,7 @@ export default class Scene {
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
             program.uploadUniform("u_mMatrix_dir", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
-            this._lutTexture && program.uploadUniform("u_pbrLutTexture", this._lutTexture.textureUnit);
+            program.uploadUniform("u_brdfLutTexture", this._baker.lutTexture.textureUnit);
             program.uploadUniform("u_irradianceTexture", this._baker.irradianceTexture.textureUnit);
             if (material) {
                 program.uploadUniform("u_pbrTextures[0]", [

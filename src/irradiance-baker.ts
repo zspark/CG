@@ -16,11 +16,10 @@ import {
     ISubPipeline,
     ITexture,
 } from "./types-interfaces.js";
-import { Loader, TextureData_t } from "./assets-loader.js";
 
 const _vert = `#version 300 es
-#define SHADER_NAME irradianceBaker
 precision mediump float;
+#define SHADER_NAME irradianceBaker
 //%%
 layout(location = 0) in vec3 a_position;
 
@@ -29,8 +28,8 @@ void main(){
 }`;
 
 const _frag = `#version 300 es
-#define SHADER_NAME irradianceBaker
 precision highp float;
+#define SHADER_NAME irradianceBaker
 //%%
 #define PI2 6.283185307179586
 #define PI 3.14159265359
@@ -109,7 +108,44 @@ vec3 PrefilterEnvMap( float Roughness, const in vec3 R ) {
     return PrefilteredColor / TotalWeight;
 }
 
-out vec4 o_fragColor;
+float _geometry(float ndotv, float roughness) {
+    float k = roughness * roughness / 2.0;
+    return ndotv / (ndotv * (1.0 - k) + k);
+}
+
+float G_Smith( float roughness, float ndotv, float ndotl){
+    return _geometry(ndotv, roughness) * _geometry(ndotl, roughness);
+}
+
+const vec3 _normal = vec3(.0, .0, 1.);
+vec2 IntegrateBRDF(float NoV,  float Roughness){
+    vec3 V;
+    V.x = sqrt( 1.0f - NoV * NoV ); // sin
+    V.y = 0.;
+    V.z = NoV; // cos
+    float A = 0.;
+    float B = 0.;
+    const uint NumSamples = uint(1024);
+    for( uint i = uint(0); i < NumSamples; i++ ) {
+        vec2 Xi = Hammersley( i, NumSamples );
+        vec3 H = ImportanceSampleGGX( Xi, Roughness, _normal);
+        vec3 L = reflect(-V, H);
+        float NoL = clamp( L.z, .0, 1. );
+        float NoH = clamp( H.z, .0, 1. );
+        float VoH = clamp( dot( V, H ), .0, 1. );
+        if( NoL > 0. ) {
+            float G = G_Smith( Roughness, NoV, NoL );
+            float G_Vis = G * VoH / (NoH * NoV);
+            float Fc = pow( 1. - VoH, 5. );
+            A += (1. - Fc) * G_Vis;
+            B += Fc * G_Vis;
+        }
+    }
+    return vec2( A, B ) / float(NumSamples);
+}
+
+layout(location=0) out vec4 o_fragColor;
+layout(location=1) out vec2 o_brdflut;// R16G16
 
 void main() {
     vec2 a =  gl_FragCoord.xy / u_FBOSize.xy;
@@ -118,6 +154,8 @@ void main() {
     vec3 _dir = vec3(sin(_theta) * cos(_phi), cos(_theta), -sin(_theta) * sin(_phi));
     _dir = normalize(_dir);
     o_fragColor = vec4(PrefilterEnvMap(u_FBOSize.z, _dir), 1.0);
+
+    o_brdflut = IntegrateBRDF(a.x, a.y);
 }`;
 
 shaderAssembler.registShaderSource("irradianceBaker", _vert, _frag);
@@ -130,6 +168,7 @@ export enum SourceType_e {
 export default class IrradianceBaker {
 
     private _irradianceTexture: ITexture;
+    private _lutTexture: ITexture;
     private _quad;
     private _pipeline: IPipeline;
     private _subPipe: ISubPipeline;
@@ -139,15 +178,19 @@ export default class IrradianceBaker {
     constructor(width: number, height: number) {
         this._param[0] = width;
         this._param[1] = height;
-        this._param[2] = .3;
+        this._param[2] = .2;
         this._param[3] = 1.0;
         this._backFBO = new Framebuffer(width, height);
         this._irradianceTexture = new Texture(width, height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
         this._backFBO.attachColorTexture(this._irradianceTexture, 0);
+        //this._lutTexture = new Texture(width, height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
+        this._lutTexture = new Texture(width, height, glC.RG16F, glC.RG, glC.FLOAT);
+        this._backFBO.attachColorTexture(this._lutTexture, 1);
 
         this._quad = geometry.createFrontQuad();
 
         this._pipeline = new Pipeline(10000000)
+            .drawBuffers(glC.COLOR_ATTACHMENT0, glC.COLOR_ATTACHMENT0 + 1)
             .setFBO(this._backFBO)
             .cullFace(false, glC.BACK)
             .depthTest(false, glC.LESS)
@@ -175,6 +218,10 @@ export default class IrradianceBaker {
 
     get irradianceTexture(): ITexture {
         return this._irradianceTexture;
+    }
+
+    get lutTexture(): ITexture {
+        return this._lutTexture;
     }
 
     get pixels(): Uint8Array {
