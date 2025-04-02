@@ -33,7 +33,7 @@ layout(location = 0) in vec3 a_position;
 out vec3 v_uvSkybox;
 void main(){
     v_uvSkybox = a_position;
-    vec3 a = inverse(mat3(u_vInvMatrix)) * a_position;
+    vec3 a = mat3(u_vMatrix) * a_position;
     gl_Position = u_pMatrix * vec4(a, 1.0);
 }`
     ,

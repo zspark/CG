@@ -44,9 +44,15 @@ uniform vec4 u_FBOSize;//xy:size, z:roughness
 
 const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
 vec2 directionToUV(const in vec3 dir){
-    vec2 uv = vec2(atan(dir.z, dir.x), asin(dir.y));
+    // atan(y,x): (-PI  , PI  );
+    // atan(y/x): (-PI/2, PI/2);
+    // acos(v)  : (0    , 2PI );
+    vec2 uv = vec2(atan(dir.z, dir.x), acos(dir.y));
     uv *= invAtan;
-    uv += .5;
+    if( uv.x < 0. ){
+        uv.x = 1. + uv.x;
+    }
+    uv.y = 1.0 - uv.y;
     return uv;
 }
 
@@ -148,8 +154,8 @@ layout(location=1) out vec4 o_irradiance;
 void main() {
     vec2 a =  gl_FragCoord.xy / u_FBOSize.xy;
     float _phi = a.x * PI2;
-    float _theta = a.y * PI;
-    vec3 _dir = vec3(sin(_theta) * cos(_phi), cos(_theta), -sin(_theta) * sin(_phi));
+    float _theta = (1. - a.y) * PI;
+    vec3 _dir = vec3(sin(_theta) * cos(_phi), cos(_theta), sin(_theta) * sin(_phi));
     _dir = normalize(_dir);
 
     o_environment = vec4(PrefilterEnvMap(u_FBOSize.z, _dir), 1.0);
@@ -172,6 +178,7 @@ export default class TextureBaker {
     private _subPipe: ISubPipeline;
     private _backFBO: IFramebuffer;
     private _param: number[] = [];
+    private _ref_texture: ITexture;
 
     constructor(env: Environment) {
         const { width, height } = env;
@@ -197,6 +204,7 @@ export default class TextureBaker {
 
     setTexture(texture: ITexture, type: SourceType_e) {
         if (!texture) return;
+        this._ref_texture = texture;
         const _that = this;
         this._subPipe && this._pipeline.removeSubPipeline(this._subPipe);
 

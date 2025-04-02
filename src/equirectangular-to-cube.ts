@@ -57,14 +57,21 @@ uniform sampler2D u_equirectangularMap;
 
 const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
 vec2 directionToUV(const in vec3 dir){
-    vec2 _uv = vec2(atan(dir.z, dir.x), asin(dir.y));
-    _uv *= invAtan;
-    _uv += .5;
-    return _uv;
+    // atan(y,x): (-PI  , PI  );
+    // atan(y/x): (-PI/2, PI/2);
+    // acos(v)  : (0    , 2PI );
+    vec2 uv = vec2(atan(dir.z, dir.x), acos(dir.y));
+    uv *= invAtan;
+    if( uv.x < 0. ){
+        uv.x = 1. + uv.x;
+    }
+    uv.x = 1.0 - uv.x;
+    uv.y = 1.0 - uv.y;
+    return uv;
 }
 
 void main() {
-    vec3 _dir=normalize(v_worldPos.xyz);
+    vec3 _dir = normalize(v_worldPos.xyz);
     vec2 _uv = directionToUV(_dir);
     vec4 _color = texture(u_equirectangularMap, _uv);
     if(v_instanceID==0){
@@ -99,21 +106,19 @@ export default class EquirectangularToCube {
         this._plane = geometry.createFrontQuad(-1).setDrawArraysInstancedParameters(glC.TRIANGLES, 0, 6, 6);
 
         const _instanceMatricesHandler = new Mat44(this._instanceMatrices, 16 * 0);
-        Mat44.createRotateAroundY(Math.PI / 2, _instanceMatricesHandler);
-        _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 1);
         Mat44.createRotateAroundY(-Math.PI / 2, _instanceMatricesHandler);
+        _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 1);
+        Mat44.createRotateAroundY(Math.PI / 2, _instanceMatricesHandler);
 
         _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 2);
-        Mat44.createRotateAroundX(Math.PI / 2, _instanceMatricesHandler);
-        _instanceMatricesHandler.multiply(Mat44.createRotateAroundY(Math.PI), _instanceMatricesHandler);
-        _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 3);
         Mat44.createRotateAroundX(-Math.PI / 2, _instanceMatricesHandler);
-        _instanceMatricesHandler.multiply(Mat44.createRotateAroundY(Math.PI), _instanceMatricesHandler);
+        _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 3);
+        Mat44.createRotateAroundX(Math.PI / 2, _instanceMatricesHandler);
 
         _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 4);
-        Mat44.createRotateAroundY(Math.PI, _instanceMatricesHandler);
+        _instanceMatricesHandler.copyFrom(Mat44.IdentityMat44);// z-positive, here we use indentical matrix;
         _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 5);
-        _instanceMatricesHandler.copyFrom(Mat44.IdentityMat44);
+        Mat44.createRotateAroundY(-Math.PI, _instanceMatricesHandler);
 
         const _backFBO = this._backFBO = new Framebuffer(targetTexture.width, targetTexture.height);
         for (let i = 0; i < 6; ++i) {

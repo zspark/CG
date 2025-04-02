@@ -64,6 +64,7 @@ type _glConst = {
     TEXTURE_COMPARE_FUNC: GLenum,
     LEQUAL: GLenum,
     CLAMP_TO_EDGE: GLenum,
+    REPEAT: GLenum;
     NEAREST: GLenum,
     LINEAR: GLenum,
 
@@ -124,6 +125,7 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.TEXTURE_MIN_FILTER = gl.TEXTURE_MIN_FILTER;
     glConst.TEXTURE_MAG_FILTER = gl.TEXTURE_MAG_FILTER;
     glConst.CLAMP_TO_EDGE = gl.CLAMP_TO_EDGE;
+    glConst.REPEAT = gl.REPEAT;
     glConst.NEAREST = gl.NEAREST;
     glConst.LINEAR = gl.LINEAR;
     glConst.TEXTURE_COMPARE_MODE = gl.TEXTURE_COMPARE_MODE;

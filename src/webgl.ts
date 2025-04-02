@@ -15,22 +15,6 @@ import {
     PBRTextureIndex_e,
 } from "./types-interfaces.js";
 
-function _flipImageData(imageData: Uint8Array, width: number, height: number): void {
-    let w = width, h = height;
-    let halfHeight = Math.floor(h / 2);
-    let temp = new Uint8ClampedArray(w * 4);
-
-    for (let y = 0; y < halfHeight; y++) {
-        let topIdx = y * w * 4;
-        let bottomIdx = (h - y - 1) * w * 4;
-
-        temp.set(imageData.slice(topIdx, topIdx + w * 4));
-        imageData.set(imageData.slice(bottomIdx, bottomIdx + w * 4), topIdx);
-        imageData.set(temp, bottomIdx);
-    }
-}
-
-
 const _wm_buffer = new WeakMap();
 
 export class GLUniformBlock {
@@ -414,8 +398,6 @@ export class GLTexture implements ITexture {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.deleteFramebuffer(framebuffer);
 
-        _flipImageData(pixels, this._width, this._height);
-
         let canvas = document.createElement("canvas");
         canvas.width = this._width;
         canvas.height = this._height;
@@ -424,6 +406,7 @@ export class GLTexture implements ITexture {
         let imageData = ctx.createImageData(this._width, this._height);
         imageData.data.set(pixels);
         ctx.putImageData(imageData, 0, 0);
+        ctx.scale(1, -1);
 
         let link = document.createElement("a");
         link.download = "texture.png";
@@ -800,7 +783,22 @@ export class GLFramebuffer implements IFramebuffer {
     }
 
     saveTexture(attachment: number): void {
-        this._arrTexture[attachment]?.saveTexture();
+        let pixels = this.readPixels(attachment);
+
+        let canvas = document.createElement("canvas");
+        canvas.width = this._width;
+        canvas.height = this._height;
+        let ctx = canvas.getContext("2d");
+
+        let imageData = ctx.createImageData(this._width, this._height);
+        imageData.data.set(pixels);
+        ctx.putImageData(imageData, 0, 0);
+        ctx.scale(1, -1);
+
+        let link = document.createElement("a");
+        link.download = "texture.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
     }
 
     resize(width: number, height: number): void {
