@@ -11,7 +11,7 @@ import { default as Axes, AxesMode_e } from "./axes.js";
 import { default as Picker, Pickable_t, PickResult_t } from "./picker.js";
 import { Event_t } from "./event.js";
 import { default as registMouseEvents, MouseEvents_t } from "./mouse-events.js";
-import createLoader from "./assets-loader.js";
+import { default as createLoader, TextureData_t } from "./assets-loader.js";
 import SpaceController from "./space-controller.js";
 import { GLTFParserOutput_t, default as GLTFParser } from "./gltf-parser.js";
 import { ILight, default as light } from "./light-source.js";
@@ -21,8 +21,10 @@ import Skybox from "./skybox.js";
 import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 import * as windowEvents from "./window-events.js"
-import { default as IrradianceBaker, SourceType_e } from "./irradiance-baker.js"
-import EquirectangularToSkybox from "./equirectangular-to-skybox.js";
+import { default as TextureBaker, SourceType_e } from "./texture-baker.js"
+import EquirectangularToCube from "./equirectangular-to-cube.js";
+import Environment from "./environment.js";
+import BRDFLutGenerator from "./brdf-lut-generator.js";
 
 export default class Scene {
 
@@ -40,7 +42,8 @@ export default class Scene {
     private _picker: Picker;
     private _ctrl: SpaceController;
     private _mouseEvents: MouseEvents_t;
-    private _baker: IrradianceBaker;
+    private _baker: TextureBaker;
+    private _env: Environment;
     private _outline: Outline;
     private _renderer: Renderer;
     private _skybox: Skybox;
@@ -58,7 +61,7 @@ export default class Scene {
         this._renderer.registerUBO(this._camera.UBO);
         this._light = new light.PointLight(4, 4, 4);
         this._light.setDirection(-1, -1, -1);
-        this._light.intensity = 3.;
+        this._light.intensity = 0.;
         this._renderer.addPipeline(this._light.createDebugPipeline());
         this._renderer.registerUBO(this._light.UBO);
         this._renderer.registerUBO(getMaterialUBO());
@@ -67,19 +70,21 @@ export default class Scene {
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
-        this._baker = new IrradianceBaker(512, 256);
+        this._env = new Environment();
 
 
         this._pbrPipeline = new Pipeline(0)
-            .addTexture(this._shadowMap.depthTexture)
-            .addTexture(this._baker.irradianceTexture)
-            .addTexture(this._baker.lutTexture)
             .cullFace(true, glC.BACK)
+            .addTexture(this._shadowMap.depthTexture)
+            .addTexture(this._env.irradianceTextureCube)
+            .addTexture(this._env.brdfLutTexture)
+            .addTexture(this._env.prefilteredTextureCube)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .setProgram(getProgram("pbr", {
                 ft_pbr: true,
                 ft_shadow: true,
+                cube: true,
                 debug: true,
                 //gamma_correct: true,
             }));
@@ -87,7 +92,7 @@ export default class Scene {
         this._renderer.addPipeline(this._gridFloor.pipeline);
         this._renderer.addPipeline(this._axis.pipeline);
         this._renderer.addPipeline(this._shadowMap.pipeline);
-        this.showOutline = true;
+        this.showOutline = false;
 
         this._picker.addListener({
             notify: (event: Event_t): boolean => {
@@ -131,20 +136,33 @@ export default class Scene {
     get camera() { return this._camera.API; }
 
     setSkybox(url: string, width: number = 512, height: number = 512) {
+        const _hdr: boolean = url.indexOf(".hdr") >= 0;
         const _that = this;
-        const _v = new EquirectangularToSkybox(url, width, height);
-        _v.addListener({
-            notify: (e: Event_t): boolean => {
-                _that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
-                _that._skybox ??= new Skybox();
-                _that._skybox.texture = _v.skyboxTexture;
-                _that._renderer.addPipeline(_that._skybox.pipeline, { repeat: false });
 
-                _that._baker.setTexture(_v.skyboxTexture, SourceType_e.CUBE);
-                _that._renderer.addPipeline(_that._baker.pipeline, { renderOnce: true });
-                return true;
+        this._loader.loadTexture(url).then((img: TextureData_t) => {
+            const _texture = new Texture(img.width, img.height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
+            _texture.data = img.data;
+
+            {
+                const _baker = new TextureBaker(this._env);
+                _baker.setTexture(_texture, _hdr ? SourceType_e.EQUIRECTANGULAR_HDR : SourceType_e.EQUIRECTANGULAR);
+                _that._renderer.addPipeline(_baker.pipeline, { renderOnce: true });
+
+                const _env = _that._env;
+                const _v = new EquirectangularToCube(_env.prefilteredTexture, _env.prefilteredTextureCube);
+                _that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
+                const _v2 = new EquirectangularToCube(_env.irradianceTexture, _env.irradianceTextureCube);
+                _that._renderer.addPipeline(_v2.pipeline, { renderOnce: true });
             }
-        }, EquirectangularToSkybox.FILE_LOADED);
+
+            {
+                _that._skybox ??= new Skybox(_hdr);
+                const _v = new EquirectangularToCube(_texture, _that._skybox.cubeTexture);
+                _that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
+                _that._renderer.addPipeline(_that._skybox.pipeline, { repeat: false });
+            }
+
+        });
     }
 
     setAxesMode(mode: AxesMode_e): void {
@@ -156,6 +174,9 @@ export default class Scene {
     }
     setDebugColorValue(value: number): void {
         this._debugColorValue = value;
+    }
+    generateBRDFLut(): void {
+        this._renderer.addPipeline(new BRDFLutGenerator(glC.RGB, glC.RGB, glC.UNSIGNED_BYTE).pipeline, { renderOnce: true });
     }
 
     private _outlineShow: boolean = false;
@@ -216,8 +237,9 @@ export default class Scene {
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
             program.uploadUniform("u_mMatrix_dir", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
-            program.uploadUniform("u_brdfLutTexture", this._baker.lutTexture.textureUnit);
-            program.uploadUniform("u_irradianceTexture", this._baker.irradianceTexture.textureUnit);
+            program.uploadUniform("u_brdfLutTexture", this._env.brdfLutTexture.textureUnit);
+            program.uploadUniform("u_irradianceTexture", this._env.irradianceTextureCube.textureUnit);
+            program.uploadUniform("u_environmentTexture", this._env.prefilteredTextureCube.textureUnit);
             if (material) {
                 program.uploadUniform("u_pbrTextures[0]", [
                     material.normalTexture.textureUnit,

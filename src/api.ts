@@ -39,4 +39,3 @@ export { default as EventSender, Event_t, IEventDispatcher, IEventListener } fro
 export { default as glConst } from "./gl-const.js";
 export { default as Scene } from "./scene.js";
 export { default as Material } from "./material.js";
-export { default as irradianceBaker } from "./irradiance-baker.js";

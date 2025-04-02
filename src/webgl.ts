@@ -15,6 +15,22 @@ import {
     PBRTextureIndex_e,
 } from "./types-interfaces.js";
 
+function _flipImageData(imageData: Uint8Array, width: number, height: number): void {
+    let w = width, h = height;
+    let halfHeight = Math.floor(h / 2);
+    let temp = new Uint8ClampedArray(w * 4);
+
+    for (let y = 0; y < halfHeight; y++) {
+        let topIdx = y * w * 4;
+        let bottomIdx = (h - y - 1) * w * 4;
+
+        temp.set(imageData.slice(topIdx, topIdx + w * 4));
+        imageData.set(imageData.slice(bottomIdx, bottomIdx + w * 4), topIdx);
+        imageData.set(temp, bottomIdx);
+    }
+}
+
+
 const _wm_buffer = new WeakMap();
 
 export class GLUniformBlock {
@@ -254,6 +270,9 @@ export class GLProgram implements IProgram {
                     case gl.FLOAT:
                         _fn = uniformInfo.size <= 1 ? gl.uniform1f.bind(gl, _u) : gl.uniform1fv.bind(gl, _u);
                         break;
+                    case gl.FLOAT_VEC2:
+                        _fn = gl.uniform2fv.bind(gl, _u);
+                        break;
                     case gl.FLOAT_VEC3:
                         _fn = gl.uniform3fv.bind(gl, _u);
                         break;
@@ -273,6 +292,8 @@ export class GLProgram implements IProgram {
                     case gl.SAMPLER_CUBE:
                         _fn = uniformInfo.size <= 1 ? gl.uniform1i.bind(gl, _u) : gl.uniform1iv.bind(gl, _u);
                         break;
+                    default:
+                        log.warn(`[Program] uniform:${uniformInfo.name} with type:${uniformInfo.type} is not implemented.`);
                 }
                 this._mapUniformFn.set(uniformInfo.name, _fn);
             }
@@ -336,6 +357,14 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
     }
 
+    get width(): number {
+        return this._width;
+    }
+
+    get height(): number {
+        return this._height;
+    }
+
     set genMipmap(value: boolean) {
         this._genMipmap = value;
     }
@@ -366,6 +395,40 @@ export class GLTexture implements ITexture {
 
     get textureUnit(): GLint {
         return this._texUnit;
+    }
+
+    saveTexture(): void {
+        const gl = this._gl;
+        let framebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this._glTexture, 0);
+
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+            console.error("Framebuffer is not complete");
+            return;
+        }
+
+        let pixels = new Uint8Array(this._width * this._height * 4);
+        gl.readPixels(0, 0, this._width, this._height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.deleteFramebuffer(framebuffer);
+
+        _flipImageData(pixels, this._width, this._height);
+
+        let canvas = document.createElement("canvas");
+        canvas.width = this._width;
+        canvas.height = this._height;
+        let ctx = canvas.getContext("2d");
+
+        let imageData = ctx.createImageData(this._width, this._height);
+        imageData.data.set(pixels);
+        ctx.putImageData(imageData, 0, 0);
+
+        let link = document.createElement("a");
+        link.download = "texture.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
     }
 
     resize(width: number, height: number): ITexture {
@@ -737,41 +800,7 @@ export class GLFramebuffer implements IFramebuffer {
     }
 
     saveTexture(attachment: number): void {
-        const width = this._width;
-        const height = this._height;
-
-        // Create an off-screen canvas to read texture into
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = width;
-        offscreenCanvas.height = height;
-
-        const offscreenContext = offscreenCanvas.getContext('2d');
-
-        // Create an ImageData object
-        const imageData = offscreenContext.createImageData(width, height);
-
-        // Read the pixels from the WebGL context into a buffer
-        const pixels = this.readPixels(attachment);
-
-        // Copy the pixel data to ImageData
-        for (let i = 0; i < width * height; i++) {
-            imageData.data[i * 4] = pixels[i * 4];     // R
-            imageData.data[i * 4 + 1] = pixels[i * 4 + 1]; // G
-            imageData.data[i * 4 + 2] = pixels[i * 4 + 2]; // B
-            imageData.data[i * 4 + 3] = pixels[i * 4 + 3]; // A
-        }
-
-        // Put the ImageData into the offscreen canvas context
-        offscreenContext.putImageData(imageData, 0, 0);
-
-        // Create an image URL from the canvas
-        const imageURL = offscreenCanvas.toDataURL('image/png');
-
-        // Create a download link for the image
-        const link = document.createElement('a');
-        link.href = imageURL;
-        link.download = 'texture.png';  // Set the filename
-        link.click();  // Trigger the download
+        this._arrTexture[attachment]?.saveTexture();
     }
 
     resize(width: number, height: number): void {

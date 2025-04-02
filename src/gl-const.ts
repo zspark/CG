@@ -26,6 +26,8 @@ type _glConst = {
 
     BLEND: GLenum,
     SRC_ALPHA: GLenum,
+    ONE: GLenum,
+    ZERO: GLenum,
     ONE_MINUS_SRC_ALPHA: GLenum,
     FUNC_ADD: GLenum,
 
@@ -34,11 +36,15 @@ type _glConst = {
 
     RGB: GLenum,
     RGBA: GLenum,
+    RGB16F: GLenum,
+    RGBA16F: GLenum,
     RGB32F: GLenum,
     RGBA32F: GLenum,
     RG: GLenum,
     RG8: GLenum,
     RG16F: GLenum,
+    RG32F: GLenum,
+    RGA16F: GLenum,
     RGB9_E5: GLenum,
     SRGB8_ALPHA8: GLenum,
 
@@ -85,6 +91,8 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.BLEND = gl.BLEND;
     glConst.FUNC_ADD = gl.FUNC_ADD;
     glConst.SRC_ALPHA = gl.SRC_ALPHA;
+    glConst.ONE = gl.ONE;
+    glConst.ZERO = gl.ZERO;
     glConst.ONE_MINUS_SRC_ALPHA = gl.ONE_MINUS_SRC_ALPHA;
     glConst.CULL_FACE = gl.CULL_FACE;
     glConst.CULL_FACE_MODE = gl.CULL_FACE_MODE;
@@ -99,10 +107,13 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.RGBA = gl.RGBA;
     glConst.RGB = gl.RGB;
     glConst.RGB9_E5 = gl.RGB9_E5;
-    glConst.RGB32F = gl.RGB32F;
-    glConst.RGBA32F = gl.RGBA32F;
-    glConst.RG = gl.RG;
     glConst.RG16F = gl.RG16F;
+    glConst.RG32F = gl.RG32F;
+    glConst.RGB32F = gl.RGB32F;
+    glConst.RGB16F = gl.RGB16F;
+    glConst.RGBA32F = gl.RGBA32F;
+    glConst.RGBA16F = gl.RGBA16F;
+    glConst.RG = gl.RG;
     glConst.SRGB8_ALPHA8 = gl.SRGB8_ALPHA8;
     glConst.UNSIGNED_BYTE = gl.UNSIGNED_BYTE;
     glConst.UNSIGNED_INT = gl.UNSIGNED_INT;

@@ -1,9 +1,12 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
 import { geometry } from "./geometry.js"
+import shaderAssembler from "./shader-assembler.js"
+import getProgram from "./program-manager.js"
 import {
     Pipeline,
     SubPipeline,
+    Texture,
 } from "./device-resource.js";
 import { createProgram } from "./program-manager.js"
 import {
@@ -16,8 +19,9 @@ import {
 
 const _skybox: string[] = [
     `#version 300 es
-#define SHADER_NAME skybox
 precision mediump float;
+#define SHADER_NAME skybox
+//%%
 layout(std140) uniform u_ub_camera {
     mat4 u_vInvMatrix;
     mat4 u_vMatrix;
@@ -35,13 +39,18 @@ void main(){
     ,
 
     `#version 300 es
-#define SHADER_NAME skybox
 precision mediump float;
+#define SHADER_NAME skybox
+//%%
 uniform samplerCube u_skyboxTexture;
 out vec4 o_fragColor;
 in vec3 v_uvSkybox;
 void main() {
-    o_fragColor = texture(u_skyboxTexture, v_uvSkybox);
+    vec4 _rgbe = texture(u_skyboxTexture, v_uvSkybox);
+#ifdef HDR
+    _rgbe.rgb *= pow(2.0, _rgbe.a * 255.0 - 128.0);       // unpack RGBE to HDR RGB
+#endif
+    o_fragColor = vec4(_rgbe.rgb, 1.0);
 }`];
 
 const _equirectangular: string[] = [
@@ -84,38 +93,49 @@ void main() {
 }`
 ];
 
+shaderAssembler.registShaderSource("skybox", _skybox);
+
 export default class Skybox {
 
+    private _cubeTexture: ITexture;
     private _box: IGeometry;
     private _pipeline;
     private _subpipeline: ISubPipeline;
 
-    constructor() {
+    constructor(hdr: boolean = false) {
         this._box = geometry.createCube(50);
+        this._cubeTexture = new Texture(512, 512);
+        this._cubeTexture.target = glC.TEXTURE_CUBE_MAP;
+
+        this._subpipeline = new SubPipeline()
+            .setRenderObject(this._box)
+            .setTexture(this._cubeTexture)
+            .setUniformUpdaterFn((program: IProgram) => {
+                program.uploadUniform("u_skyboxTexture", this._cubeTexture.textureUnit);
+            });
 
         this._pipeline = new Pipeline(9)
             .cullFace(true, glC.FRONT)
             .depthTest(false, glC.LESS)
             .blend(false, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .setProgram(createProgram(_skybox))
             .appendSubPipeline(this._subpipeline)
-            .validate()
+
+        this.hdr = hdr;
     }
 
-    set texture(texture: ITexture) {
-        if (!texture) return;
-        this._pipeline.removeSubPipeline(this._subpipeline);
-        this._subpipeline = new SubPipeline()
-            .setRenderObject(this._box)
-            .setTexture(texture)
-            .setUniformUpdaterFn((program: IProgram) => {
-                program.uploadUniform("u_skyboxTexture", texture.textureUnit);
-            });
-        this._pipeline.appendSubPipeline(this._subpipeline);
+    set hdr(value: boolean) {
+        const _config = { hdr: value };
+        this._pipeline
+            .setProgram(getProgram("skybox", _config))
+            .validate()
     }
 
     get pipeline(): IPipeline {
         return this._pipeline;
+    }
+
+    get cubeTexture(): ITexture {
+        return this._cubeTexture;
     }
 
     update(dt: number): void {

@@ -18,7 +18,8 @@ function _getShaderMacro(config: ShaderConfig_t): string {
     const _arrMacros = Object.getOwnPropertyNames(config);
     _arrMacros.sort();// to alphabet order;
     for (let i = 0, N = _arrMacros.length; i < N; ++i) {
-        _macroString += `#define ${_arrMacros[i].toUpperCase()}\n`;
+        if (config[_arrMacros[i]])
+            _macroString += `#define ${_arrMacros[i].toUpperCase()}\n`;
     }
     return _macroString;
 }
@@ -32,9 +33,16 @@ export type SourceContent_t = {
     source: string,
 }
 
-function _registSource(name: string, vert: string, frag: string) {
-    let _arrVert: string[] = vert.split(SEPARATOR);
-    let _arrFrag: string[] = frag.split(SEPARATOR);
+function _registSource(name: string, vert: string | string[], frag?: string) {
+    let _arrVert: string[];
+    let _arrFrag: string[];
+    if (typeof (vert) == "string") {
+        _arrVert = vert.split(SEPARATOR);
+        _arrFrag = frag.split(SEPARATOR);
+    } else {
+        _arrVert = vert[0].split(SEPARATOR);
+        _arrFrag = vert[1].split(SEPARATOR);
+    }
     _sources.set(name, {
         vertHead: _arrVert[0].trim(),
         vertBody: _arrVert[1].trim(),

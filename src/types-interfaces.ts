@@ -93,9 +93,12 @@ export interface ITexture {
     target: GLenum;
     UVIndex: number;
     readonly textureUnit: GLint;
+    readonly width: number;
+    readonly height: number;
     set genMipmap(value: boolean);
     set data(data: TextureData_t | TextureData_t[]);
 
+    saveTexture(): void;
     resize(width: number, height: number): ITexture;
     createGPUResource(gl: WebGL2RenderingContext): ITexture;
 

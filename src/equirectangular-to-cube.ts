@@ -1,7 +1,6 @@
 import log from "./log.js";
 import glC from "./gl-const.js";
 import { geometry } from "./geometry.js"
-import { Event_t, default as EventDispatcher, IEventDispatcher } from "./event.js";
 import {
     Texture,
     Pipeline,
@@ -10,6 +9,7 @@ import {
 } from "./device-resource.js";
 import { createProgram } from "./program-manager.js"
 import {
+    IFramebuffer,
     IProgram,
     IGeometry,
     IPipeline,
@@ -57,64 +57,46 @@ uniform sampler2D u_equirectangularMap;
 
 const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
 vec2 directionToUV(const in vec3 dir){
-    vec2 uv = vec2(atan(dir.z, dir.x), asin(dir.y));
-    uv *= invAtan;
-    uv += .5;
-    return uv;
+    vec2 _uv = vec2(atan(dir.z, dir.x), asin(dir.y));
+    _uv *= invAtan;
+    _uv += .5;
+    return _uv;
 }
 
 void main() {
     vec3 _dir=normalize(v_worldPos.xyz);
-    vec2 uv = directionToUV(_dir);
-    vec3 color = texture(u_equirectangularMap, uv).rgb;
+    vec2 _uv = directionToUV(_dir);
+    vec4 _color = texture(u_equirectangularMap, _uv);
     if(v_instanceID==0){
-        o_fragColor0 = vec4(color, 1.0);
+        o_fragColor0 = _color;
     }else if(v_instanceID==1){
-        o_fragColor1 = vec4(color, 1.0);
+        o_fragColor1 = _color;
     }else if(v_instanceID==2){
-        o_fragColor2 = vec4(color, 1.0);
+        o_fragColor2 = _color;
     }else if(v_instanceID==3){
-        o_fragColor3 = vec4(color, 1.0);
+        o_fragColor3 = _color;
     }else if(v_instanceID==4){
-        o_fragColor4 = vec4(color, 1.0);
+        o_fragColor4 = _color;
     }else if(v_instanceID==5){
-        o_fragColor5 = vec4(color, 1.0);
+        o_fragColor5 = _color;
     }
 }`
 ]
 
-export default class EquirectangularToSkybox extends EventDispatcher {
+export default class EquirectangularToCube {
 
-    static FILE_LOADED: number = 1;
-
-    private _skyboxTexture: ITexture;
+    private _cubeTexture: ITexture;
     private _latlonTexture: ITexture;
     private _plane: IGeometry;
     private _pipelineConvert;
+    private _backFBO: IFramebuffer;
     private _instanceMatrices: Float32Array = new Float32Array(6 * 16);
 
-    /**
-    * width,height: skybox image size per face;
-    */
-    constructor(url: string, width: number = 512, height: number = 512) {
-        super();
+    //constructor(texture: ITexture, width: number = 512, height: number = 512) {
+    constructor(texture: ITexture, targetTexture: ITexture) {
+        this._latlonTexture = texture;
+        this._cubeTexture = targetTexture;
         this._plane = geometry.createFrontQuad(-1).setDrawArraysInstancedParameters(glC.TRIANGLES, 0, 6, 6);
-        Loader.loadTexture(url).then((img: TextureData_t) => {
-            this._latlonTexture = new Texture(img.width, img.height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
-            this._latlonTexture.data = img.data;
-            const _subp = new SubPipeline()
-                .setRenderObject(this._plane)
-                .setTexture(this._latlonTexture)
-                .setUniformUpdaterFn((program: IProgram) => {
-                    program.uploadUniform("u_equirectangularMap", this._latlonTexture.textureUnit);
-                    program.uploadUniform("u_instnaceMat[0]", this._instanceMatrices);
-                });
-            this._pipelineConvert.appendSubPipeline(_subp);
-            this._broadcast({
-                type: EquirectangularToSkybox.FILE_LOADED,
-                sender: this,
-            });
-        });
 
         const _instanceMatricesHandler = new Mat44(this._instanceMatrices, 16 * 0);
         Mat44.createRotateAroundY(Math.PI / 2, _instanceMatricesHandler);
@@ -133,11 +115,9 @@ export default class EquirectangularToSkybox extends EventDispatcher {
         _instanceMatricesHandler.remap(this._instanceMatrices, 16 * 5);
         _instanceMatricesHandler.copyFrom(Mat44.IdentityMat44);
 
-        this._skyboxTexture = new Texture(width, height);
-        this._skyboxTexture.target = glC.TEXTURE_CUBE_MAP;
-        const _backFBO = new Framebuffer(width, height);
+        const _backFBO = this._backFBO = new Framebuffer(targetTexture.width, targetTexture.height);
         for (let i = 0; i < 6; ++i) {
-            _backFBO.attachColorTexture(this._skyboxTexture, i);
+            _backFBO.attachColorTexture(this._cubeTexture, i);
         }
 
         const _db = [1, 1, 1, 1, 1, 1].map((_, i) => glC.COLOR_ATTACHMENT0 + i);
@@ -145,19 +125,31 @@ export default class EquirectangularToSkybox extends EventDispatcher {
             .setFBO(_backFBO)
             .drawBuffers(..._db)
             .cullFace(false, glC.BACK)
-            .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
+            .blend(true, glC.ONE, glC.ONE, glC.FUNC_ADD)
             .depthTest(false, glC.LESS)
             .setProgram(createProgram(_equirectangularToSkybox))
             .validate()
 
+        //@ts-ignore
+        window.skyboxConverter = this;
+
+        this._pipelineConvert.removeSubPipelines();
+        const _subp = new SubPipeline()
+            .setRenderObject(this._plane)
+            .setTexture(this._latlonTexture)
+            .setUniformUpdaterFn((program: IProgram) => {
+                program.uploadUniform("u_equirectangularMap", this._latlonTexture.textureUnit);
+                program.uploadUniform("u_instnaceMat[0]", this._instanceMatrices);
+            });
+        this._pipelineConvert.appendSubPipeline(_subp);
     }
 
     get pipeline(): IPipeline {
         return this._pipelineConvert;
     }
 
-    get skyboxTexture(): ITexture {
-        return this._skyboxTexture;
+    get cubeTexture(): ITexture {
+        return this._cubeTexture;
     }
 
     get equirectangularTexture(): ITexture {
