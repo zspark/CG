@@ -55,8 +55,9 @@ void main() {
 
 const _equirectangular: string[] = [
     `#version 300 es
-#define SHADER_NAME equirectangular
 precision mediump float;
+#define SHADER_NAME equirectangular
+//%%
 layout(std140) uniform u_ub_camera {
     mat4 u_vInvMatrix;
     mat4 u_vMatrix;
@@ -78,56 +79,85 @@ void main(){
     ,
 
     `#version 300 es
-#define SHADER_NAME equirectangular
 precision mediump float;
+#define SHADER_NAME equirectangular
+//%%
 #define PI2 6.283185307179586
 #define PI 3.14159265359
 uniform sampler2D u_skybox_latlon;
+
 in vec3 v_rayDirection;
 out vec4 o_fragColor;
+
+const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
+vec2 directionToUV(const in vec3 dir){
+    // atan(y,x): (-PI  , PI  );
+    // atan(y/x): (-PI/2, PI/2);
+    // acos(v)  : (0    , 2PI );
+    vec2 uv = vec2(atan(dir.z, dir.x), acos(dir.y));
+    uv *= invAtan;
+    if( uv.x < 0. ){
+        uv.x = 1. + uv.x;
+    }
+    return uv;
+}
+
 void main() {
     vec3 rayDir = normalize(v_rayDirection);
-    float u = 0.5 + atan(rayDir.z, rayDir.x) / PI2;
-    float v = 0.5 - asin(rayDir.y) / PI;
-    o_fragColor = texture(u_skybox_latlon, vec2(u, v));
+    vec2 _uv = directionToUV(rayDir);
+    o_fragColor = texture(u_skybox_latlon, _uv);
 }`
 ];
 
 shaderAssembler.registShaderSource("skybox", _skybox);
+shaderAssembler.registShaderSource("equirectangular", _equirectangular);
 
 export default class Skybox {
 
     private _cubeTexture: ITexture;
     private _box: IGeometry;
-    private _pipeline;
+    private _plane: IGeometry;
+    private _pipeline: IPipeline;
     private _subpipeline: ISubPipeline;
 
-    constructor(hdr: boolean = false) {
-        this._box = geometry.createCube(50);
-        this._cubeTexture = new Texture(512, 512);
-        this._cubeTexture.target = glC.TEXTURE_CUBE_MAP;
-
-        this._subpipeline = new SubPipeline()
-            .setRenderObject(this._box)
-            .setTexture(this._cubeTexture)
-            .setUniformUpdaterFn((program: IProgram) => {
-                program.uploadUniform("u_skyboxTexture", this._cubeTexture.textureUnit);
-            });
+    constructor(hdr: boolean = false, equirectangularTexture?: ITexture) {
 
         this._pipeline = new Pipeline(9)
-            .cullFace(true, glC.FRONT)
             .depthTest(false, glC.LESS)
             .blend(false, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
-            .appendSubPipeline(this._subpipeline)
 
-        this.hdr = hdr;
-    }
+        const _config = { hdr };
+        if (!equirectangularTexture) {
+            this._cubeTexture = new Texture(512, 512);
+            this._cubeTexture.target = glC.TEXTURE_CUBE_MAP;
 
-    set hdr(value: boolean) {
-        const _config = { hdr: value };
-        this._pipeline
-            .setProgram(getProgram("skybox", _config))
-            .validate()
+            this._box = geometry.createCube(50);
+            this._subpipeline = new SubPipeline()
+                .setRenderObject(this._box)
+                .setTexture(this._cubeTexture)
+                .setUniformUpdaterFn((program: IProgram) => {
+                    program.uploadUniform("u_skyboxTexture", this._cubeTexture.textureUnit);
+                });
+            this._pipeline
+                .cullFace(true, glC.FRONT)
+                .setProgram(getProgram("skybox", _config))
+                .appendSubPipeline(this._subpipeline)
+                .validate()
+        } else {
+            this._cubeTexture = equirectangularTexture;
+
+            this._plane = geometry.createFrontQuad();
+            this._subpipeline = new SubPipeline()
+                .setRenderObject(this._plane)
+                .setTexture(this._cubeTexture)
+                .setUniformUpdaterFn((program: IProgram) => {
+                    program.uploadUniform("u_skybox_latlon", this._cubeTexture.textureUnit);
+                });
+            this._pipeline
+                .setProgram(getProgram("equirectangular", _config))
+                .appendSubPipeline(this._subpipeline)
+                .validate()
+        }
     }
 
     get pipeline(): IPipeline {

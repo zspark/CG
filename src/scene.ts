@@ -156,9 +156,9 @@ export default class Scene {
             }
 
             {
-                _that._skybox ??= new Skybox(_hdr);
-                const _v = new EquirectangularToCube(_texture, _that._skybox.cubeTexture);
-                _that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
+                _that._skybox ??= new Skybox(_hdr, _texture);
+                //const _v = new EquirectangularToCube(_texture, _that._skybox.cubeTexture);
+                //_that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
                 _that._renderer.addPipeline(_that._skybox.pipeline, { repeat: false });
             }
 
