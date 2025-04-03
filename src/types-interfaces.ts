@@ -92,6 +92,7 @@ export type TextureData_t = Uint8Array | Uint16Array | Float32Array | HTMLImageE
 export interface ITexture {
     target: GLenum;
     UVIndex: number;
+    readonly isHDRData: boolean;
     readonly textureUnit: GLint;
     readonly width: number;
     readonly height: number;

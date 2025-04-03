@@ -309,6 +309,7 @@ const _wm_texture = new WeakMap();
 
 export class GLTexture implements ITexture {
 
+    private _hdr: boolean = false;
     private _glTexture: WebGLTexture;
     private _gl: WebGL2RenderingContext;
     private _texUnit: GLint = -1;
@@ -328,7 +329,7 @@ export class GLTexture implements ITexture {
     * format defaults to gl.RGBA
     * type defaults to gl.UNSIGNED_BYTE
     */
-    constructor(width: number, height: number, internalFormat?: GLint, format?: GLenum, type?: GLenum) {
+    constructor(width: number, height: number, internalFormat?: GLint, format?: GLenum, type?: GLenum, hdr: boolean = false) {
         this._width = width;
         this._height = height;
         this._internalFormat = internalFormat ?? glC.RGBA;
@@ -339,6 +340,11 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter.set(glC.TEXTURE_WRAP_T, glC.CLAMP_TO_EDGE);
         this._mapTextureParameter.set(glC.TEXTURE_MIN_FILTER, glC.NEAREST);
         this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
+        this._hdr = hdr;
+    }
+
+    get isHDRData(): boolean {
+        return this._hdr;
     }
 
     get width(): number {
@@ -447,7 +453,7 @@ export class GLTexture implements ITexture {
         return this;
     }
 
-    updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture {
+    updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number, lod: number = 0): ITexture {
         if (!this._glTexture) return this;
         if (!data) return this;
         const gl = this._gl;
@@ -455,12 +461,12 @@ export class GLTexture implements ITexture {
         if (this._target === glC.TEXTURE_CUBE_MAP) {
             for (let i = 0; i < 6; ++i) {
                 gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                    0, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
+                    lod, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
                     this._format, this._type, (data as Array<TextureData_t>)[i] as any);
             }
         } else {
             gl.texSubImage2D(this._target,
-                0, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
+                lod, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
                 this._format, this._type, data as any);
         }
         this._genMipmap && gl.generateMipmap(this._target);

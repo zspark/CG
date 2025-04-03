@@ -84,7 +84,7 @@ precision mediump float;
 //%%
 #define PI2 6.283185307179586
 #define PI 3.14159265359
-uniform sampler2D u_skybox_latlon;
+uniform sampler2D u_equirectagularTexture;
 
 in vec3 v_rayDirection;
 out vec4 o_fragColor;
@@ -105,7 +105,7 @@ vec2 directionToUV(const in vec3 dir){
 void main() {
     vec3 rayDir = normalize(v_rayDirection);
     vec2 _uv = directionToUV(rayDir);
-    o_fragColor = texture(u_skybox_latlon, _uv);
+    o_fragColor = texture(u_equirectagularTexture, _uv);
 }`
 ];
 
@@ -120,16 +120,15 @@ export default class Skybox {
     private _pipeline: IPipeline;
     private _subpipeline: ISubPipeline;
 
-    constructor(hdr: boolean = false, equirectangularTexture?: ITexture) {
+    constructor(skyTexture: ITexture) {
 
         this._pipeline = new Pipeline(9)
             .depthTest(false, glC.LESS)
             .blend(false, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
 
-        const _config = { hdr };
-        if (!equirectangularTexture) {
-            this._cubeTexture = new Texture(512, 512);
-            this._cubeTexture.target = glC.TEXTURE_CUBE_MAP;
+        const _config = { hdr: skyTexture.isHDRData };
+        this._cubeTexture = skyTexture;
+        if (skyTexture.target === glC.TEXTURE_CUBE_MAP) {
 
             this._box = geometry.createCube(50);
             this._subpipeline = new SubPipeline()
@@ -144,14 +143,13 @@ export default class Skybox {
                 .appendSubPipeline(this._subpipeline)
                 .validate()
         } else {
-            this._cubeTexture = equirectangularTexture;
 
             this._plane = geometry.createFrontQuad();
             this._subpipeline = new SubPipeline()
                 .setRenderObject(this._plane)
                 .setTexture(this._cubeTexture)
                 .setUniformUpdaterFn((program: IProgram) => {
-                    program.uploadUniform("u_skybox_latlon", this._cubeTexture.textureUnit);
+                    program.uploadUniform("u_equirectagularTexture", this._cubeTexture.textureUnit);
                 });
             this._pipeline
                 .setProgram(getProgram("equirectangular", _config))

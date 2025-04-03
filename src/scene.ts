@@ -9,7 +9,7 @@ import { Mat44, Vec4, xyzw, rgba } from "./math.js";
 import GridFloor from "./grid-floor.js";
 import { default as Axes, AxesMode_e } from "./axes.js";
 import { default as Picker, Pickable_t, PickResult_t } from "./picker.js";
-import { Event_t } from "./event.js";
+import EventDispatcher, { Event_t } from "./event.js";
 import { default as registMouseEvents, MouseEvents_t } from "./mouse-events.js";
 import { default as createLoader, TextureData_t } from "./assets-loader.js";
 import SpaceController from "./space-controller.js";
@@ -21,7 +21,7 @@ import Skybox from "./skybox.js";
 import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 import * as windowEvents from "./window-events.js"
-import { default as TextureBaker, SourceType_e } from "./texture-baker.js"
+import { default as TextureBaker, BakerType_e } from "./texture-baker.js"
 import EquirectangularToCube from "./equirectangular-to-cube.js";
 import Environment from "./environment.js";
 import BRDFLutGenerator from "./brdf-lut-generator.js";
@@ -42,7 +42,6 @@ export default class Scene {
     private _picker: Picker;
     private _ctrl: SpaceController;
     private _mouseEvents: MouseEvents_t;
-    private _baker: TextureBaker;
     private _env: Environment;
     private _outline: Outline;
     private _renderer: Renderer;
@@ -70,21 +69,17 @@ export default class Scene {
         this._picker = new Picker(_evts);
         this._outline = new Outline();
         this._shadowMap = new ShadowMap(this._renderer.gl);
-        this._env = new Environment();
 
 
         this._pbrPipeline = new Pipeline(0)
             .cullFace(true, glC.BACK)
             .addTexture(this._shadowMap.depthTexture)
-            .addTexture(this._env.irradianceTextureCube)
-            .addTexture(this._env.brdfLutTexture)
-            .addTexture(this._env.prefilteredTextureCube)
             .depthTest(true, glC.LESS)
             //.blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .setProgram(getProgram("pbr", {
                 ft_pbr: true,
                 ft_shadow: true,
-                cube: true,
+                cube: false,
                 debug: true,
                 //gamma_correct: true,
             }));
@@ -135,34 +130,27 @@ export default class Scene {
     get light() { return this._light.API; }
     get camera() { return this._camera.API; }
 
-    setSkybox(url: string, width: number = 512, height: number = 512) {
-        const _hdr: boolean = url.indexOf(".hdr") >= 0;
-        const _that = this;
+    setSkybox(url: string) {
+        this._env = new Environment(url);
+        this._env.addListener({
+            notify: (evt: Event_t): boolean => {
+                let _baker = new TextureBaker(BakerType_e.IRRADIANCE, this._env.environmentTexture, this._env.irradianceTexture);
+                this._renderer.addPipeline(_baker.pipeline, { renderOnce: true });
+                _baker = new TextureBaker(BakerType_e.ENVIRONMENT, this._env.environmentTexture, this._env.prefilteredTexture);
+                this._renderer.addPipeline(_baker.pipeline, { renderOnce: true });
 
-        this._loader.loadTexture(url).then((img: TextureData_t) => {
-            const _texture = new Texture(img.width, img.height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
-            _texture.data = img.data;
+                this._pbrPipeline
+                    .addTexture(this._env.irradianceTexture)
+                    .addTexture(this._env.brdfLutTexture)
+                    .addTexture(this._env.prefilteredTexture)
 
-            {
-                const _baker = new TextureBaker(this._env);
-                _baker.setTexture(_texture, _hdr ? SourceType_e.EQUIRECTANGULAR_HDR : SourceType_e.EQUIRECTANGULAR);
-                _that._renderer.addPipeline(_baker.pipeline, { renderOnce: true });
-
-                const _env = _that._env;
-                const _v = new EquirectangularToCube(_env.prefilteredTexture, _env.prefilteredTextureCube);
-                _that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
-                const _v2 = new EquirectangularToCube(_env.irradianceTexture, _env.irradianceTextureCube);
-                _that._renderer.addPipeline(_v2.pipeline, { renderOnce: true });
+                this._skybox ??= new Skybox(this._env.environmentTexture);
+                //const _v = new EquirectangularToCube(_texture, this._skybox.cubeTexture);
+                //this._renderer.addPipeline(_v.pipeline, { renderOnce: true });
+                this._renderer.addPipeline(this._skybox.pipeline, { repeat: false });
+                return false;
             }
-
-            {
-                _that._skybox ??= new Skybox(_hdr, _texture);
-                //const _v = new EquirectangularToCube(_texture, _that._skybox.cubeTexture);
-                //_that._renderer.addPipeline(_v.pipeline, { renderOnce: true });
-                _that._renderer.addPipeline(_that._skybox.pipeline, { repeat: false });
-            }
-
-        });
+        }, Environment.EVT_LOADED);
     }
 
     setAxesMode(mode: AxesMode_e): void {
@@ -237,9 +225,13 @@ export default class Scene {
             this._tempMat44.copyFrom(mesh.modelMatrix).invertTransposeLeftTop33();// this one is right.
             program.uploadUniform("u_mMatrix_dir", this._tempMat44.data);
             program.uploadUniform("u_shadowMap", this._shadowMap.depthTexture.textureUnit);
-            program.uploadUniform("u_brdfLutTexture", this._env.brdfLutTexture.textureUnit);
-            program.uploadUniform("u_irradianceTexture", this._env.irradianceTextureCube.textureUnit);
-            program.uploadUniform("u_environmentTexture", this._env.prefilteredTextureCube.textureUnit);
+            if (this._env?.brdfLutTexture) {
+                program.uploadUniform("u_brdfLutTexture", this._env.brdfLutTexture.textureUnit);
+            }
+            if (this._env?.irradianceTexture) {
+                program.uploadUniform("u_irradianceTexture", this._env.irradianceTexture.textureUnit);
+                program.uploadUniform("u_environmentTexture", this._env.prefilteredTexture.textureUnit);
+            }
             if (material) {
                 program.uploadUniform("u_pbrTextures[0]", [
                     material.normalTexture.textureUnit,

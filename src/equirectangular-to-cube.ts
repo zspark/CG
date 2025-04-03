@@ -99,7 +99,6 @@ export default class EquirectangularToCube {
     private _backFBO: IFramebuffer;
     private _instanceMatrices: Float32Array = new Float32Array(6 * 16);
 
-    //constructor(texture: ITexture, width: number = 512, height: number = 512) {
     constructor(texture: ITexture, targetTexture: ITexture) {
         this._latlonTexture = texture;
         this._cubeTexture = targetTexture;
