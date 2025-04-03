@@ -78,7 +78,7 @@ export default class Axes implements IEventListener {
         this._instanceMatrices = new Float32Array(engineC.MAX_AXES_INSTANCE_COUNT * 16);
         this._instanceMatricesHandler = new Mat44(this._instanceMatrices, 0).copyFrom(Mat44.IdentityMat44);
         this._instanceMatricesBuffer.updateData(this._instanceMatrices, glC.DYNAMIC_DRAW)
-        const _geometry = this._geometry = geometry.createAxes(2);
+        const _geometry = this._geometry = geometry.createAxes(.5);
         for (let i = 0; i < 4; ++i) {
             _geometry.addAttribute({
                 buffer: this._instanceMatricesBuffer,
@@ -95,7 +95,7 @@ export default class Axes implements IEventListener {
 
         const _subp = new SubPipeline().setRenderObject(_geometry)
 
-        this._pipeline = new Pipeline(-1000)
+        this._pipeline = new Pipeline(-1000, "axes pipeline")
             .setFBO(fbo)
             .setProgram(createProgram(_vert, _frag))
             .appendSubPipeline(_subp)

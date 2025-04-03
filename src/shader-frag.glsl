@@ -39,10 +39,10 @@ layout(std140) uniform u_ub_material {
 };
 #ifdef CUBE
 uniform samplerCube u_irradianceTexture;
-uniform samplerCube u_environmentTexture;
+uniform samplerCube u_prefilteredTexture;
 #else
 uniform sampler2D u_irradianceTexture;
-uniform sampler2D u_environmentTexture;
+uniform sampler2D u_prefilteredTexture;
 #endif
 uniform sampler2DShadow u_shadowMap;
 uniform sampler2D u_brdfLutTexture;
@@ -160,12 +160,12 @@ float _calculateShadowFactor(const in vec4 posProj) {
 }
 
 #ifdef CUBE
-vec3 _textureColor(const in vec3 dir, samplerCube s) {
-    return texture(s, dir).rgb;
+vec3 _textureColor(const in vec3 dir, samplerCube s, float roughness) {
+    return textureLod(s, dir, roughness * 9.).rgb;
 }
 #else
 const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
-vec3 _textureColor(const in vec3 dir, sampler2D s) {
+vec3 _textureColor(const in vec3 dir, sampler2D s, float roughness) {
     // atan(y,x): (-PI  , PI  );
     // atan(y/x): (-PI/2, PI/2);
     // acos(v)  : (0    , 2PI );
@@ -174,19 +174,19 @@ vec3 _textureColor(const in vec3 dir, sampler2D s) {
     if (uv.x < 0.) {
         uv.x = 1. + uv.x;
     }
-    return texture(s, uv).rgb;
+    return textureLod(s, uv, roughness * 9.).rgb;
 }
 #endif
 
-vec3 _getIBLDiffuse(const in vec4 baseColor, const in vec3 r, float metalness) {
+vec3 _getIBLDiffuse(const in vec4 baseColor, const in vec3 r, float metalness, float roughness) {
     vec3 _diffuseColor = baseColor.rgb * (1.0 - DIELECTRIC_SPECULAR) * (1.0 - metalness);
-    vec3 _irradianceColor = _textureColor(r, u_irradianceTexture);
+    vec3 _irradianceColor = _textureColor(r, u_irradianceTexture, roughness);
     return _diffuseColor * _irradianceColor;
 }
 
 vec3 _getIBLSpecular(const in vec4 baseColor, const in vec3 r, const in vec3 F0, float roughness, float ndotv) {
     // return F0;
-    vec3 _prefilteredColor = _textureColor(r, u_environmentTexture);
+    vec3 _prefilteredColor = _textureColor(r, u_prefilteredTexture, roughness);
     // return _prefilteredColor;
     vec2 _lut = texture(u_brdfLutTexture, vec2(ndotv, roughness)).xy;
     // return vec3(_lut, 0.);
@@ -228,7 +228,7 @@ void main() {
     vec3 _F = _fresnel(_ndotv, _F0, _metallicAndRoughness.y);
     // o_fragColor = vec4(_F, 1.);
     // return;
-    vec3 _iblDiffuse = _getIBLDiffuse(_baseColor, _viewRefDir, _metallicAndRoughness.x);
+    vec3 _iblDiffuse = _getIBLDiffuse(_baseColor, _viewRefDir, _metallicAndRoughness.x, _metallicAndRoughness.y);
     // o_fragColor = vec4(_iblDiffuse, 1.);
     // return;
     vec3 _iblSpecular = _getIBLSpecular(_baseColor, _viewRefDir, _F0, _metallicAndRoughness.y, _ndotv);

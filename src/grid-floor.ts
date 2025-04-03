@@ -40,7 +40,7 @@ export default class GridFloor {
         const _geo = geometry.createGridPlane(100);
         const _subp = new SubPipeline().setRenderObject(_geo).validate();
 
-        this._pipeline = new Pipeline(-999)
+        this._pipeline = new Pipeline(-999, "grid ground pipeline")
             .setFBO(fbo)
             .blend(true, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
             .depthTest(true, glC.LESS)

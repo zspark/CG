@@ -78,7 +78,7 @@ export default class Picker extends EventDispatcher {
             type: Picker.PICKED,
             sender: this,
         };
-        this._pipeline = new Pipeline(-2000000)
+        this._pipeline = new Pipeline(-2000000, "picker pipeline")
 
         const { width, height } = windowEvents.getWindowSize();
         this._backFBO = new GLFramebuffer_C0_r32i(width, height);

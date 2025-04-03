@@ -109,11 +109,12 @@ export interface ITexture {
     updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
     setParameter(name: number, value: number): ITexture;
     bind(textureUnit: number): ITexture;
-    destroyGLTexture(): ITexture;
+    destroy(): ITexture;
 }
 
 export interface IFramebuffer extends IBindableObject {
     resize(width: number, height: number): void;
+    copyColorAttachmentToTexture(attachment: number, texture: ITexture, level: number): void;
     readPixels(): Uint8Array;
     createGPUResource(gl: WebGL2RenderingContext): void;
     attachColorTexture(texture: ITexture, attachment: number, target?: GLenum): void;
@@ -128,11 +129,16 @@ export type SubPipelineOption_t = {
     renderOnce?: boolean;
 };
 
+export type AfterExecuteCallbackFn_t = (r: IRenderer) => void;
+
 export interface IPipeline {
     FBO: IFramebuffer;
-    get priority(): number;
-    get program(): IProgram;
+    readonly afterExecuteCallbackFn: AfterExecuteCallbackFn_t;
+    readonly priority: number;
+    readonly program: IProgram;
+    readonly name: string;
 
+    setAfterExecuteCallbackFn(fn: AfterExecuteCallbackFn_t): IPipeline;
     addTexture(texture: ITexture): IPipeline;
     setFBO(fbo: IFramebuffer): IPipeline;
     setProgram(program: IProgram): IPipeline;

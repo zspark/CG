@@ -158,7 +158,7 @@ class Light {
                 stride: 0,
                 offset: 0
             });
-        const _pipeline: IPipeline = new Pipeline(-2000001)
+        const _pipeline: IPipeline = new Pipeline(-2000001, "light source frustum debug pipeline")
             .setProgram(createProgram(_vert, _frag))
             .cullFace(false, glC.BACK)
             .depthTest(true, glC.LESS)

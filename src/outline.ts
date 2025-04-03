@@ -116,7 +116,7 @@ export default class Outline implements api_IOutline {
                 program.uploadUniform("u_depthTexture_r32f", this._fbo.colorTexture0.textureUnit);
             });
 
-        this._pipeline = new Pipeline(-200000)
+        this._pipeline = new Pipeline(-200000, "outline pipeline")
             .setProgram(createProgram(_shader[0], _shader[1]))
             .depthTest(false/*, glC.LESS*/)
             .cullFace(false)

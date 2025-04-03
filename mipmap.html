@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mipmap</title>
+</head>
+<style>
+    body {
+        margin: 0;
+        background-color: #272727;
+    }
+
+    canvas {
+        display: block;
+    }
+</style>
+
+<body>
+    <img id="lod0" src="./assets/mipmap/lod-0.png" crossOrigin="anonymous"></img>
+    <img id="lod1" src="./assets/mipmap/lod-1.png" crossOrigin="anonymous"></img>
+    <img id="lod2" src="./assets/mipmap/lod-2.png" crossOrigin="anonymous"></img>
+    <img id="lod3" src="./assets/mipmap/lod-3.png" crossOrigin="anonymous"></img>
+    <img id="lod4" src="./assets/mipmap/lod-4.png" crossOrigin="anonymous"></img>
+    <img id="lod5" src="./assets/mipmap/lod-5.png" crossOrigin="anonymous"></img>
+    <img id="lod6" src="./assets/mipmap/lod-6.png" crossOrigin="anonymous"></img>
+    <img id="lod7" src="./assets/mipmap/lod-7.png" crossOrigin="anonymous"></img>
+    <img id="lod8" src="./assets/mipmap/lod-8.png" crossOrigin="anonymous"></img>
+    <img id="lod9" src="./assets/mipmap/lod-9.png" crossOrigin="anonymous"></img>
+    <input type="range" id="mySlider" name="volume" min="0" max="100" value="0">
+    <canvas id="glcanvas" width="512" height="256"></canvas>
+
+    <script>
+        const slider = document.getElementById("mySlider");
+        slider.oninput = function (e) {
+            _lod = Number(e.target.value) / 100 * 9;
+        }
+        let _lod = 0.;
+        setTimeout(() => {
+            const WIDTH = 512;
+            const HEIGHT = 256;
+
+            // Initialize WebGL2 Context
+            const canvas = document.getElementById('glcanvas');
+            const gl = canvas.getContext('webgl2');
+
+            const programF = createProgramFront();
+            const uLocTexture = gl.getUniformLocation(programF, "u_texture");
+            const uLocLod = gl.getUniformLocation(programF, "u_lod");
+
+            const _clearColor = 0.2;
+            gl.clearColor(_clearColor, _clearColor, _clearColor, 1.0);
+            gl.enable(gl.DEPTH_TEST);
+            gl.disable(gl.CULL_FACE);
+
+            const z = 0;
+            const vertices = new Float32Array([
+                1, 1, z,
+                -1, 1, z,
+                -1, -1, z,
+                //
+                -1, -1, z,
+                1, -1, z,
+                1, 1, z,
+            ]);
+            const VBO = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+            const _data = [
+                document.getElementById("lod0"),
+                document.getElementById("lod1"),
+                document.getElementById("lod2"),
+                document.getElementById("lod3"),
+                document.getElementById("lod4"),
+                document.getElementById("lod5"),
+                document.getElementById("lod6"),
+                document.getElementById("lod7"),
+                document.getElementById("lod8"),
+                document.getElementById("lod9"),
+            ];
+            //_data.forEach(v => v.remove());
+            const _texture = createTexture(_data);
+
+            function render() {
+                gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+                gl.viewport(0, 0, WIDTH, HEIGHT);
+                gl.useProgram(programF);
+                gl.uniform1i(uLocTexture, 0);
+                gl.uniform1f(uLocLod, _lod);
+                gl.bindBuffer(gl.ARRAY_BUFFER, VBO);
+                gl.enableVertexAttribArray(0);
+                gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, _texture);
+                gl.drawArrays(gl.TRIANGLES, 0, 18);
+
+                requestAnimationFrame(render);
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            function compileProgram(gl, v, f) {
+                function compileShader(gl, source, type) {
+                    const shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        console.error(gl.getShaderInfoLog(shader));
+                        return null;
+                    }
+                    return shader;
+                }
+                let vertexShader = compileShader(gl, v, gl.VERTEX_SHADER);
+                let fragmentShader = compileShader(gl, f, gl.FRAGMENT_SHADER);
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+                return program;
+            }
+
+            function createProgramFront() {
+                const vertexShaderSource = `#version 300 es
+precision highp float;
+layout(location = 0) in vec3 a_position;
+void main() {
+    gl_Position = vec4(a_position, 1.0);
+}`;
+
+                const fragmentShaderSource = `#version 300 es
+precision highp float;
+uniform sampler2D u_texture;
+uniform float u_lod;
+out vec4 o_fragColor;
+void main() {
+    vec2 uv = gl_FragCoord.xy / vec2(512.0, 256.0);
+    uv.y = 1. - uv.y;
+    o_fragColor = textureLod(u_texture, uv, u_lod);
+    //o_fragColor = texture(u_texture, uv);
+    //o_fragColor = vec4(uv,0.0,1.);
+}`;
+
+                return compileProgram(gl, vertexShaderSource, fragmentShaderSource);
+            }
+
+            function createTexture(arrData) {
+                const tex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                const N = Math.floor(Math.log2(Math.max(WIDTH, HEIGHT)));
+                for (let i = 0; i <= N; ++i) {
+                    let p = Math.pow(2, i);
+                    gl.texImage2D(gl.TEXTURE_2D, i, gl.RGBA, arrData[i].width, arrData[i].height, 0, gl.RGBA, gl.UNSIGNED_BYTE, arrData[i]);
+                }
+                return tex;
+            }
+
+            render();
+        }, 2000);
+    </script>
+
+</body>
+
+</html>

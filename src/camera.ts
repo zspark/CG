@@ -36,7 +36,7 @@ export interface ICamera extends api_ICamera {
 };
 
 export default class Camera extends EventDispatcher implements ICamera {
-    static NEAR_PLANE: number = 1;
+    static NEAR_PLANE: number = 0.01;
     static FAR_PLANE: number = 100;
 
     static CHANGED: number = 1;

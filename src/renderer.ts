@@ -139,6 +139,7 @@ export default class Renderer implements IRenderer {
     render(): IRenderer {
         this._arrPipeline.forEach((p) => {
             p.execute(this._renderContext);
+            p.afterExecuteCallbackFn && p.afterExecuteCallbackFn(this);
         });
         this._arrOneTimePipeline.forEach((p) => {
             p.execute(this._renderContext);

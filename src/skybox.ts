@@ -122,7 +122,7 @@ export default class Skybox {
 
     constructor(skyTexture: ITexture) {
 
-        this._pipeline = new Pipeline(9)
+        this._pipeline = new Pipeline(9, "sky pipeline")
             .depthTest(false, glC.LESS)
             .blend(false, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
 

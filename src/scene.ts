@@ -21,7 +21,6 @@ import Skybox from "./skybox.js";
 import { default as Material, getUBO as getMaterialUBO } from "./material.js";
 import ShadowMap from "./shadow-map.js";
 import * as windowEvents from "./window-events.js"
-import { default as TextureBaker, BakerType_e } from "./texture-baker.js"
 import EquirectangularToCube from "./equirectangular-to-cube.js";
 import Environment from "./environment.js";
 import BRDFLutGenerator from "./brdf-lut-generator.js";
@@ -71,7 +70,7 @@ export default class Scene {
         this._shadowMap = new ShadowMap(this._renderer.gl);
 
 
-        this._pbrPipeline = new Pipeline(0)
+        this._pbrPipeline = new Pipeline(0, "pbr pipeline")
             .cullFace(true, glC.BACK)
             .addTexture(this._shadowMap.depthTexture)
             .depthTest(true, glC.LESS)
@@ -134,10 +133,10 @@ export default class Scene {
         this._env = new Environment(url);
         this._env.addListener({
             notify: (evt: Event_t): boolean => {
-                let _baker = new TextureBaker(BakerType_e.IRRADIANCE, this._env.environmentTexture, this._env.irradianceTexture);
-                this._renderer.addPipeline(_baker.pipeline, { renderOnce: true });
-                _baker = new TextureBaker(BakerType_e.ENVIRONMENT, this._env.environmentTexture, this._env.prefilteredTexture);
-                this._renderer.addPipeline(_baker.pipeline, { renderOnce: true });
+                const _arrPipeline = this._env.pipelines;
+                _arrPipeline.forEach(p => {
+                    this._renderer.addPipeline(p);
+                });
 
                 this._pbrPipeline
                     .addTexture(this._env.irradianceTexture)
@@ -230,7 +229,7 @@ export default class Scene {
             }
             if (this._env?.irradianceTexture) {
                 program.uploadUniform("u_irradianceTexture", this._env.irradianceTexture.textureUnit);
-                program.uploadUniform("u_environmentTexture", this._env.prefilteredTexture.textureUnit);
+                program.uploadUniform("u_prefilteredTexture", this._env.prefilteredTexture.textureUnit);
             }
             if (material) {
                 program.uploadUniform("u_pbrTextures[0]", [

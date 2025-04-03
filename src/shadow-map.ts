@@ -37,7 +37,7 @@ export default class ShadowMap {
 
         this._shadowMapFBO = new GLFramebuffer_Depth_f(2048, 2048);
         this._shadowMapFBO.createGPUResource(gl);
-        this._shadowMapPipeline = new Pipeline(100000)
+        this._shadowMapPipeline = new Pipeline(100000, "shadow map pipeline")
             .setFBO(this._shadowMapFBO)
             .cullFace(true, glC.BACK)
             .depthTest(true, glC.LESS)

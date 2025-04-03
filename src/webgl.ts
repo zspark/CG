@@ -13,6 +13,7 @@ import {
     IPipeline, ISubPipeline, UniformUpdaterFn_t, PipelineOption_t, SubPipelineOption_t,
     IMaterial,
     PBRTextureIndex_e,
+    AfterExecuteCallbackFn_t,
 } from "./types-interfaces.js";
 
 const _wm_buffer = new WeakMap();
@@ -423,7 +424,7 @@ export class GLTexture implements ITexture {
     resize(width: number, height: number): ITexture {
         this._width = width;
         this._height = height;
-        this.destroyGLTexture();
+        this.destroy();
         return this;
     }
 
@@ -444,9 +445,19 @@ export class GLTexture implements ITexture {
                     this._format, this._type, null);
             }
         } else {
-            //texImage2D(target, level, internalformat, width, height, border, format, type, source)
-            gl.texImage2D(this._target, 0, this._internalFormat, this._width, this._height, 0,
-                this._format, this._type, null);
+            if (this._genMipmap) {
+                const _N = Math.floor(Math.log2(Math.max(this._width, this._height)));
+                for (let i = 0; i <= _N; ++i) {
+                    let w = Math.ceil(this._width / Math.pow(2, i));
+                    let h = Math.ceil(this._height / Math.pow(2, i));
+                    gl.texImage2D(this._target, i, this._internalFormat, w, h, 0,
+                        this._format, this._type, null);
+                }
+            } else {
+                //texImage2D(target, level, internalformat, width, height, border, format, type, source)
+                gl.texImage2D(this._target, 0, this._internalFormat, this._width, this._height, 0,
+                    this._format, this._type, null);
+            }
         }
         this.updateData(this._data);
         this._data = undefined;
@@ -469,7 +480,7 @@ export class GLTexture implements ITexture {
                 lod, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
                 this._format, this._type, data as any);
         }
-        this._genMipmap && gl.generateMipmap(this._target);
+        //this._genMipmap && gl.generateMipmap(this._target);
         return this;
     }
 
@@ -490,7 +501,7 @@ export class GLTexture implements ITexture {
         return this;
     }
 
-    destroyGLTexture(): ITexture {
+    destroy(): ITexture {
         const gl = this._gl;
         gl?.deleteTexture(this._glTexture);
         this._glTexture = undefined;
@@ -502,6 +513,7 @@ export class GLPipeline implements IPipeline {
     FBO: IFramebuffer;
     program: IProgram;
 
+    private _name: string;
     private _device: WebGL2RenderingContext;
     private _arrSubPipeline: ISubPipeline[] = [];
     private _arrOneTimeSubPipeline: ISubPipeline[] = [];
@@ -520,10 +532,26 @@ export class GLPipeline implements IPipeline {
     private _drawBuffers: GLenum[];
     private _priority: number;
 
-    constructor(priority: number = 0) {
+    private _afterExecuteCallback: AfterExecuteCallbackFn_t;
+
+    constructor(priority: number = 0, name: string = "") {
         this._culledFace = glC.BACK;
         this._depthTestFunc = glC.LESS;
         this._priority = priority;
+        this._name = name;
+    }
+
+    get name(): string {
+        return this._name;
+    }
+
+    get afterExecuteCallbackFn(): AfterExecuteCallbackFn_t {
+        return this._afterExecuteCallback;
+    }
+
+    setAfterExecuteCallbackFn(fn: AfterExecuteCallbackFn_t): IPipeline {
+        this._afterExecuteCallback = fn;
+        return this;
     }
 
     get priority(): number {
@@ -554,6 +582,7 @@ export class GLPipeline implements IPipeline {
 
     addTexture(texture: ITexture): IPipeline {
         if (!texture) return this;
+        texture.createGPUResource(this._device);
         this._textureSet.push(texture);
         this._arrSubPipeline.forEach((sp: ISubPipeline) => {
             sp.addTexture(texture);
@@ -786,6 +815,14 @@ export class GLFramebuffer implements IFramebuffer {
         let _pixel = new Uint8Array(this._width * this._height * 4);
         gl.readPixels(0, 0, this._width, this._height, glC.RGBA, glC.UNSIGNED_BYTE, _pixel);
         return _pixel;
+    }
+
+    copyColorAttachmentToTexture(attachment: number, texture: ITexture, level: number = 0): void {
+        const gl = this._gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFramebuffer);
+        gl.readBuffer(gl.COLOR_ATTACHMENT0 + attachment);
+        gl.bindTexture(gl.TEXTURE_2D, _wm_texture.get(texture));
+        gl.copyTexSubImage2D(gl.TEXTURE_2D, level, 0, 0, 0, 0, this._width, this._height);
     }
 
     saveTexture(attachment: number): void {
