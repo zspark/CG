@@ -1,5 +1,6 @@
 import log from "./log.js";
 import _loadHDR from "./HDR-loader.js";
+import { TextureData_t } from "./types-interfaces.js";
 
 //export type BinaryLoader = (url: string) => Promise<ArrayBuffer>;
 type TextLoader = (url: string) => Promise<string>;
@@ -49,7 +50,7 @@ function _loadTexture(combinedURL: string): Promise<TextureData_t> {
     if (combinedURL.indexOf(".hdr") > 0) {
         return new Promise((res, rej) => {
             _loadHDR(combinedURL, (data: Uint8Array, width: number, height: number) => {
-                res({ data, width, height })
+                res({ data, width, height, hdr: true })
             }, () => {
                 rej();
             });
@@ -58,7 +59,14 @@ function _loadTexture(combinedURL: string): Promise<TextureData_t> {
         return new Promise((d, f) => {
             const _image = new Image();
             _image.onload = () => {
-                d({ data: _image, width: _image.width, height: _image.height });
+                const canvas = document.createElement("canvas");
+                canvas.width = _image.width;
+                canvas.height = _image.height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(_image, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                //@ts-ignore
+                d(imageData);
             };
             _image.onerror = (err: any) => {
                 f(err);
@@ -67,12 +75,6 @@ function _loadTexture(combinedURL: string): Promise<TextureData_t> {
         });
     }
 }
-
-export type TextureData_t = {
-    data: Uint8Array | HTMLImageElement;
-    width: number;
-    height: number;
-};
 
 /**
 * baseURL should ended up with '\'

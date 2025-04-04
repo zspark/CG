@@ -1,6 +1,8 @@
+import log from "./log.js";
 import glC from "./gl-const.js";
-import { default as TextureBaker, BakerType_e } from "./texture-baker.js"
-import { default as createLoader, TextureData_t } from "./assets-loader.js";
+import { default as Thread } from "./thread.js"
+import { default as TextureBaker, BakerType_e } from "./worker/texture-baker.js"
+import { default as createLoader } from "./assets-loader.js";
 import { Event_t, default as EventDispatcher, IEventDispatcher } from "./event.js";
 import {
     Texture,
@@ -9,6 +11,7 @@ import {
     Framebuffer,
 } from "./device-resource.js";
 import {
+    TextureData_t,
     IProgram,
     IFramebuffer,
     IPipeline,
@@ -49,19 +52,38 @@ export default class Environment extends EventDispatcher {
             this._irradianceTexture.setParameter(glC.TEXTURE_MAG_FILTER, glC.LINEAR);
             this._irradianceTexture.setParameter(glC.TEXTURE_MIN_FILTER, glC.LINEAR);
 
+            const N = 8;
             this._prefilteredTexture = new Texture(width, height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
-            this._prefilteredTexture.genMipmap = true;
+            this._prefilteredTexture.target = glC.TEXTURE_3D;
+            this._prefilteredTexture.depth = N;
             this._prefilteredTexture.setParameter(glC.TEXTURE_WRAP_S, glC.REPEAT);
-            this._prefilteredTexture.setParameter(glC.TEXTURE_WRAP_T, glC.MIRRORED_REPEAT);
+            this._prefilteredTexture.setParameter(glC.TEXTURE_WRAP_T, glC.CLAMP_TO_EDGE);
+            this._prefilteredTexture.setParameter(glC.TEXTURE_WRAP_R, glC.CLAMP_TO_EDGE);
             this._prefilteredTexture.setParameter(glC.TEXTURE_MAG_FILTER, glC.LINEAR);
-            this._prefilteredTexture.setParameter(glC.TEXTURE_MIN_FILTER, glC.LINEAR_MIPMAP_LINEAR);
+            this._prefilteredTexture.setParameter(glC.TEXTURE_MIN_FILTER, glC.LINEAR);
 
-            let _baker = new TextureBaker(BakerType_e.IRRADIANCE, this.environmentTexture, this.irradianceTexture);
-            this._arrPipeline.push(_baker.pipeline);
-            _baker = new TextureBaker(BakerType_e.ENVIRONMENT, this.environmentTexture, this._prefilteredTexture, 0);
-            this._arrPipeline.push(_baker.pipeline);
+            new TextureBaker().bake(BakerType_e.IRRADIANCE, img, 0, true).then(tex => {
+                this._irradianceTexture.updateData(tex.data);
+            });
+            const _arrPromise: Promise<TextureData_t>[] = [];
+            for (let i = 0; i < N; ++i) {
+                _arrPromise.push(new TextureBaker().bake(BakerType_e.ENVIRONMENT, img, i / N, true));
+            }
+            Promise.all(_arrPromise).then((a: TextureData_t[]) => {
+                const _ab = new ArrayBuffer(width * height * 4 * N);
+                const _u8c = new Uint8ClampedArray(_ab);
+                for (let i = 0; i < N; ++i) {
+                    _u8c.set((a[i].data as Uint8ClampedArray), width * height * 4 * i);
+                }
+                this._prefilteredTexture.updateData(_u8c);
+            });
+            //let _baker = new TextureBaker(BakerType_e.IRRADIANCE, _texture, this.irradianceTexture);
+            //this._arrPipeline.push(_baker.pipeline);
+            //_baker = new TextureBaker(BakerType_e.ENVIRONMENT, _texture, this._prefilteredTexture, 0);
+            //this._arrPipeline.push(_baker.pipeline);
             //this._arrBaker.push(_baker);
 
+            /*
             const _N = Math.floor(Math.log2(Math.max(width, height)));
             for (let i = 1; i <= _N; ++i) {
                 let w = Math.ceil(width / Math.pow(2, i));
@@ -81,6 +103,7 @@ export default class Environment extends EventDispatcher {
                 //this._arrBaker.push(_baker);
                 this._arrPipeline.push(_baker.pipeline);
             }
+            */
 
         }));
 
@@ -95,7 +118,7 @@ export default class Environment extends EventDispatcher {
         ///
         _arrPromis.push(_loader.loadTexture("./assets/lut/brdf-lut.png").then((img: TextureData_t) => {
             //this._brdfLutTexture = new Texture(img.width, img.height,  glC.RG16F, glC.RG, glC.FLOAT, true);
-            this._brdfLutTexture = new Texture(img.width, img.height, glC.RGB, glC.RGB, glC.UNSIGNED_BYTE);
+            this._brdfLutTexture = new Texture(img.width, img.height, glC.RGBA, glC.RGBA, glC.UNSIGNED_BYTE);
             this._brdfLutTexture.setParameter(glC.TEXTURE_MAG_FILTER, glC.LINEAR);
             this._brdfLutTexture.setParameter(glC.TEXTURE_MIN_FILTER, glC.LINEAR);
             this._brdfLutTexture.data = img.data;

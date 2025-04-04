@@ -11,7 +11,7 @@ import { default as Axes, AxesMode_e } from "./axes.js";
 import { default as Picker, Pickable_t, PickResult_t } from "./picker.js";
 import EventDispatcher, { Event_t } from "./event.js";
 import { default as registMouseEvents, MouseEvents_t } from "./mouse-events.js";
-import { default as createLoader, TextureData_t } from "./assets-loader.js";
+import { default as createLoader } from "./assets-loader.js";
 import SpaceController from "./space-controller.js";
 import { GLTFParserOutput_t, default as GLTFParser } from "./gltf-parser.js";
 import { ILight, default as light } from "./light-source.js";

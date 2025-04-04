@@ -270,6 +270,7 @@ export class GLProgram implements IProgram {
                     case gl.FLOAT_MAT4:
                         _fn = gl.uniformMatrix4fv.bind(gl, _u, false);
                         break;
+                    case gl.SAMPLER_3D:
                     case gl.SAMPLER_2D:
                     case gl.SAMPLER_2D_SHADOW:
                     case gl.SAMPLER_2D_ARRAY:
@@ -319,6 +320,7 @@ export class GLTexture implements ITexture {
     private _type: GLenum;
     private _width: number;
     private _height: number;
+    private _depth: number = 0;
     private _data: TextureData_t | TextureData_t[];
     private _mapTextureParameter: Map<GLenum, GLenum> = new Map();
     private _UVIndex: number = 0;
@@ -342,6 +344,10 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter.set(glC.TEXTURE_MIN_FILTER, glC.NEAREST);
         this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
         this._hdr = hdr;
+    }
+
+    set depth(v: number) {
+        this._depth = v;
     }
 
     get isHDRData(): boolean {
@@ -376,7 +382,7 @@ export class GLTexture implements ITexture {
         return this._UVIndex;
     }
 
-    set data(data: TextureData_t | TextureData_t[]) {
+    set data(data: any) {
         if (this._glTexture) {
             this.updateData(data);
         } else {
@@ -444,7 +450,7 @@ export class GLTexture implements ITexture {
                 gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, this._internalFormat, this._width, this._height, 0,
                     this._format, this._type, null);
             }
-        } else {
+        } else if (this._target === glC.TEXTURE_2D) {
             if (this._genMipmap) {
                 const _N = Math.floor(Math.log2(Math.max(this._width, this._height)));
                 for (let i = 0; i <= _N; ++i) {
@@ -458,13 +464,16 @@ export class GLTexture implements ITexture {
                 gl.texImage2D(this._target, 0, this._internalFormat, this._width, this._height, 0,
                     this._format, this._type, null);
             }
+        } else if (this._target === glC.TEXTURE_3D) {
+            gl.texImage3D(this._target, 0, this._internalFormat, this._width, this._height, this._depth, 0,
+                this._format, this._type, null);
         }
         this.updateData(this._data);
         this._data = undefined;
         return this;
     }
 
-    updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number, lod: number = 0): ITexture {
+    updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number, lod: number = 0): ITexture {
         if (!this._glTexture) return this;
         if (!data) return this;
         const gl = this._gl;
@@ -473,11 +482,16 @@ export class GLTexture implements ITexture {
             for (let i = 0; i < 6; ++i) {
                 gl.texSubImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + i,
                     lod, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
-                    this._format, this._type, (data as Array<TextureData_t>)[i] as any);
+                    this._format, this._type, (data as Array<any>)[i] as any);
             }
-        } else {
+        } else if (this._target === glC.TEXTURE_2D) {
             gl.texSubImage2D(this._target,
                 lod, xoffset ?? 0, yoffset ?? 0, width ?? this._width, height ?? this._height,
+                this._format, this._type, data as any);
+        } else if (this._target === glC.TEXTURE_3D) {
+            gl.texSubImage3D(this._target,
+                lod, xoffset ?? 0, yoffset ?? 0, 0,
+                width ?? this._width, height ?? this._height, this._depth,
                 this._format, this._type, data as any);
         }
         //this._genMipmap && gl.generateMipmap(this._target);

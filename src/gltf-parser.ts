@@ -1,9 +1,9 @@
 import log from "./log.js";
 import * as spec from "./gltf2_spec.js";
 import glC from "./gl-const.js";
-import { default as createLoader, ILoader, TextureData_t } from "./assets-loader.js"
+import { default as createLoader, ILoader } from "./assets-loader.js"
 import { default as Geometry } from "./geometry.js"
-import { ITexture, IGeometry, IBuffer, VertexAttribute_t, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
+import { ITexture, IGeometry, IBuffer, TextureData_t, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
 import { Buffer } from "./device-resource.js"
 import { Texture } from "./device-resource.js"
 import Mesh from "./mesh.js"
@@ -96,7 +96,7 @@ export default class GLTFParser implements IGLTFParser {
 
             let data = new Uint8Array(binaryChunk, _bv.byteOffset ?? 0, _bv.byteLength);
             let _size = Math.sqrt(_bv.byteLength / 4);
-            this._arrImage[i] = { data, width: _size, height: _size };
+            this._arrImage[i] = { data, width: _size, height: _size, hdr: false };
         }
         this._parse(_gltf);
     }

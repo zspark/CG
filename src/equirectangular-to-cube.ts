@@ -15,7 +15,6 @@ import {
     IPipeline,
     ITexture,
 } from "./types-interfaces.js";
-import { Loader, TextureData_t } from "./assets-loader.js";
 import { Mat44 } from "./math.js";
 
 const _equirectangularToSkybox: string[] = [

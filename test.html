@@ -6,21 +6,18 @@
 </head>
 
 <body>
-    <canvas id="glcanvas" width="640" height="480"></canvas>
-    <img id="color-texture" src="./assets/uv-grid.webp"></img>
-    <script src="./src/log.js"></script>
-    <script src="./third/dat.gui.js"></script>
+    <canvas id="glcanvas" width="512" height="256"></canvas>
 
     <script>
-        const img = document.getElementById('color-texture'); // 替换为你的 img 元素 ID
-        const canvas = document.getElementById('glcanvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, img.width, img.height);
-        const pixels = imageData.data; // Uint8ClampedArray，包含 RGBA 像素数据
 
+        const canvas = document.getElementById("glcanvas");
+        const offscreen = canvas.transferControlToOffscreen();
+        const worker = new Worker("./dist/worker/test.js");
+        worker.postMessage({
+            canvas: offscreen,
+            width: 512,
+            height: 512,
+        }, [offscreen]);
     </script>
 
 </body>

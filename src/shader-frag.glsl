@@ -1,6 +1,7 @@
 #version 300 es
 precision mediump float;
 precision highp sampler2DShadow;
+precision highp sampler3D;
 #define SHADER_NAME pbr
 //%%
 
@@ -42,7 +43,7 @@ uniform samplerCube u_irradianceTexture;
 uniform samplerCube u_prefilteredTexture;
 #else
 uniform sampler2D u_irradianceTexture;
-uniform sampler2D u_prefilteredTexture;
+uniform sampler3D u_prefilteredTexture;
 #endif
 uniform sampler2DShadow u_shadowMap;
 uniform sampler2D u_brdfLutTexture;
@@ -159,13 +160,11 @@ float _calculateShadowFactor(const in vec4 posProj) {
 #endif
 }
 
-#ifdef CUBE
 vec3 _textureColor(const in vec3 dir, samplerCube s, float roughness) {
-    return textureLod(s, dir, roughness * 9.).rgb;
+    return textureLod(s, dir, roughness * 4.).rgb;
 }
-#else
 const vec2 invAtan = vec2(0.15915494309189535, 0.3183098861837907);
-vec3 _textureColor(const in vec3 dir, sampler2D s, float roughness) {
+vec3 _textureColor(const in vec3 dir, sampler3D s, float roughness) {
     // atan(y,x): (-PI  , PI  );
     // atan(y/x): (-PI/2, PI/2);
     // acos(v)  : (0    , 2PI );
@@ -174,13 +173,20 @@ vec3 _textureColor(const in vec3 dir, sampler2D s, float roughness) {
     if (uv.x < 0.) {
         uv.x = 1. + uv.x;
     }
-    return textureLod(s, uv, roughness * 9.).rgb;
+    return texture(s, vec3(uv, roughness)).rgb;
 }
-#endif
+vec3 _textureColor(const in vec3 dir, sampler2D s) {
+    vec2 uv = vec2(atan(dir.z, dir.x), acos(dir.y));
+    uv *= invAtan;
+    if (uv.x < 0.) {
+        uv.x = 1. + uv.x;
+    }
+    return texture(s, uv).rgb;
+}
 
-vec3 _getIBLDiffuse(const in vec4 baseColor, const in vec3 r, float metalness, float roughness) {
+vec3 _getIBLDiffuse(const in vec4 baseColor, const in vec3 r, float metalness) {
     vec3 _diffuseColor = baseColor.rgb * (1.0 - DIELECTRIC_SPECULAR) * (1.0 - metalness);
-    vec3 _irradianceColor = _textureColor(r, u_irradianceTexture, roughness);
+    vec3 _irradianceColor = _textureColor(r, u_irradianceTexture);
     return _diffuseColor * _irradianceColor;
 }
 
@@ -228,7 +234,7 @@ void main() {
     vec3 _F = _fresnel(_ndotv, _F0, _metallicAndRoughness.y);
     // o_fragColor = vec4(_F, 1.);
     // return;
-    vec3 _iblDiffuse = _getIBLDiffuse(_baseColor, _viewRefDir, _metallicAndRoughness.x, _metallicAndRoughness.y);
+    vec3 _iblDiffuse = _getIBLDiffuse(_baseColor, _viewRefDir, _metallicAndRoughness.x);
     // o_fragColor = vec4(_iblDiffuse, 1.);
     // return;
     vec3 _iblSpecular = _getIBLSpecular(_baseColor, _viewRefDir, _F0, _metallicAndRoughness.y, _ndotv);
@@ -238,13 +244,12 @@ void main() {
     float _ndotl = max(dot(_normalW, _lightDir), 0.0);
     float _ndoth = max(dot(_normalW, _halfDir), 0.0);
     float _vdoth = max(dot(_viewDir, _halfDir), 0.0);
-    vec3 _directDiffuse = vec3(0.);  // _getDiffuse(_ndotl, _baseColor.rgb, _F, _shadowMapFactor);
-    vec3 _directSpecular = vec3(0.); /* _getHighlight(
-         _ndotl, _ndotv, _ndoth, _vdoth,
-         _metallicAndRoughness.y,
-         _F,
-         _shadowMapFactor);
-     */
+    vec3 _directDiffuse = _getDiffuse(_ndotl, _baseColor.rgb, _F, _shadowMapFactor);
+    vec3 _directSpecular = _getHighlight(
+        _ndotl, _ndotv, _ndoth, _vdoth,
+        _metallicAndRoughness.y,
+        _F,
+        _shadowMapFactor);
     vec3 _color = _iblDiffuse + _iblSpecular + _directDiffuse + _directSpecular;
     float _alpha = _baseColor.a;
 

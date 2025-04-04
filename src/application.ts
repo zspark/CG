@@ -98,6 +98,10 @@ export default class Application {
                 },
                 debug: {
                     genBRDFLut: () => { this._scene.generateBRDFLut(); },
+                    testThread: () => {
+                        //new CG.Thread("./dist/worker/test.js");
+                        new CG.Thread("./dist/worker/texture-baker.js").run();
+                    },
                     showOutline: false,
                     debugTexture: "none",
                     debugColor: "none",
@@ -135,6 +139,7 @@ export default class Application {
             //_gui.add(_obj, "open");
             const _debugFolder = _gui.addFolder("debug").close();
             _debugFolder.add(_obj.debug, "genBRDFLut");
+            _debugFolder.add(_obj.debug, "testThread");
             _debugFolder.add(_obj.debug, "showOutline").onChange((v: boolean) => {
                 this._scene.showOutline = v;
             });

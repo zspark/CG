@@ -87,7 +87,14 @@ export interface IProgram extends IBindableObject {
     destroy(): void;
 }
 
-export type TextureData_t = Uint8Array | Uint16Array | Float32Array | HTMLImageElement;
+export type TextureData_t = {
+    data: Uint8ClampedArray | Uint8Array | Uint16Array | Float32Array | HTMLImageElement;
+    width: number;
+    height: number;
+    colorSpace?: string;
+    hdr: boolean;
+};
+
 
 export interface ITexture {
     target: GLenum;
@@ -97,7 +104,8 @@ export interface ITexture {
     readonly width: number;
     readonly height: number;
     set genMipmap(value: boolean);
-    set data(data: TextureData_t | TextureData_t[]);
+    set data(data: any);
+    set depth(v: number);
 
     saveTexture(): void;
     resize(width: number, height: number): ITexture;
@@ -106,7 +114,7 @@ export interface ITexture {
     /**
      * data[0-5]: x+,x-,y+, y-, z+,z-
      */
-    updateData(data: TextureData_t | TextureData_t[], xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
+    updateData(data: any, xoffset?: number, yoffset?: number, width?: number, height?: number): ITexture;
     setParameter(name: number, value: number): ITexture;
     bind(textureUnit: number): ITexture;
     destroy(): ITexture;
