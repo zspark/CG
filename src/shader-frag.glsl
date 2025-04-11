@@ -203,7 +203,7 @@ vec3 _getDiffuse(float ndotl, const in vec3 albedoColor, const in vec3 F, float 
     if (ndotl <= 0.0) {
         return vec3(.0);
     } else {
-        return ndotl * ONE_OVER_PI * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F);
+        return ndotl * albedoColor * u_lightColor.xyz * u_lightColor.w * shadowMapFactor * (1.0 - F);
     }
 }
 
@@ -218,11 +218,13 @@ vec3 _getHighlight(float ndotl, float ndotv, float ndoth, float vdoth, float rou
 }
 
 void main() {
+    // o_fragColor = vec4(0.4); return;
     vec2 _metallicAndRoughness = _getMetallicAndRoughtness();
+    // o_fragColor = vec4(_metallicAndRoughness, 0., 1.); return;
     vec4 _baseColor = _getBaseColor();
+    // o_fragColor = _baseColor; return;
     vec3 _normalW = _getNormalW();
-    // o_fragColor = vec4(_normalW, 1.);
-    // return;
+    // o_fragColor = vec4(_normalW, 1.); return;
     vec3 _lightDir = normalize(vec3(u_lInvMatrix[3][0], u_lInvMatrix[3][1], u_lInvMatrix[3][2]) - v_positionW);
     vec3 _viewDir = normalize(vec3(u_vInvMatrix[3][0], u_vInvMatrix[3][1], u_vInvMatrix[3][2]) - v_positionW);
     vec3 _viewRefDir = reflect(-_viewDir, _normalW);
@@ -232,14 +234,11 @@ void main() {
     float _ndotv = max(dot(_normalW, _viewDir), 0.0);
     vec3 _F0 = mix(vec3(DIELECTRIC_SPECULAR), _baseColor.rgb, _metallicAndRoughness.x);
     vec3 _F = _fresnel(_ndotv, _F0, _metallicAndRoughness.y);
-    // o_fragColor = vec4(_F, 1.);
-    // return;
+    // o_fragColor = vec4(_F, 1.); return;
     vec3 _iblDiffuse = _getIBLDiffuse(_baseColor, _viewRefDir, _metallicAndRoughness.x);
-    // o_fragColor = vec4(_iblDiffuse, 1.);
-    // return;
+    // o_fragColor = vec4(_iblDiffuse, 1.); return;
     vec3 _iblSpecular = _getIBLSpecular(_baseColor, _viewRefDir, _F0, _metallicAndRoughness.y, _ndotv);
-    // o_fragColor = vec4(_iblSpecular, 1.);
-    // return;
+    // o_fragColor = vec4(_iblSpecular, 1.); return;
 
     float _ndotl = max(dot(_normalW, _lightDir), 0.0);
     float _ndoth = max(dot(_normalW, _halfDir), 0.0);
@@ -250,8 +249,12 @@ void main() {
         _metallicAndRoughness.y,
         _F,
         _shadowMapFactor);
-    vec3 _color = _iblDiffuse + _iblSpecular + _directDiffuse + _directSpecular;
+    vec3 _color = _directDiffuse + _directSpecular;
     float _alpha = _baseColor.a;
+
+#ifdef TONE_MAPPING
+    _color = _color / (_color + 1.0);
+#endif
 
 #ifdef DEBUG
     if (u_colorDebug == DBG_COLOR_AMBIENT) {

@@ -13,7 +13,11 @@ export default class Application {
         CG.programManagerHint(true, true);
         const _scene = this._scene = new CG.Scene(canvas);
         //_scene.setSkybox("./assets/environment/quarry_01_1k.hdr");
-        _scene.setSkybox("./assets/skybox/latlon2.jpg");
+        _scene.setSkybox("./assets/environment/quarry_01_1k_512_256.hdr");
+        //_scene.setSkybox("./assets/environment/aa.hdr");
+        //_scene.setSkybox("./assets/environment/quarry_01_1k_256_128.hdr");
+        //_scene.setSkybox("./assets/environment/quarry_01_1k_128_64.hdr");
+        //_scene.setSkybox("./assets/skybox/latlon2.jpg");
         //_scene.setSkybox("./assets/uv-grid.webp");
 
         //--------------------------------------------------------------------------------
@@ -34,8 +38,8 @@ export default class Application {
             //"./assets/gltf/MetalRoughSpheres.glb"
             //"./assets/gltf/skull/scene.gltf"
             //"./assets/gltf/cube/scene.gltf"
-            //"./assets/gltf/cup_with_holder/scene.gltf"
-            "./assets/gltf/sphere/scene.gltf"
+            "./assets/gltf/cup_with_holder/scene.gltf"
+        //"./assets/gltf/sphere/scene.gltf"
         //"./assets/gltf/stanford_dragon_vrip/scene.gltf"
         //"./assets/gltf/metal_dragon/scene.gltf"
         //"./assets/gltf/vintage_metal_ashtray/scene.gltf"
@@ -48,7 +52,7 @@ export default class Application {
         new CG.GLTFParser().load(_url).then((data: CG.GLTFParserOutput_t) => {
             for (let i = 0, N = data.CGMeshs.length; i < N; ++i) {
                 let _mesh = data.CGMeshs[i];
-                this._ctrl.setSpace(_mesh).scale(0.1, 0.1, 0.1);//.moveForward(i == 0 ? -4 : 4);
+                //this._ctrl.setSpace(_mesh).scale(0.1, 0.1, 0.1);//.moveForward(i == 0 ? -4 : 4);
                 _mesh.enablePick = true;
                 this._scene.addMesh(_mesh);
             }

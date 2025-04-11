@@ -3,7 +3,7 @@ import * as spec from "./gltf2_spec.js";
 import glC from "./gl-const.js";
 import { default as createLoader, ILoader } from "./assets-loader.js"
 import { default as Geometry } from "./geometry.js"
-import { ITexture, IGeometry, IBuffer, TextureData_t, ShaderLocation_e, StepMode_e } from "./types-interfaces.js"
+import { ITexture, IGeometry, IBuffer, TextureData_t, ShaderLocation_e, StepMode_e, ImageEncoding_e } from "./types-interfaces.js"
 import { Buffer } from "./device-resource.js"
 import { Texture } from "./device-resource.js"
 import Mesh from "./mesh.js"
@@ -171,6 +171,7 @@ export default class GLTFParser implements IGLTFParser {
             const tex: spec.GLTFTexture_t = texs[i];
             const _img: TextureData_t = this._arrImage[tex.source];
             let _out = new Texture(_img.width, _img.height);
+            _out.encoding = _img.colorSpace === "srgb" ? ImageEncoding_e.SRGB : ImageEncoding_e.LINEAR;
             _out.data = _img.data;
             const _sampler: spec.GLTFSampler_t = this._ref_gltf.samplers[tex.sampler];
             _out.setParameter(glC.TEXTURE_WRAP_S, _sampler.wrapS);

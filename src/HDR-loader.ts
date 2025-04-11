@@ -3,6 +3,7 @@
  *
  * hdrpng.js - support for Radiance .HDR and RGBE / RGB9_E5 images in PNG.
  * @author Enki
+ * @github: https://enkimute.github.io/hdrpng.js/
  * @desc load/save Radiance .HDR, RGBE in PNG and RGB9_E5 in PNG for HTML5, webGL, webGL2.
  */
 

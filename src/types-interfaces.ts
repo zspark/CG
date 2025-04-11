@@ -88,13 +88,17 @@ export interface IProgram extends IBindableObject {
 }
 
 export type TextureData_t = {
-    data: Uint8ClampedArray | Uint8Array | Uint16Array | Float32Array | HTMLImageElement;
+    data: Uint8ClampedArray | Uint8Array | Uint16Array | Float32Array | HTMLImageElement | Uint32Array;
     width: number;
     height: number;
     colorSpace?: string;
     hdr: boolean;
 };
 
+export enum ImageEncoding_e {
+    SRGB = 1,
+    LINEAR = 2,
+};
 
 export interface ITexture {
     target: GLenum;
@@ -103,6 +107,7 @@ export interface ITexture {
     readonly textureUnit: GLint;
     readonly width: number;
     readonly height: number;
+    set encoding(value: ImageEncoding_e);
     set genMipmap(value: boolean);
     set data(data: any);
     set depth(v: number);

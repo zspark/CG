@@ -3,6 +3,7 @@ import { initProgram } from "./program-manager.js"
 import { BINDING_POINT, default as glC, initGLConstant } from "./gl-const.js"
 import {
     createContext_fn_t,
+    ImageEncoding_e,
     IUniformBlock,
     IRenderContext,
     IBuffer, BufferData_t,
@@ -326,6 +327,7 @@ export class GLTexture implements ITexture {
     private _UVIndex: number = 0;
     private _target: GLenum;
     private _genMipmap: boolean = true;
+    private _encoding: ImageEncoding_e = ImageEncoding_e.LINEAR;
 
     /**
     * internalFormat defaults to gl.RGBA
@@ -344,6 +346,10 @@ export class GLTexture implements ITexture {
         this._mapTextureParameter.set(glC.TEXTURE_MIN_FILTER, glC.NEAREST);
         this._mapTextureParameter.set(glC.TEXTURE_MAG_FILTER, glC.NEAREST);
         this._hdr = hdr;
+    }
+
+    set encoding(value: ImageEncoding_e) {
+        this._encoding = value;
     }
 
     set depth(v: number) {
@@ -451,19 +457,10 @@ export class GLTexture implements ITexture {
                     this._format, this._type, null);
             }
         } else if (this._target === glC.TEXTURE_2D) {
-            if (this._genMipmap) {
-                const _N = Math.floor(Math.log2(Math.max(this._width, this._height)));
-                for (let i = 0; i <= _N; ++i) {
-                    let w = Math.ceil(this._width / Math.pow(2, i));
-                    let h = Math.ceil(this._height / Math.pow(2, i));
-                    gl.texImage2D(this._target, i, this._internalFormat, w, h, 0,
-                        this._format, this._type, null);
-                }
-            } else {
-                //texImage2D(target, level, internalformat, width, height, border, format, type, source)
-                gl.texImage2D(this._target, 0, this._internalFormat, this._width, this._height, 0,
-                    this._format, this._type, null);
-            }
+            //texImage2D(target, level, internalformat, width, height, border, format, type, source)
+            gl.texImage2D(this._target, 0,
+                this._encoding === ImageEncoding_e.LINEAR ? this._internalFormat : glC.SRGB8_ALPHA8, this._width, this._height, 0,
+                this._format, this._type, null);
         } else if (this._target === glC.TEXTURE_3D) {
             gl.texImage3D(this._target, 0, this._internalFormat, this._width, this._height, this._depth, 0,
                 this._format, this._type, null);
@@ -494,7 +491,7 @@ export class GLTexture implements ITexture {
                 width ?? this._width, height ?? this._height, this._depth,
                 this._format, this._type, data as any);
         }
-        //this._genMipmap && gl.generateMipmap(this._target);
+        this._genMipmap && gl.generateMipmap(this._target);
         return this;
     }
 

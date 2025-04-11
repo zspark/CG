@@ -42,6 +42,7 @@ type _glConst = {
     RGBA32F: GLenum,
     RG: GLenum,
     RG8: GLenum,
+    UNSIGNED_INT_5_9_9_9_REV: GLenum,
     RG16F: GLenum,
     RG32F: GLenum,
     RGA16F: GLenum,
@@ -152,6 +153,7 @@ export function initGLConstant(gl: WebGL2RenderingContext): void {
     glConst.RED_INTEGER = gl.RED_INTEGER;
     glConst.INT = gl.INT;
     glConst.RG8 = gl.RG8;
+    glConst.UNSIGNED_INT_5_9_9_9_REV = gl.UNSIGNED_INT_5_9_9_9_REV;
 
     glConst.NONE = gl.NONE;
     glConst.TEXTURE_2D = gl.TEXTURE_2D;

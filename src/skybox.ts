@@ -46,11 +46,11 @@ uniform samplerCube u_skyboxTexture;
 out vec4 o_fragColor;
 in vec3 v_uvSkybox;
 void main() {
-    vec4 _rgbe = texture(u_skyboxTexture, v_uvSkybox);
-#ifdef HDR
-    _rgbe.rgb *= pow(2.0, _rgbe.a * 255.0 - 128.0);       // unpack RGBE to HDR RGB
+    vec4 _data = texture(u_skyboxTexture, v_uvSkybox);
+#ifdef RGBE
+    _data.rgb *= pow(2.0, _data.a * 255.0 - 128.0);       // unpack RGBE to HDR RGB
 #endif
-    o_fragColor = vec4(_rgbe.rgb, 1.0);
+    o_fragColor = vec4(_data.rgb, 1.0);
 }`];
 
 const _equirectangular: string[] = [
@@ -105,7 +105,16 @@ vec2 directionToUV(const in vec3 dir){
 void main() {
     vec3 rayDir = normalize(v_rayDirection);
     vec2 _uv = directionToUV(rayDir);
-    o_fragColor = texture(u_equirectagularTexture, _uv);
+    vec4 _data = texture(u_equirectagularTexture, _uv);
+#ifdef RGBE
+    _data.rgb *= pow(2.0, _data.a * 255.0 - 128.0);       // unpack RGBE to HDR RGB
+#endif
+
+#ifdef GAMMA_CORRECT
+    const float gammaFactor = (1.0 / 2.2);
+    _data.rgb = pow(_data.rgb, vec3(gammaFactor));
+#endif
+    o_fragColor = vec4(_data.rgb, 1.0);
 }`
 ];
 
@@ -126,7 +135,10 @@ export default class Skybox {
             .depthTest(false, glC.LESS)
             .blend(false, glC.SRC_ALPHA, glC.ONE_MINUS_SRC_ALPHA, glC.FUNC_ADD)
 
-        const _config = { hdr: skyTexture.isHDRData };
+        const _config = {
+            rgbe: skyTexture.isHDRData,
+            gamma_correct: true
+        };
         this._cubeTexture = skyTexture;
         if (skyTexture.target === glC.TEXTURE_CUBE_MAP) {
 

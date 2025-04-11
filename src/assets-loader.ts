@@ -59,6 +59,7 @@ function _loadTexture(combinedURL: string): Promise<TextureData_t> {
         return new Promise((d, f) => {
             const _image = new Image();
             _image.onload = () => {
+                //d({ data: _image, width: _image.width, height: _image.height, hdr: false }); return;
                 const canvas = document.createElement("canvas");
                 canvas.width = _image.width;
                 canvas.height = _image.height;

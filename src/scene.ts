@@ -80,7 +80,8 @@ export default class Scene {
                 ft_shadow: true,
                 cube: false,
                 debug: true,
-                //gamma_correct: true,
+                tone_mapping: false,
+                gamma_correct: true,
             }));
         this._renderer.addPipeline(this._pbrPipeline);
         this._renderer.addPipeline(this._gridFloor.pipeline);
